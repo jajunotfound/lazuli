@@ -9,3 +9,4 @@ export {
   type LazuliOptions,
   type CursorMode,
 } from './params'
+export { LazuliElement, defineLazuliElement, TAG_NAME } from './element'

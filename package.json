@@ -5,7 +5,7 @@
   "packageManager": "pnpm@12.6.0",
   "scripts": {
     "dev": "pnpm --filter @lazuli/playground dev",
-    "dev:engine": "pnpm --filter lazuli dev",
+    "dev:engine": "pnpm --filter lazuli-bg dev",
     "build": "pnpm -r build",
     "lint": "pnpm -r lint"
   },

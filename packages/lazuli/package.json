@@ -1,5 +1,5 @@
 {
-  "name": "lazuli",
+  "name": "lazuli-bg",
   "version": "0.1.0",
   "description": "Soft, interactive metaball gradient backgrounds rendered with WebGL.",
   "license": "MIT",
@@ -8,17 +8,29 @@
   "main": "./dist/lazuli.js",
   "module": "./dist/lazuli.js",
   "types": "./dist/index.d.ts",
+  "unpkg": "./dist/lazuli.global.js",
+  "jsdelivr": "./dist/lazuli.global.js",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/lazuli.js"
-    }
+    },
+    "./element": {
+      "types": "./dist/element-define.d.ts",
+      "import": "./dist/element.js"
+    },
+    "./global": "./dist/lazuli.global.js",
+    "./package.json": "./package.json"
   },
-  "sideEffects": false,
+  "sideEffects": ["./dist/element.js", "./dist/lazuli.global.js"],
   "keywords": ["webgl", "shader", "gradient", "background", "metaballs", "web-component"],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/REPLACE_ME/lazuli"
+  },
   "scripts": {
     "dev": "vite",
-    "build": "vite build && tsc -p tsconfig.build.json",
+    "build": "vite build && vite build --mode iife && tsc -p tsconfig.build.json",
     "lint": "tsc --noEmit"
   },
   "devDependencies": {

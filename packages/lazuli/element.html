@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Lazuli element test</title>
+    <!-- Exactly what a CDN user does: one script tag, no bundler. Run `pnpm build` first. -->
+    <script src="/dist/lazuli.global.js"></script>
+    <style>
+      body { margin: 0; font: 16px/1.5 system-ui, sans-serif; display: grid; gap: 16px; padding: 16px; }
+      .hero { position: relative; isolation: isolate; height: 60vh; border-radius: 20px; overflow: hidden; display: grid; place-items: center; }
+      .hero h1 { margin: 0; color: #fff; font-size: 48px; }
+      .card { position: relative; isolation: isolate; height: 200px; width: 320px; border-radius: 16px; overflow: hidden; }
+    </style>
+  </head>
+  <body>
+    <section class="hero">
+      <lazuli-bg id="hero"></lazuli-bg>
+      <h1>Content on top</h1>
+    </section>
+    <div class="card">
+      <lazuli-bg core="#7a1f5c" edge="#d45a9a" ground="#f4dde8" count="5" size="70" cursor="pull" strength="90" seed="12"></lazuli-bg>
+    </div>
+    <p>
+      <button id="shuffle" type="button">Shuffle hero</button>
+      <button id="attr" type="button">Toggle hero colors via attribute</button>
+      <button id="remove" type="button">Remove card</button>
+    </p>
+    <script>
+      const hero = document.getElementById('hero')
+      document.getElementById('shuffle').onclick = () => hero.shuffle()
+      let alt = false
+      document.getElementById('attr').onclick = () => {
+        alt = !alt
+        hero.setAttribute('core', alt ? '#0f5e4a' : '#1f45a6')
+        hero.setAttribute('edge', alt ? '#3fae8a' : '#4a74d4')
+        hero.setAttribute('ground', alt ? '#dcefe6' : '#cdd6ea')
+      }
+      document.getElementById('remove').onclick = () => document.querySelector('.card')?.remove()
+      console.log('window.Lazuli keys:', Object.keys(window.Lazuli).join(', '))
+    </script>
+  </body>
+</html>
