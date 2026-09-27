@@ -25,7 +25,7 @@ import 'lazuli-bg/element'
 
 ```html
 <section style="position: relative; isolation: isolate">
-  <lazuli-bg core="#1f45a6" edge="#4a74d4" ground="#cdd6ea" count="3" cursor="push"></lazuli-bg>
+  <lazuli-bg core="#1f48a8" edge="#4c78d8" ground="#ffffff" count="3" cursor="push"></lazuli-bg>
   <h1>Content sits on top</h1>
 </section>
 ```
@@ -40,7 +40,7 @@ full-page background. Attributes are live: change one and the background follows
 
 ```html
 <script src="https://cdn.jsdelivr.net/npm/lazuli-bg/dist/lazuli.global.js"></script>
-<lazuli-bg core="#1f45a6" edge="#4a74d4" ground="#cdd6ea"></lazuli-bg>
+<lazuli-bg core="#1f48a8" edge="#4c78d8" ground="#ffffff"></lazuli-bg>
 ```
 
 The script registers `<lazuli-bg>` and exposes the JS API as `window.Lazuli`. unpkg works too:
@@ -52,9 +52,9 @@ The script registers `<lazuli-bg>` and exposes the JS API as `window.Lazuli`. un
 import { createLazuli } from 'lazuli-bg'
 
 const bg = createLazuli(document.querySelector('#hero'), {
-  core: '#1f45a6',
-  edge: '#4a74d4',
-  ground: '#cdd6ea',
+  core: '#1f48a8',
+  edge: '#4c78d8',
+  ground: '#ffffff',
   speed: 0.35,
 })
 
@@ -71,17 +71,17 @@ container, not just full-screen.
 
 | Param      | Values              | Default   | What it does                                          |
 | ---------- | ------------------- | --------- | ----------------------------------------------------- |
-| `core`     | hex color           | `#1f45a6` | Color at the dense center of the shapes               |
-| `edge`     | hex color           | `#4a74d4` | Color of the soft outer edge                          |
-| `ground`   | hex color           | `#cdd6ea` | Background color                                      |
+| `core`     | hex color           | `#1f48a8` | Color at the dense center of the shapes               |
+| `edge`     | hex color           | `#4c78d8` | Color of the soft outer edge                          |
+| `ground`   | hex color           | `#ffffff` | Background color                                      |
 | `count`    | 1–6                 | `3`       | Number of shapes                                      |
 | `size`     | 40–160 (%)          | `100`     | Shape size                                            |
-| `softness` | 0–100               | `45`      | How blurry the edges are                              |
-| `texture`  | 0–100               | `23`      | Film grain                                            |
+| `softness` | 0–100               | `50`      | How blurry the edges are                              |
+| `texture`  | 0–100               | `35`      | Film grain                                            |
 | `speed`    | 0–1.5               | `0.35`    | Drift speed. `0` freezes the shapes; cursor still works |
 | `cursor`   | `push` \| `pull`    | `push`    | Pointer pushes shapes away or pulls them in           |
 | `strength` | 0–100               | `60`      | Pointer influence. `0` turns it off                   |
-| `seed`     | number              | `4.2`     | Arrangement. Each seed gives a different layout       |
+| `seed`     | number              | `7226165.5` | Arrangement. Each seed gives a different layout     |
 
 Out-of-range values are clamped; invalid ones are ignored.
 

@@ -106,7 +106,7 @@ body,
 body {
   margin: 0;
   overflow: hidden;
-  background: #cdd6ea;
+  background: #ffffff; /* default ground, so there's no flash before the first frame */
   color: var(--ink-80);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
@@ -805,7 +805,12 @@ button {
   width: 18px;
   height: 18px;
   border-radius: 999px;
-  background: radial-gradient(circle farthest-corner at 40% 38%, #1f45a6 0%, #4a74d4 55%, #d4dbe9 100%);
+  background: radial-gradient(
+    circle farthest-corner at 40% 38% in oklab,
+    oklab(42.7% -0.016 -0.162) 0%,
+    oklab(57.7% -0.015 -0.154) 55%,
+    oklab(87.5% -0.002 -0.029) 100%
+  );
 }
 
 .welcome__name {
@@ -864,6 +869,10 @@ button {
   .welcome__preview {
     border-radius: 40px;
   }
+}
+
+.welcome__preview-stage {
+  position: absolute;
 }
 
 .welcome__caption {

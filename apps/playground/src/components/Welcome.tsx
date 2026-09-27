@@ -1,11 +1,12 @@
 import * as Tooltip from '@radix-ui/react-tooltip'
-import { createLazuli, type LazuliInstance } from 'lazuli-bg'
-import { useEffect, useRef } from 'react'
+import { createLazuli, layoutFromSeed, type LazuliInstance } from 'lazuli-bg'
+import { useEffect, useRef, type CSSProperties } from 'react'
 import { CloseIcon, InfoIcon } from '../icons'
 import type { Params } from '../state'
 
 export const GITHUB_URL = 'https://github.com/REPLACE_ME/lazuli'
 const AUTHOR_URL = 'https://elisha.ma'
+const PREVIEW_ZOOM = 2.4
 
 export function WelcomeCard({ params, onClose }: { params: Params; onClose(): void }) {
   return (
@@ -63,8 +64,22 @@ function Preview({ params }: { params: Params }) {
     engine.current?.set(params)
   }, [params])
 
+  // Paper frames the preview as a close-up of the shapes, not the whole scene: render
+  // into a larger stage and center the main mass (between anchor and companion) in the squircle.
+  const [anchor, companion] = layoutFromSeed(params.seed)
+  const cx = (anchor.x * 2 + companion.x) / 3
+  const cy = 1 - (anchor.y * 2 + companion.y) / 3 // layout y points up
+  const clamp = (v: number) => Math.min(0, Math.max(1 - PREVIEW_ZOOM, v))
+  const stage: CSSProperties = {
+    width: `${PREVIEW_ZOOM * 100}%`,
+    height: `${PREVIEW_ZOOM * 100}%`,
+    left: `${clamp(0.5 - cx * PREVIEW_ZOOM) * 100}%`,
+    top: `${clamp(0.5 - cy * PREVIEW_ZOOM) * 100}%`,
+  }
+
   return (
-    <div className="welcome__preview" ref={ref}>
+    <div className="welcome__preview">
+      <div className="welcome__preview-stage" ref={ref} style={stage} />
       <p className="welcome__caption">Hover or tap to see it react.</p>
     </div>
   )

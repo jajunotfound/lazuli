@@ -4,7 +4,7 @@ import { round, type Params } from './state'
 
 const PACKAGE = 'lazuli-bg'
 
-/** `core="#1f45a6" count="4" …`: every param, so the snippet is self-describing. */
+/** `core="#1f48a8" count="4" …`: every param, so the snippet is self-describing. */
 function attributes(p: Params, onlyChanged = false): string[] {
   return PARAM_KEYS.filter((k) => !onlyChanged || p[k] !== DEFAULTS[k]).map((k) => {
     const v = p[k]

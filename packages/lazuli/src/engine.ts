@@ -1,4 +1,5 @@
 import { FRAGMENT_SHADER, VERTEX_SHADER } from './shader'
+import { layoutFromSeed, packLayout } from './layout'
 import { resolveParams, toUniforms, type LazuliOptions, type LazuliParams } from './params'
 
 export interface LazuliInstance {
@@ -15,8 +16,8 @@ export interface LazuliInstance {
 }
 
 const UNIFORM_NAMES = [
-  'u_res', 'u_time', 'u_mouse', 'u_vel', 'u_active', 'u_seed', 'u_count', 'u_size',
-  'u_soft', 'u_pull', 'u_grain', 'u_deep', 'u_mid', 'u_bg',
+  'u_res', 'u_time', 'u_mouse', 'u_vel', 'u_active', 'u_count', 'u_size',
+  'u_soft', 'u_pull', 'u_grain', 'u_deep', 'u_mid', 'u_bg', 'u_blob', 'u_orbit',
 ] as const
 type UniformName = (typeof UNIFORM_NAMES)[number]
 type GL = WebGLRenderingContext | WebGL2RenderingContext
@@ -30,7 +31,7 @@ const REDUCED_SPEED = 0.05
 const ease = (k: number, frames: number) => 1 - Math.pow(1 - k, frames)
 
 export function randomSeed(): number {
-  return Math.round(Math.random() * 1000) / 10
+  return Math.round(Math.random() * 1e8) / 10
 }
 
 export function createLazuli(element: HTMLElement, options: LazuliOptions = {}): LazuliInstance {
@@ -62,6 +63,9 @@ export function createLazuli(element: HTMLElement, options: LazuliOptions = {}):
   let uniforms = {} as Record<UniformName, WebGLUniformLocation | null>
   let program: WebGLProgram | null = null
   let buffer: WebGLBuffer | null = null
+  // Blob layout for the current seed; recomputed only when the seed changes.
+  let layout = packLayout(layoutFromSeed(params.seed))
+  let layoutSeed = params.seed
 
   function initGL(): boolean {
     const attrs: WebGLContextAttributes = { antialias: false, alpha: false, depth: false, stencil: false, powerPreference: 'low-power' }
@@ -104,7 +108,12 @@ export function createLazuli(element: HTMLElement, options: LazuliOptions = {}):
     gl.uniform1f(uniforms.u_soft, u.soft)
     gl.uniform1f(uniforms.u_grain, u.grain)
     gl.uniform1f(uniforms.u_pull, u.pull)
-    gl.uniform1f(uniforms.u_seed, u.seed)
+    if (layoutSeed !== params.seed) {
+      layout = packLayout(layoutFromSeed(params.seed))
+      layoutSeed = params.seed
+    }
+    gl.uniform4fv(uniforms.u_blob, layout.blob)
+    gl.uniform4fv(uniforms.u_orbit, layout.orbit)
   }
 
   const hasGL = initGL()

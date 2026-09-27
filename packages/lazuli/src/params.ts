@@ -2,7 +2,7 @@ export type CursorMode = 'push' | 'pull'
 
 /** Public, human-friendly parameters. Every field is optional when passed in. */
 export interface LazuliParams {
-  /** Color of the dense center of the shapes. Hex, e.g. `#1f45a6`. */
+  /** Color of the dense center of the shapes. Hex, e.g. `#1f48a8`. */
   core: string
   /** Color of the soft outer edge of the shapes. */
   edge: string
@@ -34,18 +34,20 @@ export interface LazuliOptions extends Partial<LazuliParams> {
   respectReducedMotion?: boolean
 }
 
+// Defaults come from the Paper design: colors from the Color panel (frame 05), panel
+// values from frames 07–10, and the seed whose layout reproduces frame 01.
 export const DEFAULTS: Readonly<LazuliParams> = Object.freeze({
-  core: '#1f45a6',
-  edge: '#4a74d4',
-  ground: '#cdd6ea',
+  core: '#1f48a8',
+  edge: '#4c78d8',
+  ground: '#ffffff',
   count: 3,
   size: 100,
-  softness: 45,
-  texture: 23,
+  softness: 50,
+  texture: 35,
   speed: 0.35,
   cursor: 'push',
   strength: 60,
-  seed: 4.2,
+  seed: 7226165.5,
 })
 
 export const RANGES = {
@@ -115,8 +117,14 @@ export interface Uniforms {
   soft: number
   grain: number
   pull: number
-  seed: number
 }
+
+// Fitted so Size 100% and Softness 50 reproduce Paper frame 01.
+const SIZE_SCALE = 0.91
+// Paper shows no visible grain at the default (Fine = 35), so keep it a whisper there.
+const GRAIN_SCALE = 0.07
+const SOFT_MIN = 0.02
+const SOFT_SPAN = 2.16 // softness 50 → 1.1, the widest band that keeps the ground clean
 
 export function toUniforms(p: LazuliParams): Uniforms {
   return {
@@ -124,10 +132,9 @@ export function toUniforms(p: LazuliParams): Uniforms {
     mid: hexToRgb(p.edge),
     bg: hexToRgb(p.ground),
     count: p.count,
-    size: p.size / 100,
-    soft: 0.05 + (p.softness / 100) * 0.95,
-    grain: (p.texture / 100) * 0.15,
+    size: (p.size / 100) * SIZE_SCALE,
+    soft: SOFT_MIN + (p.softness / 100) * SOFT_SPAN,
+    grain: (p.texture / 100) * GRAIN_SCALE,
     pull: (p.cursor === 'pull' ? -1 : 1) * (p.strength / 100),
-    seed: p.seed,
   }
 }
