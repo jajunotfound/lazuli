@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Lazuli engine test</title>
+    <style>
+      html, body { margin: 0; height: 100%; font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; }
+      #bg { position: fixed; inset: 0; touch-action: none; }
+      #panel {
+        position: fixed; top: 12px; left: 12px; z-index: 1;
+        background: rgb(255 255 255 / 0.85); border-radius: 8px; padding: 10px 12px;
+        display: grid; grid-template-columns: auto 140px 44px; gap: 4px 8px; align-items: center;
+      }
+      #panel output { text-align: right; }
+      #panel .row { grid-column: 1 / -1; display: flex; gap: 6px; }
+      #box { position: fixed; right: 12px; bottom: 12px; width: 240px; height: 160px; border-radius: 16px; overflow: hidden; }
+    </style>
+  </head>
+  <body>
+    <div id="bg"></div>
+    <form id="panel" aria-label="Engine parameters"></form>
+    <div id="box" title="Second instance, filling a small container"></div>
+    <script type="module" src="/src/dev/main.ts"></script>
+  </body>
+</html>
