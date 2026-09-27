@@ -1,0 +1,16 @@
+{
+  "name": "lazuli-monorepo",
+  "private": true,
+  "license": "MIT",
+  "packageManager": "pnpm@12.6.0",
+  "scripts": {
+    "dev": "pnpm --filter @lazuli/playground dev",
+    "dev:engine": "pnpm --filter lazuli dev",
+    "build": "pnpm -r build",
+    "lint": "pnpm -r lint"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2",
+    "vite": "^8.3.1"
+  }
+}
