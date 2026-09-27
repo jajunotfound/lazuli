@@ -1,0 +1,821 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Lazuli reel</title>
+<link rel="stylesheet" href="fonts/fonts.css" />
+<style>
+/* Tokens: the Paper file "Lazuli" (same values as apps/playground/src/styles.css, light mode). */
+:root {
+  --font-sans: 'Plus Jakarta Sans', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+  --tracking-tight: -1px;
+  --ink-90: #000000e6; --ink-85: #000000d9; --ink-80: #000000cc; --ink-70: #000000b3;
+  --ink-60: #00000099; --ink-50: #00000080; --ink-40: #00000066;
+  --surface: #ffffff; --border: #e5e5e5; --divider: #efefef; --row: #f4f4f5; --row-strong: #e6e7ea;
+  --field: #fafafa; --accent: #1f48a8;
+  --tool-pressed: #eaeaeab3; --tool-open: #eaeaea80; --tool-open-border: #d9d9d9;
+  --handle: #00000047; --handle-active: #00000066; --dot: #00000026;
+  --swatch-edge: #00000014; --code-bg: #f7f8fa; --code-border: #edeef1; --scrim: #0f1a3314;
+  --shadow-panel: 0 1px 2px #0000000a;
+  --shadow-card: 0 1px 2px #1f45a60f, 0 24px 48px -16px #1f45a62e;
+  --shadow-dialog: 0 1px 2px #0000000a, 0 24px 48px -16px #1f45a62e;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; width: 1080px; height: 1350px; overflow: hidden; background: #ffffff; }
+#gl { position: absolute; left: 0; top: 0; width: 1080px; height: 1350px; display: block; }
+/* The app is a 540×675 CSS viewport; the camera scales it (2× at rest) with a plain 2D transform. */
+#app {
+  position: absolute; left: 0; top: 0; width: 540px; height: 675px; transform-origin: 0 0;
+  font-family: var(--font-sans); color: var(--ink-80);
+  -webkit-font-smoothing: antialiased; font-synthesis: none;
+}
+.abs { position: absolute; }
+svg { display: block; }
+
+.toolbar { position: absolute; left: 43px; width: 58px; border: 1px solid var(--border); border-radius: 24px; background: var(--surface); }
+.divider { position: absolute; left: 52px; width: 40px; height: 1px; background: var(--border); }
+.tool {
+  position: absolute; display: grid; place-items: center;
+  border: 1px solid var(--border); background: var(--surface); color: var(--ink-60);
+}
+.tool svg { width: 40%; height: 40%; }
+
+.tooltip {
+  position: absolute; display: flex; align-items: center; gap: 6px; padding: 4px 8px;
+  border: 1px solid var(--border); border-radius: 8px; background: var(--surface);
+  color: var(--ink-60); font-size: 10px; line-height: 12px; white-space: nowrap;
+}
+.kbd { padding: 0 3px; border: 1px solid var(--border); border-radius: 4px; color: var(--ink-40); font-family: var(--font-mono); font-size: 9px; line-height: 11px; }
+
+.panel {
+  position: absolute; width: 240px; display: flex; flex-direction: column; gap: 4px; padding: 6px;
+  border: 1px solid var(--border); border-radius: 16px; background: var(--surface); box-shadow: var(--shadow-panel);
+}
+.panel__head { display: flex; align-items: center; justify-content: space-between; padding: 6px 8px 4px; }
+.panel__title { color: var(--ink-50); font-size: 12px; font-weight: 500; line-height: 16px; }
+.panel__reset { color: var(--accent); font-size: 12px; font-weight: 500; line-height: 16px; }
+.row {
+  display: flex; align-items: center; justify-content: space-between; height: 48px;
+  padding: 0 12px 0 14px; border-radius: 12px; background: var(--row);
+}
+.row__label { color: var(--ink-50); font-size: 14px; font-weight: 500; line-height: 18px; letter-spacing: var(--tracking-tight); word-spacing: 2px; }
+.swatch { width: 24px; height: 24px; border-radius: 999px; box-shadow: inset 0 0 0 1px var(--swatch-edge); }
+.swatch--light { box-shadow: inset 0 0 0 1px #00000024; }
+
+.slider { position: relative; height: 48px; border-radius: 12px; background: var(--row); overflow: hidden; }
+.slider__fill { position: absolute; top: 0; bottom: 0; left: 0; border-radius: 12px; background: var(--row-strong); }
+.slider__thumb { position: absolute; top: 14px; width: 2px; height: 20px; margin-left: -1px; border-radius: 999px; background: var(--handle); }
+.slider__dot { position: absolute; top: 38px; width: 4px; height: 4px; margin-left: -2px; border-radius: 999px; background: var(--dot); }
+.slider__label, .slider__value { position: absolute; top: 15px; font-size: 14px; font-weight: 500; line-height: 18px; letter-spacing: var(--tracking-tight); }
+.slider__label { left: 14px; color: var(--ink-50); }
+.slider__value { right: 14px; color: var(--ink-70); font-variant-numeric: tabular-nums; }
+
+.picker {
+  position: absolute; width: 232px; display: flex; flex-direction: column; gap: 12px; padding: 12px;
+  border: 1px solid var(--border); border-radius: 16px; background: var(--surface); box-shadow: var(--shadow-panel);
+}
+.picker__head { display: flex; align-items: center; justify-content: space-between; height: 16px; }
+.picker__title { color: var(--ink-80); font-size: 12px; font-weight: 500; line-height: 16px; letter-spacing: var(--tracking-tight); }
+.picker__sat { position: relative; height: 140px; border-radius: 14px; }
+.picker__sat::after { content: ''; position: absolute; inset: 0; border-radius: 14px; box-shadow: inset 0 0 0 1px #0000000f; }
+.picker__hue {
+  position: relative; height: 10px; border-radius: 999px;
+  background: linear-gradient(to right, #f00 0%, #ff0 17%, #0f0 33%, #0ff 50%, #00f 67%, #f0f 83%, #f00 100%);
+  box-shadow: inset 0 0 0 1px #0000000f;
+}
+.pointer {
+  position: absolute; width: 14px; height: 14px; margin: -7px 0 0 -7px; border: 2px solid #fff; border-radius: 999px;
+  box-shadow: 0 0 0 1px #00000026, 0 1px 2px #00000026; z-index: 1;
+}
+.picker__fields { display: flex; align-items: center; gap: 6px; }
+.picker__eyedropper { display: grid; place-items: center; flex-shrink: 0; width: 30px; height: 30px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--ink-60); }
+.picker__hex {
+  flex: 1; display: flex; align-items: center; gap: 6px; height: 30px; padding: 0 10px;
+  border: 1px solid var(--border); border-radius: 8px; background: var(--field);
+  color: var(--ink-40); font-family: var(--font-mono); font-size: 12px; line-height: 14px;
+}
+.picker__hex b { flex: 1; font-weight: 400; color: var(--ink-80); }
+.picker__swatches { display: flex; justify-content: space-between; padding-top: 12px; border-top: 1px solid var(--divider); }
+.picker__swatch { width: 18px; height: 18px; border-radius: 999px; box-shadow: inset 0 0 0 1px var(--swatch-edge); }
+
+.about {
+  position: absolute; right: 32px; bottom: 32px; width: 40px; height: 40px; display: grid; place-items: center;
+  border: 1px solid var(--border); border-radius: 999px; background: var(--surface); color: var(--ink-60); box-shadow: var(--shadow-card);
+}
+
+.scrim { position: absolute; inset: 0; background: var(--scrim); }
+.dialog {
+  position: absolute; width: 440px; display: flex; flex-direction: column; gap: 16px; padding: 20px;
+  border: 1px solid var(--border); border-radius: 24px; background: var(--surface); box-shadow: var(--shadow-dialog);
+}
+.dialog__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.dialog__title { color: var(--ink-90); font-size: 16px; font-weight: 600; line-height: 20px; letter-spacing: var(--tracking-tight); word-spacing: 2px; }
+.dialog__desc { margin-top: 4px; color: var(--ink-60); font-size: 14px; line-height: 18px; letter-spacing: var(--tracking-tight); word-spacing: 2px; }
+.dialog__close { display: grid; place-items: center; flex-shrink: 0; width: 28px; height: 28px; border-radius: 999px; background: #0000000a; }
+.code { position: relative; height: 216px; border: 1px solid var(--code-border); border-radius: 14px; background: var(--code-bg); overflow: hidden; }
+.code pre {
+  position: absolute; left: 16px; top: 14px; margin: 0; color: var(--ink-70);
+  font-family: var(--font-mono); font-size: 12px; line-height: 18px; font-feature-settings: 'calt' 0, 'liga' 0; white-space: pre;
+}
+.code__fade { position: absolute; left: 0; right: 0; bottom: 0; height: 48px; background: linear-gradient(to bottom, #f7f8fa00, #f7f8fa); }
+.code__bar { position: absolute; right: 5px; top: 8px; width: 4px; height: 64px; border-radius: 999px; background: #00000026; }
+.copy {
+  position: relative; height: 40px; border-radius: 999px; background: var(--accent); color: #fff;
+  font-size: 14px; font-weight: 600; line-height: 18px; letter-spacing: var(--tracking-tight); word-spacing: 2px;
+}
+.copy__state { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 8px; }
+
+.cursor { position: absolute; left: 0; top: 0; width: 14px; height: 21px; transform-origin: 1px 1px; }
+.cursor svg { overflow: visible; filter: drop-shadow(0 1px 1px #00000038); }
+</style>
+</head>
+<body>
+<canvas id="gl" width="1080" height="1350"></canvas>
+<div id="app"></div>
+
+<script>
+// ============================================================================
+// Frame
+// ============================================================================
+const W = 540, H = 675                  // app viewport, CSS px
+const OUT_W = 1080, OUT_H = 1350        // video, px (app at 2× when the camera rests)
+const T = 12, FPS = 60
+
+// Opening look. Colours, softness and texture follow the Paper board; the rest are engine defaults.
+const P = {
+  core: '#1f48a8', edge: '#4c78d8', ground: '#ffffff',
+  count: 3, size: 100, softness: 50, texture: 35, speed: 0.35, strength: 60,
+}
+const Q = new URLSearchParams(location.search)   // ?seedA=&seedB=&time0=&bare=1 for picking compositions
+const SEED_A = Number(Q.get('seedA') ?? 12.5)     // opening (and closing) composition
+const SEED_B = Number(Q.get('seedB') ?? 61.3)    // what the first Shuffle lands on
+const TIME0 = Number(Q.get('time0') ?? 0)      // shader-time phase at t = 0
+
+// ============================================================================
+// Pure helpers
+// ============================================================================
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v))
+const lerp = (a, b, u) => a + (b - a) * u
+const wrap = (t) => ((t % T) + T) % T
+const smooth = (u) => { u = clamp(u, 0, 1); return u * u * (3 - 2 * u) }
+const smoother = (u) => { u = clamp(u, 0, 1); return u * u * u * (u * (u * 6 - 15) + 10) }
+/** 0→1 over d seconds from t0 (short UI colour fades, like the app's 120ms transitions). */
+const ramp = (t, t0, d = 0.12) => smooth((t - t0) / d)
+/** On between a and b, with short fades. */
+const during = (t, a, b, d = 0.12) => ramp(t, a, d) * (1 - ramp(t, b, d))
+
+/** Closed-form unit step response of a damped spring (ω rad/s, ζ damping), dt seconds after the step. */
+function spring(dt, w, z = 1) {
+  if (dt <= 0) return 0
+  if (z >= 1) return 1 - Math.exp(-w * dt) * (1 + w * dt)
+  const wd = w * Math.sqrt(1 - z * z)
+  return 1 - Math.exp(-z * w * dt) * (Math.cos(wd * dt) + ((z * w) / wd) * Math.sin(wd * dt))
+}
+/** A value retargeted several times = its start plus one spring per change. */
+function track(t, v0, changes) {
+  let v = v0, prev = v0
+  for (const c of changes) { v += (c.to - prev) * spring(t - c.t, c.w, c.z); prev = c.to }
+  return v
+}
+/** Springs settle asymptotically; over the last 0.6 s fade out whatever sub-pixel residual is left so t = T equals t = 0 exactly. */
+const settle = (t, v, goal) => goal + (v - goal) * (1 - smoother((t - (T - 0.6)) / 0.6))
+/** Open/close visibility: a stiff, slightly underdamped spring for scale and a critically damped one for opacity. */
+function presence(t, open, close, { w = 24, wClose = 34 } = {}) {
+  const ev = (z) => [{ t: open, to: 1, w, z }, ...(close != null ? [{ t: close, to: 0, w: wClose, z: 1 }] : [])]
+  return { s: track(t, 0, ev(0.86)), o: clamp(track(t, 0, ev(1)), 0, 1) }
+}
+
+// colour
+const hexToRgb = (h) => { const n = parseInt(h.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255] }
+const rgbToHex = (r, g, b) => '#' + [r, g, b].map((v) => Math.round(clamp(v, 0, 255)).toString(16).padStart(2, '0')).join('')
+function rgbToHsv([r, g, b]) {
+  r /= 255; g /= 255; b /= 255
+  const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn
+  let h = 0
+  if (d) h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4
+  return [(h * 60 + 360) % 360, mx ? d / mx : 0, mx]
+}
+function hsvToHex(h, s, v) {
+  const f = (n) => { const k = (n + h / 60) % 6; return v - v * s * Math.max(0, Math.min(k, 4 - k, 1)) }
+  return rgbToHex(f(5) * 255, f(3) * 255, f(1) * 255)
+}
+const [HUE0, SAT0, VAL0] = rgbToHsv(hexToRgb(P.core))
+
+// ============================================================================
+// Layout (app px). Mirrors the playground: toolbar left 43, centred, 40px tools, 8px gaps.
+// ============================================================================
+const MAG = [64, 52, 44]            // dock magnification from frame 02
+const ITEMS = ['shuffle', '|', 'colors', 'shapes', 'texture', '|', 'motion', 'cursor', '|', 'code']
+const TOOLS = ITEMS.filter((i) => i !== '|')
+const sizesFor = (active) => TOOLS.map((_, i) => (active == null ? 40 : MAG[Math.abs(active - i)] ?? 40))
+function toolbarLayout(sizes) {
+  const h = 2 + 24 + sizes.reduce((a, b) => a + b, 0) + 3 + (ITEMS.length - 1) * 8
+  const top = Math.round(H / 2 - h / 2)
+  let y = top + 1 + 12, bi = 0
+  const btn = [], div = []
+  for (const it of ITEMS) {
+    if (it === '|') { div.push(y); y += 9; continue }
+    const s = sizes[bi++]
+    btn.push({ x: 52, y, s, cx: 52 + s / 2, cy: y + s / 2 })
+    y += s + 8
+  }
+  return { top, h, btn, div }
+}
+const BASE = toolbarLayout(sizesFor(null))
+const TI = Object.fromEntries(TOOLS.map((k, i) => [k, i]))
+
+// Colors popover: right of the trigger (sideOffset 21), aligned to its top (alignOffset −1)
+const COLORS_TOP = BASE.btn[TI.colors].y - 1
+const PANEL_LEFT = 92 + 21
+const CORE_ROW = { x: PANEL_LEFT + 7, y: COLORS_TOP + 37, w: 228, h: 48 }
+const PICKER = { x: PANEL_LEFT + 15, y: CORE_ROW.y + CORE_ROW.h - 8 }
+const HUE_TRACK = { x: PICKER.x + 13, y: PICKER.y + 1 + 12 + 16 + 12 + 140 + 12, w: 206 }
+const hueX = (h) => HUE_TRACK.x + (h / 360) * HUE_TRACK.w
+const HUE_Y = HUE_TRACK.y + 5
+
+// Shapes popover
+const SHAPES_TOP = BASE.btn[TI.shapes].y - 1
+const SIZE_ROW = { x: PANEL_LEFT + 7, y: SHAPES_TOP + 1 + 6 + 26 + 4 + 52, w: 228 }
+const sizeP = (v) => (v - 40) / 120
+const sizeX = (v) => SIZE_ROW.x + 9 + sizeP(v) * (SIZE_ROW.w - 18)
+const SIZE_Y = SIZE_ROW.y + 24
+
+// Get code dialog, centred
+const DIALOG = { w: 440, h: 372 }
+DIALOG.x = W / 2 - DIALOG.w / 2
+DIALOG.y = H / 2 - DIALOG.h / 2
+const COPY = { x: W / 2, y: DIALOG.y + 1 + 20 + 42 + 16 + 216 + 16 + 20 }
+const CLOSE = { x: DIALOG.x + DIALOG.w - 1 - 20 - 14, y: DIALOG.y + 1 + 20 + 14 }
+
+// ============================================================================
+// Script. Every time below is seconds into the 12 s loop.
+// ============================================================================
+const HUE_PEAK = 288, HUE_END = 266, SIZE_END = 150
+const S = {
+  enter: [0.12, 1.7],
+  shuffleHover: 1.46, shuffleTip: 1.76, shuffleDown: 2.16, shuffleUp: 2.24,
+  toColors: [2.46, 2.86], colorsHover: 2.7, colorsDown: 2.96, colorsUp: 3.03,
+  toCore: [3.14, 3.56], coreHover: 3.42, coreDown: 3.64, coreUp: 3.71,
+  toHue: [3.84, 4.24], hueDown: 4.32, hueOut: [4.36, 4.96], hueBack: [5.0, 5.42], hueUp: 5.5,
+  toShapes: [5.64, 6.08], shapesDown: 6.16, shapesUp: 6.23,
+  toSize: [6.34, 6.76], sizeHover: 6.66, sizeDown: 6.84, sizeDrag: [6.88, 7.62], sizeUp: 7.7,
+  toCode: [7.84, 8.26], codeDown: 8.34, codeUp: 8.41,
+  toCopy: [8.56, 9.02], copyDown: 9.1, copyUp: 9.17,
+  toClose: [9.34, 9.76], closeDown: 9.84, closeUp: 9.91,
+  toShuffle: [10.0, 10.42], shuffle2Hover: 10.28, shuffle2Down: 10.5, shuffle2Up: 10.57,
+  exit: [10.72, 11.72],
+}
+
+// ---- cursor path: cubic Béziers with minimum-jerk timing (zero velocity and acceleration at each end) ----
+const OFF = { x: 596, y: 626 }                               // resting just off-frame, bottom right
+const at = (l, i, dx = 0, dy = 0) => ({ x: l.btn[i].cx + dx, y: l.btn[i].cy + dy })
+const SHUF_HOVER = at(toolbarLayout(sizesFor(0)), TI.shuffle, 3, 4)
+const COLORS_HOVER = at(toolbarLayout(sizesFor(1)), TI.colors, 2, 3)
+const CORE_PT = { x: CORE_ROW.x + 150, y: CORE_ROW.y + 26 }
+const HUE0_PT = { x: hueX(HUE0), y: HUE_Y }
+const SHAPES_PT = at(BASE, TI.shapes, 2, 3)
+const SIZE0_PT = { x: sizeX(P.size), y: SIZE_Y + 1 }
+const SIZE1_PT = { x: sizeX(SIZE_END), y: SIZE_Y + 2 }
+const CODE_PT = at(BASE, TI.code, 2, 2)
+const COPY_PT = { x: COPY.x + 18, y: COPY.y + 3 }
+const CLOSE_PT = { x: CLOSE.x + 1, y: CLOSE.y + 1 }
+const SHUF2_PT = at(toolbarLayout(sizesFor(0)), TI.shuffle, 2, 3)
+
+/** Control points for a gentle arc: bend is the sideways offset as a fraction of the distance. */
+function arc(a, b, bend = 0.12) {
+  const dx = b.x - a.x, dy = b.y - a.y
+  const nx = -dy * bend, ny = dx * bend
+  return [a, { x: a.x + dx / 3 + nx, y: a.y + dy / 3 + ny }, { x: a.x + (2 * dx) / 3 + nx, y: a.y + (2 * dy) / 3 + ny }, b]
+}
+const MOVES = [
+  // glide in from off-frame, sweep through the shapes, arrive on Shuffle
+  { t: S.enter, P: [OFF, { x: 330, y: 700 }, { x: 440, y: 150 }, SHUF_HOVER] },
+  { t: S.toColors, P: arc(SHUF_HOVER, COLORS_HOVER, -0.25) },
+  { t: S.toCore, P: arc(COLORS_HOVER, CORE_PT, 0.1) },
+  { t: S.toHue, P: arc(CORE_PT, HUE0_PT, 0.12) },
+  { t: S.hueOut, P: arc(HUE0_PT, { x: hueX(HUE_PEAK), y: HUE_Y + 1 }, 0.04) },
+  { t: S.hueBack, P: arc({ x: hueX(HUE_PEAK), y: HUE_Y + 1 }, { x: hueX(HUE_END), y: HUE_Y + 2 }, 0.05) },
+  { t: S.toShapes, P: arc({ x: hueX(HUE_END), y: HUE_Y + 2 }, SHAPES_PT, 0.14) },
+  { t: S.toSize, P: arc(SHAPES_PT, SIZE0_PT, -0.12) },
+  { t: S.sizeDrag, P: arc(SIZE0_PT, SIZE1_PT, 0.03) },
+  { t: S.toCode, P: arc(SIZE1_PT, CODE_PT, 0.14) },
+  { t: S.toCopy, P: arc(CODE_PT, COPY_PT, -0.1) },
+  { t: S.toClose, P: arc(COPY_PT, CLOSE_PT, 0.12) },
+  { t: S.toShuffle, P: arc(CLOSE_PT, SHUF2_PT, 0.14) },
+  // back out through the lower half of the shapes to where it started
+  { t: S.exit, P: [SHUF2_PT, { x: 170, y: 470 }, { x: 430, y: 520 }, OFF] },
+]
+const mj = (u) => u * u * u * (10 + u * (-15 + 6 * u))
+const dmj = (u) => 30 * u * u * (1 - u) * (1 - u)
+function bez(P, u) {
+  const v = 1 - u, a = v * v * v, b = 3 * v * v * u, c = 3 * v * u * u, d = u * u * u
+  return { x: a * P[0].x + b * P[1].x + c * P[2].x + d * P[3].x, y: a * P[0].y + b * P[1].y + c * P[2].y + d * P[3].y }
+}
+function dbez(P, u) {
+  const v = 1 - u, a = 3 * v * v, b = 6 * v * u, c = 3 * u * u
+  return {
+    x: a * (P[1].x - P[0].x) + b * (P[2].x - P[1].x) + c * (P[3].x - P[2].x),
+    y: a * (P[1].y - P[0].y) + b * (P[2].y - P[1].y) + c * (P[3].y - P[2].y),
+  }
+}
+/** Cursor tip position (app px) and exact velocity (app px/s) at time t. */
+function cursorAt(t) {
+  t = wrap(t)
+  let last = OFF
+  for (const m of MOVES) {
+    const [t0, t1] = m.t
+    if (t < t0) return { x: last.x, y: last.y, vx: 0, vy: 0 }
+    if (t <= t1) {
+      const d = t1 - t0, u = (t - t0) / d, e = mj(u)
+      const p = bez(m.P, e), dp = dbez(m.P, e), k = dmj(u) / d
+      return { x: p.x, y: p.y, vx: dp.x * k, vy: dp.y * k }
+    }
+    last = m.P[3]
+  }
+  return { x: last.x, y: last.y, vx: 0, vy: 0 }
+}
+
+const PRESSES = [
+  [S.shuffleDown, S.shuffleUp], [S.colorsDown, S.colorsUp], [S.coreDown, S.coreUp], [S.hueDown, S.hueUp],
+  [S.shapesDown, S.shapesUp], [S.sizeDown, S.sizeUp], [S.codeDown, S.codeUp], [S.copyDown, S.copyUp],
+  [S.closeDown, S.closeUp], [S.shuffle2Down, S.shuffle2Up],
+]
+
+// ============================================================================
+// Engine pointer, analytic. The engine eases mouse toward the pointer by 0.12/frame, eases a per-frame
+// velocity by 0.25/frame and eases activity by 0.06/frame (at 60 fps). As continuous filters those are
+// exponentials, so here each is a convolution of the scripted path with its kernel: a pure function of t.
+// ============================================================================
+const LM = -60 * Math.log(1 - 0.12)
+const LV = -60 * Math.log(1 - 0.25)
+const LA = -60 * Math.log(1 - 0.06)
+const inside = (c) => c.x >= 0 && c.x <= W && c.y >= 0 && c.y <= H
+function pointer(t) {
+  // mouse = K1 * target; vel = (K1 * Kv) * target' / 60 (per-frame units, as in the engine)
+  let mx = 0, my = 0, vx = 0, vy = 0, wm = 0, wv = 0
+  const N = 240, SPAN = 1.6, ds = SPAN / N
+  for (let i = 0; i < N; i++) {
+    const s = (i + 0.5) * ds
+    const c = cursorAt(t - s)
+    const inX = c.x >= 0 && c.x <= W, inY = c.y >= 0 && c.y <= H
+    const k1 = Math.exp(-LM * s)
+    const k2 = Math.exp(-LM * s) - Math.exp(-LV * s)
+    mx += k1 * clamp(c.x, 0, W); my += k1 * clamp(c.y, 0, H); wm += k1
+    vx += k2 * (inX && inY ? c.vx : 0); vy += k2 * (inX && inY ? c.vy : 0); wv += k2
+  }
+  let a = 0, wa = 0
+  const NA = 300, SA = 4, da = SA / NA
+  for (let i = 0; i < NA; i++) {
+    const s = (i + 0.5) * da, k = Math.exp(-LA * s)
+    a += k * (inside(cursorAt(t - s)) ? 1 : 0); wa += k
+  }
+  return {
+    mouse: [mx / wm / W, 1 - my / wm / H],
+    vel: [vx / wv / W / 60, -vy / wv / H / 60],
+    active: a / wa,
+  }
+}
+
+// ============================================================================
+// State as functions of t
+// ============================================================================
+const SHUF = { w: 6.2, z: 0.93 }  // shapes glide between compositions
+const seedMix = (t) => settle(t, track(t, 0, [{ t: S.shuffleUp, to: 1, ...SHUF }, { t: S.shuffle2Up, to: 0, ...SHUF }]), 0)
+
+/** Direct manipulation while held, then a spring that settles on the committed value, then the reset shuffle. */
+function hueAt(t) {
+  if (t < S.hueDown) return HUE0
+  if (t <= S.hueUp) return clamp((cursorAt(t).x - HUE_TRACK.x) / HUE_TRACK.w, 0, 1) * 360
+  const released = clamp((cursorAt(S.hueUp).x - HUE_TRACK.x) / HUE_TRACK.w, 0, 1) * 360
+  return settle(t, track(t, released, [{ t: S.hueUp, to: HUE_END, w: 30, z: 1 }, { t: S.shuffle2Up, to: HUE0, ...SHUF }]), HUE0)
+}
+function sizeAt(t) {
+  if (t < S.sizeDown) return P.size
+  const fromX = (x) => Math.round(clamp(40 + ((x - SIZE_ROW.x - 9) / (SIZE_ROW.w - 18)) * 120, 40, 160))
+  if (t <= S.sizeUp) return fromX(cursorAt(t).x)
+  return settle(t, track(t, fromX(cursorAt(S.sizeUp).x), [{ t: S.sizeUp, to: SIZE_END, w: 30, z: 1 }, { t: S.shuffle2Up, to: P.size, ...SHUF }]), P.size)
+}
+const coreAt = (t) => hsvToHex(hueAt(t), SAT0, VAL0)
+
+// Dock magnification: which tool is magnified (null while a popover is open or nothing is hovered)
+const MAG_EVENTS = [
+  [S.shuffleHover, 0], [S.colorsHover, 1], [S.colorsUp, null], [S.codeDown, null],
+  [S.shuffle2Hover, 0], [S.exit[0] + 0.12, null],
+]
+function toolSizes(t) {
+  return TOOLS.map((_, i) =>
+    track(t, 40, MAG_EVENTS.map(([te, a]) => ({ t: te, to: sizesFor(a)[i], w: 30, z: 0.9 }))),
+  )
+}
+
+// Camera: zoom and centre (app px), critically damped so it never bounces
+const CAM = { w: 6, z: 1 }
+const CAM_EVENTS = [
+  { t: 1.2, z: 1.4, x: 200, y: 300 },
+  { t: 2.62, z: 1.44, x: 204, y: 405 },
+  { t: 5.9, z: 1.52, x: 232, y: 366 },
+  { t: 7.7, z: 1.14, x: 270, y: 338 },
+  { t: 9.8, z: 1.0, x: 270, y: 337.5 },
+]
+function camera(t) {
+  const ch = (k) => CAM_EVENTS.map((e) => ({ t: e.t, to: e[k], ...CAM }))
+  const z = settle(t, track(t, 1, ch('z')), 1)
+  const hx = W / 2 / z, hy = H / 2 / z
+  const x = settle(t, track(t, W / 2, ch('x')), W / 2), y = settle(t, track(t, H / 2, ch('y')), H / 2)
+  return { z, x: clamp(x, hx, W - hx), y: clamp(y, hy, H - hy) }
+}
+
+// ============================================================================
+// Shader: the Lazuli fragment shader (packages/lazuli/src/shader.ts), verbatim except for the lines
+// marked PROMO: two seeds blended by u_seedMix (animated Shuffle), two time phases blended by u_timeMix
+// (so the drift loops), a camera mapping from output pixels to scene uv, and grain seeded per frame.
+// ============================================================================
+const VERT = `attribute vec2 a_pos; void main() { gl_Position = vec4(a_pos, 0.0, 1.0); }`
+const FRAG = `
+precision highp float;
+uniform vec2 u_res; uniform float u_time; uniform vec2 u_mouse; uniform vec2 u_vel;
+uniform float u_active; uniform float u_seed; uniform float u_count; uniform float u_size;
+uniform float u_soft; uniform float u_pull; uniform float u_grain;
+uniform vec3 u_deep; uniform vec3 u_mid; uniform vec3 u_bg;
+// PROMO
+uniform float u_seed2; uniform float u_seedMix; uniform float u_time2; uniform float u_timeMix;
+uniform vec3 u_cam; uniform vec2 u_out; uniform float u_grainSeed;
+
+float hash(float n) { return fract(sin(n) * 43758.5453123); }
+
+float noise(vec2 p) {
+  vec2 i = floor(p), f = fract(p);
+  vec2 u = f * f * (3.0 - 2.0 * f);
+  float a = hash(dot(i, vec2(1.0, 57.0)));
+  float b = hash(dot(i + vec2(1.0, 0.0), vec2(1.0, 57.0)));
+  float c = hash(dot(i + vec2(0.0, 1.0), vec2(1.0, 57.0)));
+  float d = hash(dot(i + vec2(1.0, 1.0), vec2(1.0, 57.0)));
+  return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
+}
+
+// PROMO: the engine's per-shape maths, factored out so it can be evaluated for two seeds and two times.
+// Returns centre (xy), radius (z) and horizontal squish (w).
+vec4 shape(float fi, float seed, float t, float aspect) {
+  float s = seed + fi * 13.7;
+  vec2 base = vec2(0.2 + 0.6 * hash(s + 1.0), 0.2 + 0.6 * hash(s + 2.0));
+  base.x *= aspect;
+  float f1 = 0.3 + 0.5 * hash(s + 3.0);
+  float f2 = 0.3 + 0.5 * hash(s + 4.0);
+  vec2 orbit = vec2(sin(t * f1 + s), cos(t * f2 + s * 1.3)) * (0.08 + 0.1 * hash(s + 5.0));
+  vec2 c = base + orbit;
+  float r = mix(0.34, 0.07, pow(hash(s + 6.0), 1.5)) * u_size;
+  if (fi < 0.5) r = 0.36 * u_size;
+  return vec4(c, r, 1.0 + 0.35 * sin(t * 0.3 + s));
+}
+vec2 wobble(vec2 p, float t) {
+  return 0.035 * vec2(noise(p * 3.0 + t * 0.4), noise(p * 3.0 - t * 0.4 + 7.0)) - 0.0175;
+}
+
+void main() {
+  float aspect = u_res.x / u_res.y;
+  // PROMO: camera. u_cam = (centre x, centre y) in scene px (y down) and output px per scene px.
+  vec2 o = (gl_FragCoord.xy - 0.5 * u_out) / u_cam.z;
+  vec2 scene = vec2(u_cam.x + o.x, u_cam.y - o.y);
+  vec2 uv = vec2(scene.x / u_res.x, 1.0 - scene.y / u_res.y);
+  vec2 p = vec2(uv.x * aspect, uv.y);
+  vec2 m = vec2(u_mouse.x * aspect, u_mouse.y);
+
+  // pointer: push away (u_pull > 0) or pull in (u_pull < 0), smear along motion
+  vec2 d = p - m;
+  float fall = exp(-dot(d, d) / 0.045) * u_active;
+  p += normalize(d + 1e-5) * fall * 0.14 * u_pull;
+  p -= vec2(u_vel.x * aspect, u_vel.y) * fall * 1.6;
+
+  // slow organic wobble on the edges
+  float t = u_time;
+  p += mix(wobble(p, u_time), wobble(p, u_time2), u_timeMix); // PROMO: looped
+
+  float field = 0.0;
+  for (int i = 0; i < 6; i++) {
+    float fi = float(i);
+    if (fi >= u_count) break;
+    // PROMO: blend seeds (Shuffle) and time phases (loop)
+    vec4 a = mix(shape(fi, u_seed, u_time, aspect), shape(fi, u_seed, u_time2, aspect), u_timeMix);
+    vec4 b = mix(shape(fi, u_seed2, u_time, aspect), shape(fi, u_seed2, u_time2, aspect), u_timeMix);
+    vec4 k = mix(a, b, u_seedMix);
+    vec2 q = p - k.xy;
+    q.x *= k.w;
+    field += exp(-dot(q, q) / (k.z * k.z));
+  }
+
+  float lo = 0.5 - u_soft * 0.45;
+  float hi = 0.5 + u_soft * 0.45;
+  float e = smoothstep(lo, hi, field);
+  float core = smoothstep(0.7, 1.6, field);
+  vec3 col = mix(u_bg, u_mid, e);
+  col = mix(col, u_deep, core);
+  col = mix(col, u_bg * 1.02, smoothstep(0.55, 1.0, length(uv - 0.5)) * 0.35);
+  float g = hash(dot(gl_FragCoord.xy, vec2(12.9898, 78.233)) + u_grainSeed) - 0.5; // PROMO: seeded per frame
+  col += g * u_grain;
+  gl_FragColor = vec4(col, 1.0);
+}`
+
+const canvas = document.getElementById('gl')
+const gl = canvas.getContext('webgl', { antialias: false, alpha: false, depth: false, stencil: false, preserveDrawingBuffer: true })
+function compile(type, src) {
+  const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s)
+  if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s))
+  return s
+}
+const prog = gl.createProgram()
+gl.attachShader(prog, compile(gl.VERTEX_SHADER, VERT))
+gl.attachShader(prog, compile(gl.FRAGMENT_SHADER, FRAG))
+gl.linkProgram(prog)
+if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog))
+gl.useProgram(prog)
+gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer())
+gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW)
+const aPos = gl.getAttribLocation(prog, 'a_pos')
+gl.enableVertexAttribArray(aPos)
+gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0)
+const U = new Proxy({}, { get: (c, k) => (c[k] ??= gl.getUniformLocation(prog, k)) })
+const rgb01 = (h) => hexToRgb(h).map((v) => v / 255)
+
+function drawShader(t, frame, cam) {
+  const ptr = pointer(t)
+  const tt = TIME0 + P.speed * t
+  gl.viewport(0, 0, OUT_W, OUT_H)
+  gl.uniform2f(U.u_res, W, H)
+  gl.uniform2f(U.u_out, OUT_W, OUT_H)
+  gl.uniform3f(U.u_cam, cam.x, cam.y, 2 * cam.z)
+  gl.uniform1f(U.u_time, tt)
+  gl.uniform1f(U.u_time2, tt - P.speed * T)
+  gl.uniform1f(U.u_timeMix, smoother(t / T))
+  gl.uniform2f(U.u_mouse, ...ptr.mouse)
+  gl.uniform2f(U.u_vel, ...ptr.vel)
+  gl.uniform1f(U.u_active, ptr.active)
+  gl.uniform1f(U.u_seed, SEED_A)
+  gl.uniform1f(U.u_seed2, SEED_B)
+  gl.uniform1f(U.u_seedMix, seedMix(t))
+  gl.uniform1f(U.u_count, P.count)
+  gl.uniform1f(U.u_size, sizeAt(t) / 100)
+  gl.uniform1f(U.u_soft, 0.05 + (P.softness / 100) * 0.95)
+  gl.uniform1f(U.u_pull, P.strength / 100)
+  gl.uniform1f(U.u_grain, (P.texture / 100) * 0.15)
+  gl.uniform1f(U.u_grainSeed, ((frame % 720) * 0.6180339887) % 1)
+  gl.uniform3fv(U.u_deep, rgb01(coreAt(t)))
+  gl.uniform3fv(U.u_mid, rgb01(P.edge))
+  gl.uniform3fv(U.u_bg, rgb01(P.ground))
+  gl.drawArrays(gl.TRIANGLES, 0, 3)
+}
+
+// ============================================================================
+// UI (built once; seek() sets every dynamic property from t)
+// ============================================================================
+const stroke = 'fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"'
+const ICONS = {
+  shuffle: `<svg viewBox="0 0 16 16"><path ${stroke} d="M13.039 2.667L13.637 3.317C13.904 3.608 14.038 3.753 13.991 3.877 13.944 4 13.755 4 13.377 4 12.531 4 11.518 3.863 10.741 4.315 10.26 4.595 9.925 5.083 9.359 6M2 12H3.054C4.339 12 4.982 12 5.524 11.685 6.005 11.405 6.339 10.917 6.905 10"/><path ${stroke} d="M13.039 13.333L13.637 12.683C13.904 12.392 14.038 12.247 13.991 12.123 13.944 12 13.755 12 13.377 12 12.531 12 11.518 12.137 10.741 11.685 10.199 11.369 9.842 10.787 9.129 9.625L7.136 6.375C6.423 5.213 6.067 4.631 5.524 4.315 4.982 4 4.339 4 3.054 4H2"/></svg>`,
+  colors: `<svg viewBox="0 0 24 24"><path ${stroke} d="M19 12.129L12.939 18.207C11.156 19.995 10.264 20.889 9.17 20.988C8.989 21.004 8.807 21.004 8.626 20.988C7.532 20.889 6.64 19.995 4.857 18.207L2.837 16.181C1.721 15.062 1.721 13.248 2.837 12.129M19 12.129L10.918 4.026M19 12.129H2.837M10.918 4.026L2.837 12.129M10.918 4.026L8.898 2"/><path ${stroke} d="M22 20C22 21.105 21.105 22 20 22C18.895 22 18 21.105 18 20C18 18.895 20 17 20 17C20 17 22 18.895 22 20Z"/></svg>`,
+  shapes: `<svg viewBox="0 0 24 24"><path ${stroke} d="M13.338 10H10.662C9.127 10 8.36 10 8.085 9.493C7.811 8.986 8.217 8.32 9.031 6.989L10.369 4.798C11.101 3.599 11.467 3 12 3C12.533 3 12.899 3.599 13.631 4.798L14.969 6.989C15.783 8.32 16.189 8.986 15.915 9.493C15.64 10 14.873 10 13.338 10Z"/><circle ${stroke} cx="17.5" cy="17.5" r="3.5"/><path ${stroke} d="M9.663 20.111C10 19.607 10 18.904 10 17.5C10 16.096 10 15.393 9.663 14.889C9.517 14.671 9.33 14.483 9.111 14.337C8.607 14 7.904 14 6.5 14C5.096 14 4.393 14 3.889 14.337C3.67 14.483 3.483 14.671 3.337 14.889C3 15.393 3 16.096 3 17.5C3 18.904 3 19.607 3.337 20.111C3.483 20.329 3.67 20.517 3.889 20.663C4.393 21 5.096 21 6.5 21C7.904 21 8.607 21 9.111 20.663C9.33 20.517 9.517 20.329 9.663 20.111Z"/></svg>`,
+  texture: `<svg viewBox="0 0 24 24"><path ${stroke} d="M4.253 20.302C5.655 21.5 7.77 21.5 12 21.5C16.23 21.5 18.345 21.5 19.747 20.302C19.946 20.132 20.132 19.946 20.302 19.747C21.5 18.345 21.5 16.23 21.5 12C21.5 7.77 21.5 5.655 20.302 4.253C20.132 4.054 19.946 3.868 19.747 3.698C18.345 2.5 16.23 2.5 12 2.5C7.77 2.5 5.655 2.5 4.253 3.698C4.054 3.868 3.868 4.054 3.698 4.253C2.5 5.655 2.5 7.77 2.5 12C2.5 16.23 2.5 18.345 3.698 19.747C3.868 19.946 4.054 20.132 4.253 20.302Z"/><path ${stroke} d="M4 20L20 4M2.698 15.802L15.806 2.694M21.306 8.194L8.198 21.302M13.5 21.5L21.5 13.5M2.5 10.5L10.5 2.5"/></svg>`,
+  motion: `<svg viewBox="0 0 24 24"><path ${stroke} d="M3 12H6C7.105 12 8 11.105 8 10V7C8 5.895 8.895 5 10 5C11.105 5 12 5.895 12 7V17C12 18.105 12.895 19 14 19C15.104 19 16 18.105 16 17L16 14C16 12.895 16.895 12 18 12H21"/></svg>`,
+  cursor: `<svg viewBox="0 0 24 24"><path fill="currentColor" d="M19.75 12.335H20.5H20.5H19.75ZM5.817 15.479L6.438 15.058L6.438 15.058L5.817 15.479ZM6.381 16.309L5.76 16.731L5.76 16.731L6.381 16.309ZM6.284 8.875L5.767 8.332C5.754 8.344 5.741 8.358 5.728 8.371L6.284 8.875ZM8.245 8.043C8.545 7.757 8.556 7.283 8.271 6.983C7.985 6.683 7.51 6.671 7.21 6.957L8.245 8.043ZM4.255 12.437L5.004 12.393L4.255 12.437ZM4.309 11.676L3.574 11.526V11.526L4.309 11.676ZM19.458 16.168L20.164 16.422V16.422L19.458 16.168ZM16.357 19.214L16.11 18.505L16.357 19.214ZM10.197 19.387L10.353 18.654H10.353L10.197 19.387ZM7.728 18.09L8.245 17.546V17.546L7.728 18.09ZM7 12C7 12.414 7.336 12.75 7.75 12.75C8.164 12.75 8.5 12.414 8.5 12H7ZM13 8.875C13 9.289 13.336 9.625 13.75 9.625C14.164 9.625 14.5 9.289 14.5 8.875H13ZM16 9.5C16 9.914 16.336 10.25 16.75 10.25C17.164 10.25 17.5 9.914 17.5 9.5H16ZM19.75 8H19V8L19.75 8ZM10 8.5C10 8.914 10.336 9.25 10.75 9.25C11.164 9.25 11.5 8.914 11.5 8.5H10ZM5.197 15.9L5.76 16.731L7.001 15.888L6.438 15.058L5.197 15.9ZM6.802 9.418L8.245 8.043L7.21 6.957L5.767 8.332L6.802 9.418ZM6.438 15.058C5.925 14.303 5.571 13.78 5.334 13.346C5.104 12.925 5.019 12.646 5.004 12.393L3.507 12.482C3.54 13.04 3.731 13.54 4.018 14.065C4.297 14.577 4.7 15.169 5.197 15.9L6.438 15.058ZM5.728 8.371C5.134 9.028 4.651 9.56 4.302 10.029C3.945 10.509 3.685 10.978 3.574 11.526L5.044 11.825C5.095 11.575 5.218 11.311 5.506 10.924C5.802 10.526 6.226 10.056 6.84 9.378L5.728 8.371ZM5.004 12.393C4.993 12.203 5.006 12.012 5.044 11.825L3.574 11.526C3.51 11.841 3.487 12.162 3.507 12.482L5.004 12.393ZM19 12.335C19 14.415 18.989 15.259 18.753 15.914L20.164 16.422C20.511 15.459 20.5 14.286 20.5 12.335H19ZM12.453 20.25C14.443 20.25 15.629 20.261 16.603 19.922L16.11 18.505C15.436 18.739 14.568 18.75 12.453 18.75V20.25ZM18.753 15.914C18.318 17.12 17.349 18.075 16.11 18.505L16.603 19.922C18.262 19.346 19.573 18.062 20.164 16.422L18.753 15.914ZM12.453 18.75C11.271 18.75 10.789 18.746 10.353 18.654L10.041 20.121C10.668 20.254 11.336 20.25 12.453 20.25V18.75ZM5.76 16.731C6.379 17.642 6.748 18.193 7.211 18.633L8.245 17.546C7.926 17.243 7.658 16.855 7.001 15.888L5.76 16.731ZM10.353 18.654C9.557 18.485 8.827 18.101 8.245 17.546L7.211 18.633C7.995 19.38 8.976 19.895 10.041 20.121L10.353 18.654ZM8.5 12V6.5H7V12H8.5ZM9.25 5.75C9.664 5.75 10 6.086 10 6.5H11.5C11.5 5.257 10.493 4.25 9.25 4.25V5.75ZM8.5 6.5C8.5 6.086 8.836 5.75 9.25 5.75V4.25C8.007 4.25 7 5.257 7 6.5H8.5ZM13 7V8.875H14.5V7H13ZM16 7V8H17.5V7H16ZM16 8V9.5H17.5V8H16ZM15.25 6.25C15.664 6.25 16 6.586 16 7H17.5C17.5 5.757 16.493 4.75 15.25 4.75V6.25ZM14.5 7C14.5 6.586 14.836 6.25 15.25 6.25V4.75C14.007 4.75 13 5.757 13 7H14.5ZM18.25 7.25C18.664 7.25 19 7.586 19 8H20.5C20.5 6.757 19.493 5.75 18.25 5.75V7.25ZM17.5 8C17.5 7.586 17.836 7.25 18.25 7.25V5.75C17.007 5.75 16 6.757 16 8H17.5ZM10 6.5V8.5H11.5V6.5H10ZM13 6V7H14.5V6H13ZM10 6V6.5H11.5V6H10ZM12.25 5.25C12.664 5.25 13 5.586 13 6H14.5C14.5 4.757 13.493 3.75 12.25 3.75V5.25ZM12.25 3.75C11.007 3.75 10 4.757 10 6H11.5C11.5 5.586 11.836 5.25 12.25 5.25V3.75ZM19 8L19 12.335H20.5V8L19 8Z"/></svg>`,
+  code: `<svg viewBox="0 0 24 24"><path ${stroke} d="M16 7L19.066 9.643C20.355 10.754 21 11.31 21 12C21 12.69 20.355 13.246 19.066 14.357L16 17M8 7L4.934 9.643C3.645 10.754 3 11.31 3 12C3 12.69 3.645 13.246 4.934 14.357L8 17"/></svg>`,
+  close: `<svg viewBox="0 0 21 21" width="14" height="14"><path ${stroke} d="M15.75 5.25L5.251 15.749M15.749 15.75L5.25 5.251"/></svg>`,
+  eyedropper: `<svg viewBox="0 0 21 21" width="14" height="14"><path ${stroke} d="M11.756 6.125L6.264 11.617M6.264 11.617L4.224 13.657C3.435 14.445 3.041 14.84 2.832 15.341 2.625 15.844 2.625 16.401 2.625 17.517V18.375H3.483C4.599 18.375 5.156 18.375 5.659 18.168 6.16 17.959 6.555 17.565 7.343 16.776L12.503 11.617M6.264 11.617H12.503M12.503 11.617L14.875 9.244"/><path ${stroke} d="M16.808 7.34L18.218 8.75M16.808 7.34L17.561 6.586C17.818 6.33 17.945 6.202 18.035 6.077 18.489 5.44 18.489 4.585 18.035 3.947 17.945 3.822 17.818 3.694 17.561 3.438 17.306 3.182 17.178 3.055 17.053 2.965 16.416 2.511 15.56 2.511 14.923 2.965 14.798 3.055 14.67 3.182 14.414 3.438L13.66 4.192M16.808 7.34L13.66 4.192M12.25 2.783L13.66 4.192"/></svg>`,
+  info: `<svg viewBox="0 0 24 24" width="16" height="16"><path ${stroke} d="M12 11V17"/><path ${stroke} stroke-width="2.2" d="M12 7.5H12.01"/></svg>`,
+  copy: `<svg viewBox="0 0 24 24" width="16" height="16"><path ${stroke} d="M7.5 14.5C7.5 11.2 7.5 9.55 8.525 8.525C9.55 7.5 11.2 7.5 14.5 7.5C17.8 7.5 19.45 7.5 20.475 8.525C21.5 9.55 21.5 11.2 21.5 14.5C21.5 17.8 21.5 19.45 20.475 20.475C19.45 21.5 17.8 21.5 14.5 21.5C11.2 21.5 9.55 21.5 8.525 20.475C7.5 19.45 7.5 17.8 7.5 14.5Z"/><path ${stroke} d="M7.5 16.5C6.104 16.5 5.405 16.5 4.844 16.304C3.839 15.952 3.048 15.161 2.696 14.156C2.5 13.595 2.5 12.896 2.5 11.5V9.5C2.5 6.2 2.5 4.55 3.525 3.525C4.55 2.5 6.2 2.5 9.5 2.5H11.5C12.896 2.5 13.595 2.5 14.156 2.696C15.161 3.048 15.952 3.839 16.304 4.844C16.5 5.405 16.5 6.104 16.5 7.5"/></svg>`,
+  check: `<svg viewBox="0 0 24 24" width="16" height="16"><path ${stroke} d="M5 14L8.5 17.5L19 6.5"/></svg>`,
+  dialogClose: `<svg viewBox="0 0 24 24" width="12" height="12"><path d="M18 6L6 18M6 6l12 12" fill="none" stroke="#00000080" stroke-width="2.2" stroke-linecap="round"/></svg>`,
+}
+const SWATCHES = ['#1f48a8', '#6b4ee6', '#f0508c', '#ff8a3d', '#ffc93c', '#3cc6a0', '#1a1a1a', '#d9dee8']
+
+const app = document.getElementById('app')
+if (Q.has('bare')) app.style.display = 'none'
+app.innerHTML = `
+  <div class="toolbar" id="toolbar"></div>
+  ${BASE.div.map((_, i) => `<div class="divider" id="div${i}"></div>`).join('')}
+  ${TOOLS.map((k) => `<div class="tool" id="tool-${k}">${ICONS[k]}</div>`).join('')}
+
+  <div class="about">${ICONS.info}</div>
+
+  <div class="panel" id="colors">
+    <div class="panel__head"><span class="panel__title">Color</span><span class="panel__reset">Reset</span></div>
+    <div class="row" id="row-core"><span class="row__label" id="row-core-label">Core</span><span class="swatch" id="row-core-swatch"></span></div>
+    <div class="row"><span class="row__label">Edge</span><span class="swatch" style="background:${P.edge}"></span></div>
+    <div class="row"><span class="row__label">Ground</span><span class="swatch swatch--light" style="background:${P.ground}"></span></div>
+  </div>
+
+  <div class="picker" id="picker">
+    <div class="picker__head"><span class="picker__title">Core</span><span style="color:var(--ink-60)">${ICONS.close}</span></div>
+    <div class="picker__sat" id="sat"><span class="pointer" id="sat-ptr"></span></div>
+    <div class="picker__hue"><span class="pointer" id="hue-ptr" style="top:5px"></span></div>
+    <div class="picker__fields">
+      <span class="picker__eyedropper">${ICONS.eyedropper}</span>
+      <span class="picker__hex"><span>#</span><b id="hex"></b><span>100%</span></span>
+    </div>
+    <div class="picker__swatches">${SWATCHES.map((s, i) => `<span class="picker__swatch" id="sw${i}" style="background:${s}"></span>`).join('')}</div>
+  </div>
+
+  <div class="panel" id="shapes">
+    <div class="panel__head"><span class="panel__title">Shapes</span><span class="panel__reset">Reset</span></div>
+    ${['count', 'size', 'softness'].map((k) => `
+      <div class="slider" id="sl-${k}">
+        <span class="slider__fill" id="sl-${k}-fill"></span>
+        ${k === 'count' ? [4, 5, 6].map((v) => `<span class="slider__dot" style="left:${9 + ((v - 1) / 5) * 210}px"></span>`).join('') : ''}
+        <span class="slider__label" id="sl-${k}-label">${k[0].toUpperCase() + k.slice(1)}</span>
+        <span class="slider__value" id="sl-${k}-value"></span>
+        <span class="slider__thumb" id="sl-${k}-thumb"></span>
+      </div>`).join('')}
+  </div>
+
+  <div class="scrim" id="scrim"></div>
+  <div class="dialog" id="dialog">
+    <div class="dialog__head">
+      <div><div class="dialog__title">Get code</div><div class="dialog__desc">A standalone file you can drop into any website or embed.</div></div>
+      <div class="dialog__close">${ICONS.dialogClose}</div>
+    </div>
+    <div class="code"><pre id="code"></pre><div class="code__fade"></div><div class="code__bar"></div></div>
+    <div class="copy">
+      <span class="copy__state" id="copy-a">${ICONS.copy}<span>Copy code</span></span>
+      <span class="copy__state" id="copy-b">${ICONS.check}<span>Copied</span></span>
+    </div>
+  </div>
+
+  <div class="tooltip" id="tip">Shuffle<span class="kbd">R</span></div>
+
+  <div class="cursor" id="cursor">
+    <svg viewBox="0 0 14 21" width="14" height="21">
+      <path d="M1 1 L1 16.2 L4.6 12.9 L7.1 18.8 L9.7 17.7 L7.3 12 L12.2 12 Z" fill="#111" stroke="#fff" stroke-width="1.3" stroke-linejoin="round" paint-order="stroke"/>
+    </svg>
+  </div>`
+
+const $ = (id) => document.getElementById(id)
+const el = {
+  toolbar: $('toolbar'), tip: $('tip'), colors: $('colors'), picker: $('picker'), shapes: $('shapes'),
+  scrim: $('scrim'), dialog: $('dialog'), cursor: $('cursor'), code: $('code'),
+  tools: TOOLS.map((k) => $('tool-' + k)), divs: BASE.div.map((_, i) => $('div' + i)),
+}
+for (const k of ['count', 'size', 'softness']) {
+  el[k] = { root: $(`sl-${k}`), fill: $(`sl-${k}-fill`), label: $(`sl-${k}-label`), value: $(`sl-${k}-value`), thumb: $(`sl-${k}-thumb`) }
+}
+
+const codeText = (core, size) => `\x3C!-- Lazuli background --\x3E
+<canvas id="lazuli"></canvas>
+\x3Cscript type="module">
+  const config = {
+    colors: {
+      core: "${core.toUpperCase()}",
+      edge: "${P.edge.toUpperCase()}",
+      ground: "${P.ground.toUpperCase()}",
+    },
+    shapes: { count: ${P.count}, size: ${(size / 100).toFixed(1)}, softness: ${(P.softness / 100).toFixed(1)} },
+    texture: { grain: ${(P.texture / 100).toFixed(2)} },
+    motion: { speed: ${P.speed} },
+    cursor: { mode: "push", strength: ${P.strength / 100} },
+  };
+<\/script>`
+
+const mixHex = (a, b, u) => { const A = hexToRgb(a), B = hexToRgb(b); return rgbToHex(...A.map((v, i) => lerp(v, B[i], u))) }
+const pressed = (t) => PRESSES.some(([a, b]) => t >= a && t < b)
+const setStyle = (node, css) => { for (const k in css) node.style[k] = css[k] }
+
+function renderUI(t) {
+  const cam = camera(t)
+  const sc = 2 * cam.z
+  app.style.transform = `translate(${OUT_W / 2 - cam.x * sc}px, ${OUT_H / 2 - cam.y * sc}px) scale(${sc})`
+
+  // ---- popovers and dialog visibility ----
+  const colors = presence(t, S.colorsUp, S.shapesDown)
+  const picker = presence(t, S.coreUp, S.shapesDown)
+  const shapes = presence(t, S.shapesUp, S.codeDown)
+  const dialog = presence(t, S.codeUp, S.closeUp, { w: 20, wClose: 40 })
+  const tip = presence(t, S.shuffleTip, S.shuffleDown, { w: 30, wClose: 40 })
+
+  // ---- toolbar ----
+  const sizes = toolSizes(t)
+  const L = toolbarLayout(sizes)
+  setStyle(el.toolbar, { top: L.top + 'px', height: L.h + 'px' })
+  L.div.forEach((y, i) => (el.divs[i].style.top = y + 'px'))
+  const openColors = colors.o > 0.001 && t < S.shapesDown
+  const openShapes = shapes.o > 0.001 && t < S.codeDown
+  const hovered = {
+    shuffle: during(t, S.shuffleHover, S.toColors[0] + 0.1) + during(t, S.shuffle2Hover, S.exit[0] + 0.1),
+    colors: during(t, S.colorsHover, S.toCore[0] + 0.12),
+    shapes: during(t, S.toShapes[1] - 0.1, S.toSize[0] + 0.1),
+    code: during(t, S.toCode[1] - 0.1, S.codeUp),
+  }
+  TOOLS.forEach((k, i) => {
+    const b = L.btn[i], n = el.tools[i]
+    const open = k === 'colors' ? (openColors ? 1 : 0) : k === 'shapes' ? (openShapes ? 1 : 0) : 0
+    const flash = k === 'shuffle'
+      ? during(t, S.shuffleDown, S.shuffleUp + 0.16, 0.06) + during(t, S.shuffle2Down, S.shuffle2Up + 0.16, 0.06)
+      : k === 'code' ? during(t, S.codeDown, S.codeUp, 0.06) : 0
+    const hov = hovered[k] ?? 0
+    const bg = open ? '#eaeaea80' : mixHex('#ffffff', '#eaeaea', Math.min(1, flash) * 0.7)
+    setStyle(n, {
+      left: b.x + 'px', top: b.y + 'px', width: b.s + 'px', height: b.s + 'px', borderRadius: b.s / 4 + 'px',
+      background: bg, borderColor: open ? '#d9d9d9' : '#e5e5e5',
+      color: `rgb(0 0 0 / ${0.6 + 0.2 * Math.max(open, Math.min(1, hov))})`,
+    })
+  })
+
+  // ---- tooltip (Radix: 300ms delay, closes on press) ----
+  const sb = L.btn[TI.shuffle]
+  const off = 14 - 9 * clamp((sb.s - 40) / 4, 0, 1)
+  setStyle(el.tip, {
+    left: sb.x + sb.s + off + 'px', top: sb.cy - 11 + 'px', opacity: tip.o,
+    transform: `translateX(${(1 - tip.s) * -4}px)`, visibility: tip.o > 0.002 ? 'visible' : 'hidden',
+  })
+
+  // ---- Colors popover: grows out of its button; contents fade in just after ----
+  const cb = L.btn[TI.colors]
+  const cTop = cb.y - 1
+  setStyle(el.colors, {
+    left: PANEL_LEFT + 'px', top: cTop + 'px', opacity: colors.o,
+    transformOrigin: `-21px ${cb.s / 2 + 1}px`, transform: `scale(${0.9 + 0.1 * colors.s})`,
+    visibility: colors.o > 0.002 ? 'visible' : 'hidden',
+  })
+  const cContent = clamp(track(t, 0, [{ t: S.colorsUp + 0.05, to: 1, w: 26, z: 1 }]), 0, 1) * colors.o
+  for (const c of el.colors.children) c.style.opacity = cContent
+  const core = coreAt(t)
+  const coreActive = t >= S.coreUp ? 1 : 0
+  const coreHover = during(t, S.coreHover, S.shapesDown)
+  setStyle($('row-core'), { background: coreActive ? '#e6e7ea' : '#f4f4f5' })
+  $('row-core-label').style.color = `rgb(0 0 0 / ${coreActive ? 0.85 : 0.5 + 0.2 * coreHover})`
+  $('row-core-swatch').style.background = core
+
+  // ---- picker ----
+  const pTop = cTop + 1 + 6 + 26 + 4 + 48 - 8
+  setStyle(el.picker, {
+    left: PICKER.x + 'px', top: pTop + 'px', opacity: picker.o,
+    transformOrigin: '60px -8px', transform: `scale(${0.92 + 0.08 * picker.s})`,
+    visibility: picker.o > 0.002 ? 'visible' : 'hidden',
+  })
+  const pContent = clamp(track(t, 0, [{ t: S.coreUp + 0.05, to: 1, w: 26, z: 1 }]), 0, 1) * picker.o
+  for (const c of el.picker.children) c.style.opacity = pContent
+  const hue = hueAt(t)
+  $('sat').style.background = `linear-gradient(to top, #000, #0000), linear-gradient(to right, #fff, hsl(${hue} 100% 50%))`
+  setStyle($('sat-ptr'), { left: SAT0 * 206 + 'px', top: (1 - VAL0) * 140 + 'px', background: core })
+  setStyle($('hue-ptr'), { left: (hue / 360) * 206 + 'px', background: `hsl(${hue} 100% 50%)` })
+  $('hex').textContent = core.slice(1).toUpperCase()
+  SWATCHES.forEach((s, i) => {
+    $('sw' + i).style.boxShadow = s === core ? `0 0 0 2px #fff, 0 0 0 3px ${s}` : 'inset 0 0 0 1px #00000014'
+  })
+
+  // ---- Shapes popover ----
+  const shb = L.btn[TI.shapes]
+  setStyle(el.shapes, {
+    left: PANEL_LEFT + 'px', top: shb.y - 1 + 'px', opacity: shapes.o,
+    transformOrigin: `-21px ${shb.s / 2 + 1}px`, transform: `scale(${0.9 + 0.1 * shapes.s})`,
+    visibility: shapes.o > 0.002 ? 'visible' : 'hidden',
+  })
+  const sContent = clamp(track(t, 0, [{ t: S.shapesUp + 0.05, to: 1, w: 26, z: 1 }]), 0, 1) * shapes.o
+  for (const c of el.shapes.children) c.style.opacity = sContent
+  const size = sizeAt(t)
+  const sliders = { count: [(P.count - 1) / 5, String(P.count)], size: [sizeP(size), Math.round(size) + '%'], softness: [P.softness / 100, String(P.softness)] }
+  const sizeHover = during(t, S.sizeHover, S.toCode[0] + 0.08)
+  const dragging = during(t, S.sizeDown, S.sizeUp)
+  for (const k in sliders) {
+    const [p, text] = sliders[k], s = el[k]
+    s.fill.style.width = 18 + p * 210 + 'px'
+    s.thumb.style.left = 9 + p * 210 + 'px'
+    s.value.textContent = text
+    const hov = k === 'size' ? sizeHover : 0
+    s.thumb.style.background = `rgb(0 0 0 / ${0.28 + 0.12 * hov})`
+    s.label.style.color = `rgb(0 0 0 / ${0.5 + 0.35 * (k === 'size' ? dragging : 0)})`
+  }
+
+  // ---- Get code dialog ----
+  setStyle(el.scrim, { opacity: dialog.o, visibility: dialog.o > 0.002 ? 'visible' : 'hidden' })
+  const codeBtn = BASE.btn[TI.code]
+  setStyle(el.dialog, {
+    left: DIALOG.x + 'px', top: DIALOG.y + 'px', opacity: dialog.o,
+    transformOrigin: `${codeBtn.cx - DIALOG.x}px ${codeBtn.cy - DIALOG.y}px`,
+    transform: `scale(${0.95 + 0.05 * dialog.s})`, visibility: dialog.o > 0.002 ? 'visible' : 'hidden',
+  })
+  const dContent = clamp(track(t, 0, [{ t: S.codeUp + 0.06, to: 1, w: 24, z: 1 }]), 0, 1) * dialog.o
+  for (const c of el.dialog.children) c.style.opacity = dContent
+  el.code.textContent = codeText(coreAt(S.codeUp), sizeAt(S.codeUp))
+  const copied = clamp(track(t, 0, [{ t: S.copyUp, to: 1, w: 28, z: 1 }]), 0, 1)
+  setStyle($('copy-a'), { opacity: 1 - copied, transform: `translateY(${-4 * copied}px)` })
+  setStyle($('copy-b'), { opacity: copied, transform: `translateY(${4 * (1 - copied)}px)` })
+  $('dialog').querySelector('.copy').style.filter = `brightness(${1 + 0.08 * during(t, S.toCopy[1] - 0.08, S.toClose[0] + 0.05)})`
+
+  // ---- cursor ----
+  const c = cursorAt(t)
+  const press = track(t, 1, PRESSES.flatMap(([a, b]) => [{ t: a, to: 0.86, w: 40, z: 1 }, { t: b, to: 1, w: 30, z: 0.8 }]))
+  setStyle(el.cursor, { transform: `translate(${c.x - 1}px, ${c.y - 1}px) scale(${1.15 * press})` })
+  return cam
+}
+
+// ============================================================================
+// seek(t, frame): the only entry point. Everything is recomputed from t.
+// ============================================================================
+function seek(t, frame = Math.round(t * FPS), { nowrap = false } = {}) {
+  if (!nowrap) t = wrap(t) // nowrap exists only to prove state(T) == state(0)
+  const cam = renderUI(t)
+  drawShader(t, frame, cam)
+}
+window.seek = seek
+window.REEL = { T, FPS, S, cursorAt, pointer, camera, seedMix, hueAt, sizeAt, coreAt }
+window.ready = document.fonts.ready.then(() => { seek(Number(new URLSearchParams(location.search).get('t') ?? 0)); return true })
+</script>
+</body>
+</html>

@@ -1,0 +1,15 @@
+{
+  "name": "lazuli-reel",
+  "private": true,
+  "description": "12 s looping Instagram video of the Lazuli playground, rendered frame by frame from reel.html.",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "contact": "node render.mjs contact",
+    "loop": "node render.mjs loop",
+    "render": "node render.mjs full"
+  },
+  "devDependencies": {
+    "playwright": "^1.63.0"
+  }
+}
