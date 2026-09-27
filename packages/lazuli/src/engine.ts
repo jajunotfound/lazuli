@@ -23,6 +23,7 @@ type GL = WebGLRenderingContext | WebGL2RenderingContext
 
 const MAX_DPR = 2
 const MAX_DT = 0.05
+const MIN_DT = 1 / 1000
 const REDUCED_SPEED = 0.05
 
 /** Per-frame easing from the prototype, corrected so it feels the same at any refresh rate. */
@@ -188,7 +189,8 @@ export function createLazuli(element: HTMLElement, options: LazuliOptions = {}):
 
   function frame(now: number) {
     raf = requestAnimationFrame(frame)
-    const dt = last ? Math.min((now - last) / 1000, MAX_DT) : 1 / 60
+    // Two frames can share a timestamp; a zero dt would divide velocity by zero.
+    const dt = last ? Math.min(Math.max((now - last) / 1000, MIN_DT), MAX_DT) : 1 / 60
     last = now
     const frames = dt * 60
 
@@ -203,6 +205,8 @@ export function createLazuli(element: HTMLElement, options: LazuliOptions = {}):
     const kv = ease(0.25, frames)
     vel.x += ((mouse.x - px) / frames - vel.x) * kv
     vel.y += ((mouse.y - py) / frames - vel.y) * kv
+    // NaN would stick forever through the easing and blank the canvas; never let it in.
+    if (!Number.isFinite(vel.x) || !Number.isFinite(vel.y)) vel.x = vel.y = 0
     active += ((hovering || touching ? 1 : 0) - active) * ease(0.06, frames)
     if (active < 1e-4) active = 0
 
