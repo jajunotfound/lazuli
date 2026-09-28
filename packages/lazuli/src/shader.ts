@@ -117,6 +117,7 @@ vec4 shade(float coverage, float tone) {
 
 const BLOBS = /* glsl */ `
 uniform float u_count; uniform float u_size; uniform float u_soft;
+uniform float u_stretch; uniform float u_merge; uniform float u_wobble;
 // Per blob: (center.x in uv, center.y, radius, x-squash) and (orbit f1, f2, amplitude, phase).
 uniform vec4 u_blob[6];
 uniform vec4 u_orbit[6];
@@ -129,9 +130,10 @@ const float CORE_HI = 1.54;  // field where it's fully core
 vec4 shapeColor(vec2 p, float t) {
   float aspect = u_res.x / u_res.y;
   // slow organic wobble on the edges
-  p += 0.035 * vec2(noise(p * 3.0 + t * 0.4), noise(p * 3.0 - t * 0.4 + 7.0)) - 0.0175;
+  p += u_wobble * vec2(noise(p * 3.0 + t * 0.4), noise(p * 3.0 - t * 0.4 + 7.0)) - u_wobble * 0.5;
 
   float field = 0.0;
+  float peak = 0.0;
   vec3 cyc = vec3(0.0);
   for (int i = 0; i < 6; i++) {
     if (float(i) >= u_count) break;
@@ -144,12 +146,16 @@ vec4 shapeColor(vec2 p, float t) {
     vec2 c = vec2(b.x * aspect, b.y) + vec2(sin(t * o.x + p1) - sin(p1), cos(t * o.y + p2) - cos(p2)) * o.z;
     float r = b.z * u_size;
     vec2 q = p - c;
-    q.x *= b.w * (1.0 + 0.12 * (sin(t * 0.3 + p3) - sin(p3)));
+    q.x *= (1.0 + (b.w - 1.0) * u_stretch) * (1.0 + 0.12 * (sin(t * 0.3 + p3) - sin(p3)));
     float f = exp(-pow(dot(q, q) / (r * r) + 1e-6, FALLOFF));
     field += f;
+    peak = max(peak, f);
     cyc += f * palAt(float(i));
   }
 
+  // Merge 1 sums the fields (liquid), 0 takes the strongest blob (overlapping, unfused).
+  float sum = field;
+  field = mix(peak, field, u_merge);
   // Softness widens the edge band; past the point where it would tint the ground,
   // only the outer side keeps growing, so high values read as haze.
   float lo = max(0.5 - u_soft * 0.45, 0.0);
@@ -159,7 +165,7 @@ vec4 shapeColor(vec2 p, float t) {
   if (u_mapping > 0.5) {
     // Each blob its own stop, mixed where they merge; same overall density as 'layers'.
     float c = smoothstep(0.0, 1.0, tone);
-    return shadeFlat(1.0 - (1.0 - e) * (1.0 - c), cyc / max(field, 1e-4));
+    return shadeFlat(1.0 - (1.0 - e) * (1.0 - c), cyc / max(sum, 1e-4));
   }
   return shade(e, tone);
 }
@@ -188,6 +194,197 @@ vec4 patternAt(vec2 frag) {
 // Opacity times the corner fade at a pixel.
 float fadeAt(vec2 frag) {
   return u_opacity * (1.0 - smoothstep(0.55, 1.0, length(frag / u_res - 0.5)) * u_fade);
+}
+`
+
+// Shared by the line- and cell-based shapes.
+const SHAPE_COMMON = /* glsl */ `
+vec4 over(vec4 top, vec4 under) { return top + under * (1.0 - top.a); }
+mat2 rot2(float a) { float c = cos(a), s = sin(a); return mat2(c, s, -s, c); }
+
+// One instance (ribbon, band, ring, dot) at normalized distance d from its center line
+// (0) to its edge (1). aa is one pixel in d units, the least softness that doesn't alias.
+vec4 shadeInstance(float d, float soft, float aa, float idx) {
+  float s = max(soft, aa);
+  float cov = 1.0 - smoothstep(1.0 - s, 1.0 + s, d);
+  if (u_mapping > 0.5) return shadeFlat(cov, palAt(idx));
+  return shade(cov, 1.0 - d);
+}
+
+// Several instances were composited: screening textures re-shade the result as one color.
+void flatten(vec4 P) { g_cov = P.a; g_flat = P.rgb / max(P.a, 1e-4); g_isFlat = 1.0; }
+`
+
+const WAVES = /* glsl */ `
+uniform float u_wCount; uniform float u_wAmp; uniform float u_wK; uniform float u_wHalf;
+uniform float u_wSoft; uniform float u_wSpread; uniform float u_wTwist; uniform float u_wAngle;
+// Per ribbon: phase, speed, second-harmonic amount, its phase.
+uniform vec4 u_wave[8];
+
+vec4 shapeColor(vec2 p, float t) {
+  float aspect = u_res.x / u_res.y;
+  vec2 q = rot2(-u_wAngle) * (p - vec2(0.5 * aspect, 0.5));
+  float aa = 1.0 / (u_res.y * u_wHalf);
+  vec4 P = vec4(0.0);
+  for (int i = 0; i < 8; i++) {
+    if (float(i) >= u_wCount) break;
+    vec4 w = u_wave[i];
+    float base = (float(i) - (u_wCount - 1.0) * 0.5) * u_wSpread;
+    float ph = w.x + float(i) * u_wTwist + t * w.y;
+    float a2 = u_wAmp * w.z * 0.35;
+    float x = q.x * u_wK;
+    float y = base + u_wAmp * sin(x + ph) + a2 * sin(2.0 * x + w.w + ph * 0.7);
+    float dy = u_wK * (u_wAmp * cos(x + ph) + 2.0 * a2 * cos(2.0 * x + w.w + ph * 0.7));
+    // Distance across the ribbon, not straight down, so steep parts keep their width.
+    float d = abs(q.y - y) / sqrt(1.0 + dy * dy) / u_wHalf;
+    P = over(shadeInstance(d, u_wSoft, aa, float(i)), P);
+  }
+  flatten(P);
+  return P;
+}
+`
+
+const BANDS = /* glsl */ `
+uniform float u_kCount; uniform float u_kAngle; uniform float u_kHalf; uniform float u_kSoft;
+uniform float u_kWarp; uniform float u_kWarpFreq; uniform vec2 u_kSeed;
+
+vec4 shapeColor(vec2 p, float t) {
+  float aspect = u_res.x / u_res.y;
+  vec2 n = vec2(-sin(u_kAngle), cos(u_kAngle)); // across the bands
+  float s = dot(p - vec2(0.5 * aspect, 0.5), n);
+  s += u_kWarp * (fbm(p * u_kWarpFreq + u_kSeed + t * 0.12, 3.0) - 0.5);
+  float x = s * u_kCount + t * 0.25;
+  float i = floor(x);
+  float f = fract(x) - 0.5;
+  float aa = u_kCount / (u_res.y * u_kHalf);
+  // This band and the nearest neighbor, so soft edges don't cut off at the cell boundary.
+  float j = i + (f > 0.0 ? 1.0 : -1.0);
+  vec4 near = shadeInstance((1.0 - abs(f)) / u_kHalf, u_kSoft, aa, j);
+  vec4 P = shadeInstance(abs(f) / u_kHalf, u_kSoft, aa, i);
+  float cov = g_cov;
+  P = over(P, near);
+  g_cov = max(cov, P.a);
+  return P;
+}
+`
+
+const RINGS = /* glsl */ `
+uniform float u_rCount; uniform float u_rSpacing; uniform float u_rThick; uniform float u_rSoft;
+uniform float u_rSources; uniform float u_rDist; uniform vec2 u_rCenter;
+uniform vec2 u_rSrc[3];
+
+vec4 shapeColor(vec2 p, float t) {
+  float aspect = u_res.x / u_res.y;
+  if (u_rDist > 0.0) p += u_rDist * (vec2(fbm(p * 2.5 + t * 0.1, 3.0), fbm(p * 2.5 + 9.1 - t * 0.1, 3.0)) - 0.5);
+  float r0 = length(p - vec2(u_rCenter.x * aspect, u_rCenter.y));
+  float phase = r0 / u_rSpacing - t * 0.4; // rings travel outward
+  float v = cos(6.2831853 * phase);
+  float rmin = r0;
+  for (int k = 1; k < 3; k++) {
+    if (float(k) >= u_rSources) break;
+    float r = length(p - vec2(u_rSrc[k].x * aspect, u_rSrc[k].y));
+    v += cos(6.2831853 * (r / u_rSpacing - t * 0.4));
+    rmin = min(rmin, r);
+  }
+  // 0 on a ring (or where the waves from all sources agree), 1 halfway between.
+  float between = acos(clamp(v / u_rSources, -1.0, 1.0)) / 3.14159265;
+  float aa = 2.0 / (u_rSpacing * u_res.y * u_rThick);
+  vec4 P = shadeInstance(between / u_rThick, u_rSoft, aa, floor(phase + 0.5));
+  // Only the first u_rCount rings from the nearest source.
+  float vis = 1.0 - smoothstep(u_rCount - 0.5, u_rCount + 0.5, rmin / u_rSpacing);
+  g_cov *= vis;
+  return P * vis;
+}
+`
+
+const DOTS = /* glsl */ `
+uniform float u_oSpacing; uniform float u_oSize; uniform float u_oSoft; uniform float u_oHex;
+uniform float u_oJitter; uniform float u_oMod; uniform vec2 u_oSeed;
+
+vec2 jitter(vec2 id) {
+  return vec2(hash(dot(id, vec2(12.37, 45.61))), hash(dot(id, vec2(78.93, 10.17)))) - 0.5;
+}
+
+// One dot: sized (and, with 'layers', colored) by a slow noise field at its center.
+vec4 dotAt(vec2 p, vec2 center, vec2 id, float sp, float t) {
+  center += jitter(id) * u_oJitter * sp * 0.5;
+  float n = fbm(center * 1.8 + u_oSeed + vec2(t * 0.12, -t * 0.09), 3.0);
+  float m = mix(1.0, smoothstep(0.3, 0.72, n), u_oMod);
+  float r = u_oSize * 0.5 * sp * m;
+  if (r < 1e-5) return vec4(0.0);
+  float aa = 1.0 / (u_res.y * r);
+  float d = length(p - center) / r;
+  float s = max(u_oSoft, aa);
+  float cov = 1.0 - smoothstep(1.0 - s, 1.0 + s, d);
+  if (u_mapping > 0.5) return shadeFlat(cov, palAt(floor(hash(dot(id, vec2(3.1, 7.7))) * u_palN)));
+  // Denser color for bigger dots, falling to the edge color at each dot's rim (the upper
+  // stops' coverage comes from tone alone, so it has to reach 0 outside the dot).
+  return shade(cov, min(m, 1.0 - d));
+}
+
+vec4 shapeColor(vec2 p, float t) {
+  float sp = u_oSpacing * u_dpr / u_res.y; // CSS px → height units
+  vec4 P = vec4(0.0);
+  if (u_oHex < 0.5) {
+    // The four nearest cell centers (nine with jitter, which can push a dot one cell over).
+    if (u_oJitter > 0.0) {
+      vec2 id = floor(p / sp);
+      for (int j = -1; j <= 1; j++)
+        for (int i = -1; i <= 1; i++) {
+          vec2 c = id + vec2(float(i), float(j));
+          P = over(dotAt(p, (c + 0.5) * sp, c, sp, t), P);
+        }
+    } else {
+      vec2 id = floor(p / sp - 0.5);
+      for (int j = 0; j <= 1; j++)
+        for (int i = 0; i <= 1; i++) {
+          vec2 c = id + vec2(float(i), float(j));
+          P = over(dotAt(p, (c + 0.5) * sp, c, sp, t), P);
+        }
+    }
+  } else {
+    // Hex grid as two offset rectangular lattices; the four nearest centers of each.
+    vec2 a = vec2(1.0, 1.7320508) * sp;
+    vec2 id1 = floor(p / a - 0.5);
+    vec2 id2 = floor(p / a);
+    for (int j = 0; j <= 1; j++)
+      for (int i = 0; i <= 1; i++) {
+        vec2 o = vec2(float(i), float(j));
+        P = over(dotAt(p, (id1 + o + 0.5) * a, (id1 + o) * 2.0, sp, t), P);
+        P = over(dotAt(p, (id2 + o) * a, (id2 + o) * 2.0 + 1.0, sp, t), P);
+      }
+  }
+  flatten(P);
+  return P;
+}
+`
+
+const NODAL = /* glsl */ `
+uniform float u_nN; uniform float u_nM; uniform float u_nHalf; uniform float u_nSoft;
+uniform float u_nScale; uniform float u_nRegions;
+
+// Chladni plate modes: f = cos(nπx)cos(mπy) − cos(mπx)cos(nπy) on [-1, 1]², with sand
+// gathering on the nodal lines f = 0. Over time it breathes into the sine-mode partner.
+vec4 shapeColor(vec2 p, float t) {
+  float aspect = u_res.x / u_res.y;
+  float unit = 0.5 * u_nScale; // height units per plate unit
+  vec2 x = (p - vec2(0.5 * aspect, 0.5)) / unit;
+  float a = 3.14159265 * u_nN, b = 3.14159265 * u_nM;
+  float ct = cos(t * 0.5), st = sin(t * 0.5);
+  float cax = cos(a * x.x), sax = sin(a * x.x), cby = cos(b * x.y), sby = sin(b * x.y);
+  float cbx = cos(b * x.x), sbx = sin(b * x.x), cay = cos(a * x.y), say = sin(a * x.y);
+  float f = ct * (cax * cby - cbx * cay) + st * (sax * sby - sbx * say);
+  vec2 g = ct * vec2(-a * sax * cby + b * sbx * cay, -b * cax * sby + a * cbx * say)
+         + st * vec2(a * cax * sby - b * cbx * say, b * sax * cby - a * sbx * cay);
+  // Distance to the nearest nodal line, in plate units.
+  float dist = f / max(length(g), 1e-3);
+  float aa = 1.0 / (u_res.y * unit * u_nHalf);
+  if (u_nRegions > 0.5) {
+    // Fill where f > 0; the edge sits on the nodal line.
+    float d = 1.0 - dist / u_nHalf;
+    return shadeInstance(max(d, 0.0), u_nSoft, aa, step(0.0, f));
+  }
+  return shadeInstance(abs(dist) / u_nHalf, u_nSoft, aa, 0.0);
 }
 `
 
@@ -375,7 +572,14 @@ void main() {
 }
 `
 
-const SHAPES: Record<ShapeType, string> = { blobs: BLOBS }
+const SHAPES: Record<ShapeType, string> = {
+  blobs: BLOBS,
+  waves: SHAPE_COMMON + WAVES,
+  bands: SHAPE_COMMON + BANDS,
+  rings: SHAPE_COMMON + RINGS,
+  dots: SHAPE_COMMON + DOTS,
+  nodal: SHAPE_COMMON + NODAL,
+}
 const TEXTURES: Record<TextureType, string> = { none: '', grain: GRAIN, noise: NOISE, paper: PAPER, dither: DITHER, halftone: HALFTONE }
 
 export function variantKey(shape: ShapeType, texture: TextureType): string {

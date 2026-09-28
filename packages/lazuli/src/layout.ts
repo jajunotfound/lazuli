@@ -30,7 +30,11 @@ function rng(seed: number): () => number {
   }
 }
 
-export function layoutFromSeed(seed: number): Blob[] {
+/**
+ * The blob layout for a seed. With `satellite: false` the small drop is left out and the
+ * next extra blob takes its place; the anchor, companion and extras stay where they were.
+ */
+export function layoutFromSeed(seed: number, { satellite: sat = true }: { satellite?: boolean } = {}): Blob[] {
   const rand = rng(seed)
   const u = (lo: number, hi: number) => lo + (hi - lo) * rand()
   const sign = () => (rand() < 0.5 ? -1 : 1)
@@ -54,10 +58,37 @@ export function layoutFromSeed(seed: number): Blob[] {
     ...motion(0.06, 0.12),
   }
   const blobs = [anchor, companion, satellite]
-  while (blobs.length < MAX_BLOBS) {
+  while (blobs.length < MAX_BLOBS + 1) {
     blobs.push({ x: u(0.2, 0.8), y: u(0.2, 0.8), r: u(0.08, 0.24), fx: u(0.7, 1.3), ...motion(0.05, 0.12) })
   }
-  return blobs
+  if (!sat) blobs.splice(2, 1)
+  return blobs.slice(0, MAX_BLOBS)
+}
+
+export const MAX_WAVES = 8
+
+/** Per ribbon: phase, speed, second-harmonic amount (0–1) and its phase. */
+export function wavesFromSeed(seed: number): Float32Array {
+  const rand = rng(seed + 0.101)
+  const out = new Float32Array(MAX_WAVES * 4)
+  for (let i = 0; i < MAX_WAVES; i++) {
+    out.set([rand() * Math.PI * 2, 0.6 + rand() * 0.6, 0.3 + rand() * 0.7, rand() * Math.PI * 2], i * 4)
+  }
+  return out
+}
+
+/** Extra ring sources (index 1 and 2; source 0 is the center parameter), uv with y up. */
+export function ringSourcesFromSeed(seed: number): Float32Array {
+  const rand = rng(seed + 0.202)
+  const out = new Float32Array(3 * 2)
+  for (let i = 1; i < 3; i++) out.set([0.15 + rand() * 0.7, 0.15 + rand() * 0.7], i * 2)
+  return out
+}
+
+/** An offset into the noise field, so each seed modulates dots and bands differently. */
+export function noiseOffsetFromSeed(seed: number): [number, number] {
+  const rand = rng(seed + 0.303)
+  return [rand() * 100, rand() * 100]
 }
 
 /** Pack for the shader: u_blob[i] = (x, y, r, fx), u_orbit[i] = (f1, f2, amp, phase). */

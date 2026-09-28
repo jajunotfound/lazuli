@@ -31,6 +31,8 @@ export {
   type TextureTarget,
   type ColorMapping,
   type DotShape,
+  type DotGrid,
+  type NodalStyle,
   type DitherMatrix,
   type BlendMode,
 } from './schema'

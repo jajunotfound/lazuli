@@ -110,3 +110,8 @@ test('texture settings only count for the types that use them', () => {
   const c = resolveConfig({ texture: { type: 'halftone', target: 'pattern', levels: 8, angle: 30 } })
   assert.deepEqual(toFlat(c, 'attr'), [['texture-type', 'halftone'], ['texture-angle', '30']])
 })
+
+test('each shape exports only its own settings', () => {
+  const c = resolveConfig({ shape: 'waves', waves: { count: 5 }, blobs: { count: 2 }, rings: { count: 9 } })
+  assert.deepEqual(toFlat(c, 'attr'), [['shape', 'waves'], ['waves-count', '5']])
+})

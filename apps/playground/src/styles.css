@@ -634,6 +634,8 @@ button {
   font-weight: 500;
   line-height: 18px;
   letter-spacing: var(--tracking-tight);
+  word-spacing: 2px;
+  white-space: nowrap;
   pointer-events: none;
 }
 

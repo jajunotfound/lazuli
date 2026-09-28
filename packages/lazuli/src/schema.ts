@@ -3,7 +3,9 @@
 // <lazuli-bg> attributes, URL state, code export and the playground's controls are all
 // generated from PARAMS, so a new parameter is one entry here plus its uniform mapping.
 
-export type ShapeType = 'blobs'
+export type ShapeType = 'blobs' | 'waves' | 'bands' | 'rings' | 'dots' | 'nodal'
+export type DotGrid = 'square' | 'hex'
+export type NodalStyle = 'lines' | 'regions'
 export type TextureType = 'none' | 'grain' | 'noise' | 'halftone' | 'dither' | 'paper'
 export type DotShape = 'dot' | 'line' | 'square'
 export type DitherMatrix = 'bayer4' | 'bayer8' | 'ign'
@@ -28,6 +30,89 @@ export interface LazuliConfig {
     size: number
     /** 0–100 */
     softness: number
+    /** How far blobs stretch from round, 0–200 %. 100 is the seeded layout. */
+    stretch: number
+    /** 100: blobs fuse like liquid; 0: they overlap without merging. */
+    merge: number
+    /** Edge wobble, 0–100. */
+    wobble: number
+    /** The small drop next to the main blob. */
+    satellite: boolean
+  }
+  waves: {
+    /** Ribbons, 1–8 */
+    count: number
+    /** 0–100 */
+    amplitude: number
+    /** 10–100 */
+    wavelength: number
+    /** Ribbon width, 2–100 */
+    thickness: number
+    /** 0–100 */
+    softness: number
+    /** Spacing between ribbons, 0–100 */
+    spread: number
+    /** Phase offset between neighboring ribbons, 0–100 */
+    twist: number
+    /** Rotation in degrees, -90–90 */
+    angle: number
+  }
+  bands: {
+    /** Bands across the frame, 1–30 */
+    count: number
+    /** Degrees, 0–180 */
+    angle: number
+    /** Band width against the gap, 5–95 % */
+    width: number
+    /** 0–100 */
+    softness: number
+    /** How much noise bends the bands, 0–100 */
+    warp: number
+    /** Size of the bends, 0–100 */
+    warpScale: number
+  }
+  rings: {
+    /** 1–24 */
+    count: number
+    /** 5–100 */
+    spacing: number
+    /** Ring width as a share of the spacing, 2–100 */
+    thickness: number
+    /** 0–100 */
+    softness: number
+    /** Center in percent of the width and height (0 is the left and top edge). */
+    centerX: number
+    centerY: number
+    /** 1–3; more than one gives interference patterns. */
+    sources: number
+    /** Noise warp, 0–100 */
+    distortion: number
+  }
+  dots: {
+    /** Grid spacing in CSS pixels, 6–120 */
+    spacing: number
+    /** Dot size as a share of the cell, 0–100 */
+    size: number
+    /** 0–100 */
+    softness: number
+    grid: DotGrid
+    /** Seeded offset per dot, 0–100 */
+    jitter: number
+    /** How much a slow noise field swells and shrinks the dots, 0–100 */
+    modulation: number
+  }
+  nodal: {
+    /** Chladni mode numbers, 1–12 (equal values use the next mode, since n = m is blank). */
+    n: number
+    m: number
+    /** Line width, 2–100 */
+    thickness: number
+    /** 0–100 */
+    softness: number
+    /** Zoom, 20–200 % */
+    scale: number
+    /** Draw the nodal lines, or fill the regions between them. */
+    style: NodalStyle
   }
   color: {
     /** 2–5 hex colors, ordered from the soft outer edge to the dense core. */
@@ -150,7 +235,8 @@ type SpecFor<V> = [V] extends [number]
 
 const def = <P extends ParamPath>(path: P, spec: SpecFor<ValueAt<P>>): ParamDef => ({ ...spec, path })
 
-const isBlobs = (c: LazuliConfig) => c.shape.type === 'blobs'
+const shapeIs = (t: ShapeType) => (c: LazuliConfig) => c.shape.type === t
+const isBlobs = shapeIs('blobs')
 const hasTexture = (c: LazuliConfig) => c.texture.type !== 'none'
 const texIn = (...types: TextureType[]) => (c: LazuliConfig) => types.includes(c.texture.type)
 const bgIs = (t: BackgroundType) => (c: LazuliConfig) => c.background.type === t
@@ -162,11 +248,54 @@ const bgLinear = (c: LazuliConfig) => c.background.type === 'gradient' && c.back
 export const PARAMS: readonly ParamDef[] = [
   def('seed', { kind: 'number', min: -Infinity, max: Infinity, default: 7226165.5, attr: 'seed', url: 'seed', label: 'Seed' }),
 
-  def('shape.type', { kind: 'enum', options: ['blobs'], default: 'blobs', attr: 'shape', url: 'sh', label: 'Shape' }),
+  def('shape.type', { kind: 'enum', options: ['blobs', 'waves', 'bands', 'rings', 'dots', 'nodal'], default: 'blobs', attr: 'shape', url: 'sh', label: 'Shape' }),
 
   def('blobs.count', { kind: 'number', min: 1, max: 6, int: true, default: 3, attr: 'blobs-count', url: 'bc', label: 'Count', when: isBlobs }),
   def('blobs.size', { kind: 'number', min: 40, max: 160, default: 100, attr: 'blobs-size', url: 'bs', label: 'Size', when: isBlobs }),
   def('blobs.softness', { kind: 'number', min: 0, max: 100, default: 50, attr: 'blobs-softness', url: 'bf', label: 'Softness', when: isBlobs }),
+  def('blobs.stretch', { kind: 'number', min: 0, max: 200, default: 100, attr: 'blobs-stretch', url: 'bt', label: 'Stretch', when: isBlobs }),
+  def('blobs.merge', { kind: 'number', min: 0, max: 100, default: 100, attr: 'blobs-merge', url: 'bm', label: 'Merge', when: isBlobs }),
+  def('blobs.wobble', { kind: 'number', min: 0, max: 100, default: 50, attr: 'blobs-wobble', url: 'bw', label: 'Wobble', when: isBlobs }),
+  def('blobs.satellite', { kind: 'bool', default: true, attr: 'blobs-satellite', url: 'bx', label: 'Satellite', when: isBlobs }),
+
+  def('waves.count', { kind: 'number', min: 1, max: 8, int: true, default: 3, attr: 'waves-count', url: 'wc', label: 'Count', when: shapeIs('waves') }),
+  def('waves.amplitude', { kind: 'number', min: 0, max: 100, default: 40, attr: 'waves-amplitude', url: 'wa', label: 'Amplitude', when: shapeIs('waves') }),
+  def('waves.wavelength', { kind: 'number', min: 10, max: 100, default: 60, attr: 'waves-wavelength', url: 'wl', label: 'Wavelength', when: shapeIs('waves') }),
+  def('waves.thickness', { kind: 'number', min: 2, max: 100, default: 30, attr: 'waves-thickness', url: 'wt', label: 'Thickness', when: shapeIs('waves') }),
+  def('waves.softness', { kind: 'number', min: 0, max: 100, default: 50, attr: 'waves-softness', url: 'wf', label: 'Softness', when: shapeIs('waves') }),
+  def('waves.spread', { kind: 'number', min: 0, max: 100, default: 50, attr: 'waves-spread', url: 'ws', label: 'Spread', when: shapeIs('waves') }),
+  def('waves.twist', { kind: 'number', min: 0, max: 100, default: 30, attr: 'waves-twist', url: 'ww', label: 'Twist', when: shapeIs('waves') }),
+  def('waves.angle', { kind: 'number', min: -90, max: 90, default: 0, attr: 'waves-angle', url: 'wn', label: 'Angle', when: shapeIs('waves') }),
+
+  def('bands.count', { kind: 'number', min: 1, max: 30, int: true, default: 6, attr: 'bands-count', url: 'kc', label: 'Count', when: shapeIs('bands') }),
+  def('bands.angle', { kind: 'number', min: 0, max: 180, default: 30, attr: 'bands-angle', url: 'ka', label: 'Angle', when: shapeIs('bands') }),
+  def('bands.width', { kind: 'number', min: 5, max: 95, default: 50, attr: 'bands-width', url: 'kw', label: 'Width', when: shapeIs('bands') }),
+  def('bands.softness', { kind: 'number', min: 0, max: 100, default: 40, attr: 'bands-softness', url: 'kf', label: 'Softness', when: shapeIs('bands') }),
+  def('bands.warp', { kind: 'number', min: 0, max: 100, default: 30, attr: 'bands-warp', url: 'kx', label: 'Warp', when: shapeIs('bands') }),
+  def('bands.warpScale', { kind: 'number', min: 0, max: 100, default: 50, attr: 'bands-warp-scale', url: 'kz', label: 'Warp size', when: shapeIs('bands') }),
+
+  def('rings.count', { kind: 'number', min: 1, max: 24, int: true, default: 6, attr: 'rings-count', url: 'rc', label: 'Count', when: shapeIs('rings') }),
+  def('rings.spacing', { kind: 'number', min: 5, max: 100, default: 40, attr: 'rings-spacing', url: 'rs', label: 'Spacing', when: shapeIs('rings') }),
+  def('rings.thickness', { kind: 'number', min: 2, max: 100, default: 30, attr: 'rings-thickness', url: 'rt', label: 'Thickness', when: shapeIs('rings') }),
+  def('rings.softness', { kind: 'number', min: 0, max: 100, default: 40, attr: 'rings-softness', url: 'rf', label: 'Softness', when: shapeIs('rings') }),
+  def('rings.centerX', { kind: 'number', min: 0, max: 100, default: 50, attr: 'rings-center-x', url: 'rx', label: 'Center X', when: shapeIs('rings') }),
+  def('rings.centerY', { kind: 'number', min: 0, max: 100, default: 50, attr: 'rings-center-y', url: 'ry', label: 'Center Y', when: shapeIs('rings') }),
+  def('rings.sources', { kind: 'number', min: 1, max: 3, int: true, default: 1, attr: 'rings-sources', url: 'rn', label: 'Sources', when: shapeIs('rings') }),
+  def('rings.distortion', { kind: 'number', min: 0, max: 100, default: 20, attr: 'rings-distortion', url: 'rd', label: 'Distortion', when: shapeIs('rings') }),
+
+  def('dots.spacing', { kind: 'number', min: 6, max: 120, default: 24, attr: 'dots-spacing', url: 'os', label: 'Spacing', when: shapeIs('dots') }),
+  def('dots.size', { kind: 'number', min: 0, max: 100, default: 60, attr: 'dots-size', url: 'oz', label: 'Size', when: shapeIs('dots') }),
+  def('dots.softness', { kind: 'number', min: 0, max: 100, default: 20, attr: 'dots-softness', url: 'of', label: 'Softness', when: shapeIs('dots') }),
+  def('dots.grid', { kind: 'enum', options: ['square', 'hex'], default: 'hex', attr: 'dots-grid', url: 'og', label: 'Grid', when: shapeIs('dots') }),
+  def('dots.jitter', { kind: 'number', min: 0, max: 100, default: 0, attr: 'dots-jitter', url: 'oj', label: 'Jitter', when: shapeIs('dots') }),
+  def('dots.modulation', { kind: 'number', min: 0, max: 100, default: 60, attr: 'dots-modulation', url: 'om', label: 'Modulation', when: shapeIs('dots') }),
+
+  def('nodal.n', { kind: 'number', min: 1, max: 12, int: true, default: 3, attr: 'nodal-n', url: 'nn', label: 'Mode n', when: shapeIs('nodal') }),
+  def('nodal.m', { kind: 'number', min: 1, max: 12, int: true, default: 5, attr: 'nodal-m', url: 'nm', label: 'Mode m', when: shapeIs('nodal') }),
+  def('nodal.thickness', { kind: 'number', min: 2, max: 100, default: 20, attr: 'nodal-thickness', url: 'nt', label: 'Thickness', when: shapeIs('nodal') }),
+  def('nodal.softness', { kind: 'number', min: 0, max: 100, default: 40, attr: 'nodal-softness', url: 'nf', label: 'Softness', when: shapeIs('nodal') }),
+  def('nodal.scale', { kind: 'number', min: 20, max: 200, default: 100, attr: 'nodal-scale', url: 'nz', label: 'Scale', when: shapeIs('nodal') }),
+  def('nodal.style', { kind: 'enum', options: ['lines', 'regions'], default: 'lines', attr: 'nodal-style', url: 'ny', label: 'Style', when: shapeIs('nodal') }),
 
   def('color.palette', { kind: 'colors', minItems: 2, maxItems: 5, default: ['#4c78d8', '#1f48a8'], attr: 'color-palette', url: 'pal', label: 'Palette' }),
   def('color.mapping', { kind: 'enum', options: ['layers', 'cycle'], default: 'layers', attr: 'color-mapping', url: 'map', label: 'Mapping' }),

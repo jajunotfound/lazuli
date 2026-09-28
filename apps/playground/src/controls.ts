@@ -30,8 +30,28 @@ const pct = (v: number) => `${Math.round(v)}%`
 const int = (v: number) => String(Math.round(v))
 
 export const HINTS: Partial<Record<ParamPath, Hint>> = {
+  'shape.type': { options: { blobs: 'Blobs', waves: 'Waves', bands: 'Bands', rings: 'Rings', dots: 'Dots', nodal: 'Nodal' } },
+
   'blobs.count': { stepped: true },
   'blobs.size': { format: pct },
+  'blobs.stretch': { format: pct },
+
+  'waves.count': { stepped: true },
+  'waves.angle': { step: 1, format: (v) => `${Math.round(v)}°` },
+
+  'bands.angle': { step: 1, format: (v) => `${Math.round(v)}°` },
+  'bands.width': { format: pct },
+
+  'rings.sources': { stepped: true },
+  'rings.centerX': { format: pct },
+  'rings.centerY': { format: pct },
+
+  'dots.grid': { options: { hex: 'Hex', square: 'Square' } },
+  'dots.spacing': { format: (v) => `${Math.round(v)} px` },
+  'dots.size': { format: pct },
+
+  'nodal.style': { options: { lines: 'Lines', regions: 'Regions' } },
+  'nodal.scale': { format: pct },
 
   'color.palette': {
     reverse: true,

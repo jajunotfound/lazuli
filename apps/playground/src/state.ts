@@ -17,7 +17,18 @@ export type PanelId = 'colors' | 'shapes' | 'texture' | 'background' | 'motion' 
 /** Which parameters each popover shows (when active) and its Reset restores, in display order. */
 export const SECTIONS: Record<PanelId, { title: string; paths: ParamPath[] }> = {
   colors: { title: 'Color', paths: ['color.palette', 'color.mapping', 'color.steps', 'color.blend', 'color.opacity', 'color.fade'] },
-  shapes: { title: 'Shapes', paths: ['blobs.count', 'blobs.size', 'blobs.softness'] },
+  shapes: {
+    title: 'Shapes',
+    paths: [
+      'shape.type',
+      'blobs.count', 'blobs.size', 'blobs.softness', 'blobs.stretch', 'blobs.merge', 'blobs.wobble', 'blobs.satellite',
+      'waves.count', 'waves.amplitude', 'waves.wavelength', 'waves.thickness', 'waves.softness', 'waves.spread', 'waves.twist', 'waves.angle',
+      'bands.count', 'bands.angle', 'bands.width', 'bands.softness', 'bands.warp', 'bands.warpScale',
+      'rings.count', 'rings.spacing', 'rings.thickness', 'rings.softness', 'rings.sources', 'rings.centerX', 'rings.centerY', 'rings.distortion',
+      'dots.grid', 'dots.spacing', 'dots.size', 'dots.softness', 'dots.modulation', 'dots.jitter',
+      'nodal.style', 'nodal.n', 'nodal.m', 'nodal.thickness', 'nodal.softness', 'nodal.scale',
+    ],
+  },
   texture: {
     title: 'Texture',
     paths: [
