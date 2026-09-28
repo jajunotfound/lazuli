@@ -1,13 +1,13 @@
 import * as Dialog from '@radix-ui/react-dialog'
 import type { LazuliInstance } from 'lazuli-bg'
-import { snapshot } from 'lazuli-bg/capture'
-import { useEffect, useMemo, useRef, useState, type RefObject } from 'react'
+import { record, snapshot } from 'lazuli-bg/capture'
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type RefObject } from 'react'
 import { elementSnippet, htmlFile, jsSnippet } from '../exportCode'
 import { CheckIcon, CloseIcon, CopyIcon } from '../icons'
 import type { Config } from '../state'
 import { Segmented } from './Segmented'
 
-const TABS = [{ label: 'HTML file' }, { label: 'Web component' }, { label: 'JavaScript' }, { label: 'Image' }] as const
+const TABS = [{ label: 'HTML file' }, { label: 'Web component' }, { label: 'JavaScript' }, { label: 'Image' }, { label: 'Video' }] as const
 type Tab = (typeof TABS)[number]['label']
 
 const DESCRIPTIONS: Record<Tab, string> = {
@@ -15,6 +15,7 @@ const DESCRIPTIONS: Record<Tab, string> = {
   'Web component': 'Install the package, then use the element anywhere.',
   JavaScript: 'Install the package and create the background from code.',
   Image: 'A still of the current frame, without the pointer.',
+  Video: 'Rendered frame by frame, so nothing drops. Set Motion › Loop for a seamless loop.',
 }
 
 const SCALES = [{ label: '1×' }, { label: '2×' }, { label: '3×' }] as const
@@ -80,8 +81,10 @@ export function CodeDialog({ open, onOpenChange, config, engine }: CodeDialogPro
                 <span aria-live="polite">{copied ? 'Copied' : 'Copy code'}</span>
               </button>
             </>
-          ) : (
+          ) : tab === 'Image' ? (
             <ImageExport engine={engine} config={config} />
+          ) : (
+            <VideoExport engine={engine} config={config} />
           )}
         </Dialog.Content>
       </Dialog.Portal>
@@ -152,6 +155,106 @@ function ImageExport({ engine, config }: { engine: RefObject<LazuliInstance | nu
       <button type="button" className="copy-button" onClick={download} disabled={busy}>
         <span aria-live="polite">{busy ? 'Rendering…' : 'Download PNG'}</span>
       </button>
+    </>
+  )
+}
+
+const FORMATS = [{ label: 'MP4' }, { label: 'WebM' }] as const
+const RATES = [{ label: '30 fps' }, { label: '60 fps' }] as const
+const SECONDS = [{ label: '3 s' }, { label: '6 s' }, { label: '10 s' }] as const
+const LOOPS = [{ label: '1 loop' }, { label: '2 loops' }, { label: '3 loops' }] as const
+const VIDEO_SCALES = [{ label: '1×' }, { label: '2×' }] as const
+
+function VideoExport({ engine, config }: { engine: RefObject<LazuliInstance | null>; config: Config }) {
+  const [format, setFormat] = useState<(typeof FORMATS)[number]['label']>('MP4')
+  const [rate, setRate] = useState<(typeof RATES)[number]['label']>('30 fps')
+  const [length, setLength] = useState<string>(config.motion.loop > 0 ? '1 loop' : '6 s')
+  const [scale, setScale] = useState<(typeof VIDEO_SCALES)[number]['label']>('1×')
+  const [progress, setProgress] = useState<number | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const abort = useRef<AbortController | null>(null)
+  const looping = config.motion.loop > 0
+  const canvas = engine.current?.canvas
+  const factor = Number(scale[0])
+  // Even sizes (H.264), capped at 4K on the long side.
+  const cap = Math.min(1, 3840 / Math.max(1, (canvas?.clientWidth ?? 1) * factor))
+  const w = Math.floor(((canvas?.clientWidth ?? 0) * factor * cap) / 2) * 2
+  const h = Math.floor(((canvas?.clientHeight ?? 0) * factor * cap) / 2) * 2
+  const count = parseInt(length, 10)
+  const seconds = looping ? count * config.motion.loop : count
+
+  useEffect(() => {
+    setLength(looping ? '1 loop' : '6 s')
+  }, [looping])
+  useEffect(() => () => abort.current?.abort(), [])
+
+  const start = async () => {
+    const e = engine.current
+    if (!e) return
+    abort.current = new AbortController()
+    setError(null)
+    setProgress(0)
+    try {
+      const blob = await record(e, {
+        width: w,
+        height: h,
+        fps: parseInt(rate, 10),
+        format: format === 'MP4' ? 'mp4' : 'webm',
+        ...(looping ? { loops: count } : { duration: count }),
+        pixelRatio: w / Math.max(1, canvas?.clientWidth ?? w),
+        onProgress: setProgress,
+        signal: abort.current.signal,
+      })
+      const url = URL.createObjectURL(blob)
+      const ext = format === 'MP4' ? 'mp4' : 'webm'
+      Object.assign(document.createElement('a'), { href: url, download: `lazuli-${w}x${h}.${ext}` }).click()
+      setTimeout(() => URL.revokeObjectURL(url), 1000)
+    } catch (err) {
+      if (!(err instanceof DOMException && err.name === 'AbortError')) {
+        setError(err instanceof Error ? err.message.replace(/^\[lazuli\] /, '') : 'The video could not be rendered.')
+      }
+    } finally {
+      setProgress(null)
+      abort.current = null
+    }
+  }
+
+  const busy = progress !== null
+  return (
+    <>
+      <div className="export-options">
+        <div className="image-options">
+          <span className="image-options__label">Format</span>
+          <Segmented<(typeof FORMATS)[number]['label']> label="Video format" options={FORMATS} value={format} onChange={setFormat} />
+        </div>
+        <div className="image-options">
+          <span className="image-options__label">Size</span>
+          <Segmented<(typeof VIDEO_SCALES)[number]['label']> label="Video size" options={VIDEO_SCALES} value={scale} onChange={setScale} />
+          <span className="image-options__size">
+            {w} × {h}
+          </span>
+        </div>
+        <div className="image-options">
+          <span className="image-options__label">Rate</span>
+          <Segmented<(typeof RATES)[number]['label']> label="Frame rate" options={RATES} value={rate} onChange={setRate} />
+        </div>
+        <div className="image-options">
+          <span className="image-options__label">Length</span>
+          <Segmented<string> label="Video length" options={looping ? LOOPS : SECONDS} value={length} onChange={setLength} />
+          <span className="image-options__size">{Math.round(seconds * 10) / 10} s</span>
+        </div>
+      </div>
+      {config.background.type === 'transparent' && <p className="panel__hint">Video has no transparency: the background renders as black.</p>}
+      {error && <p className="code-dialog__error">{error}</p>}
+      {busy ? (
+        <button type="button" className="copy-button copy-button--progress" onClick={() => abort.current?.abort()} style={{ '--p': progress } as CSSProperties}>
+          <span aria-live="polite">Rendering {Math.round((progress ?? 0) * 100)}% · Cancel</span>
+        </button>
+      ) : (
+        <button type="button" className="copy-button" onClick={start}>
+          <span>Render {format}</span>
+        </button>
+      )}
     </>
   )
 }

@@ -1258,6 +1258,22 @@ button {
   font-variant-numeric: tabular-nums;
 }
 
+.export-options {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 4px 0;
+}
+
+.export-options .image-options__label {
+  width: 52px;
+}
+
+/* The button fills from the left as frames render. */
+.copy-button--progress {
+  background: linear-gradient(to right, var(--accent) calc(var(--p, 0) * 100%), color-mix(in srgb, var(--accent) 55%, white) 0);
+}
+
 .code-dialog__error {
   margin: 0;
   color: #b42318;
