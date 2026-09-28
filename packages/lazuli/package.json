@@ -1,7 +1,7 @@
 {
   "name": "lazuli-bg",
   "version": "0.1.0",
-  "description": "Soft, interactive metaball gradient backgrounds rendered with WebGL.",
+  "description": "Soft, interactive shader backgrounds (blobs, waves, rings, dots, Chladni patterns) rendered with WebGL.",
   "license": "MIT",
   "type": "module",
   "files": [
@@ -48,7 +48,8 @@
     "dev": "vite",
     "build": "vite build && vite build --mode iife && tsc -p tsconfig.build.json",
     "lint": "tsc --noEmit",
-    "test": "node --import ./test/register.mjs --test test/*.test.ts"
+    "test": "node --import ./test/register.mjs --test test/*.test.ts",
+    "params-doc": "node --import ./test/register.mjs scripts/params-table.ts"
   },
   "devDependencies": {
     "typescript": "^7.0.2",

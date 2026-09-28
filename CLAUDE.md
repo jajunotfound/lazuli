@@ -1,8 +1,9 @@
 # Lazuli
 
-Open-source playground for soft, animated gradient backgrounds. A WebGL fragment shader renders
-blurred metaball shapes that drift, merge like liquid, and push away from (or pull toward) the
-pointer. Users tune colors, shapes, texture, motion and cursor response, then export code.
+Open-source playground for soft, animated shader backgrounds. A WebGL fragment shader renders
+blobs, waves, bands, rings, dot grids or Chladni patterns that drift and react to the pointer.
+Users tune shape, color, texture, background, motion and cursor (or start from a preset), then
+export code, a PNG or a video. v2 is built per `ITERATION.md`; its Paper design pass is next.
 
 - Repo: https://github.com/jajunotfound/lazuli (default branch `build-lazuli`)
 - License: MIT. Deploy target: Vercel (`vercel.json` at root).
@@ -20,7 +21,7 @@ pointer. Users tune colors, shapes, texture, motion and cursor response, then ex
 
 ## Stack and layout
 
-pnpm workspaces monorepo (pnpm via corepack; Node 20+; TypeScript 7, Vite 8).
+pnpm workspaces monorepo (pnpm via corepack; Node 20+, 22.18+ for tests; TypeScript 7, Vite 8).
 
 | Path | What |
 | --- | --- |
@@ -32,12 +33,17 @@ pnpm workspaces monorepo (pnpm via corepack; Node 20+; TypeScript 7, Vite 8).
 | `packages/lazuli/src/renderer.ts` | GL context, shader-variant cache (parallel compile when available), uniform upload by name. Shared by the engine and capture. |
 | `packages/lazuli/src/layout.ts` | Seeded blob layout on the CPU (mulberry32): anchor + companion + satellite drop + extras. Passed as `u_blob[6]`/`u_orbit[6]` uniforms. |
 | `packages/lazuli/src/engine.ts` | `createLazuli(el, input)` → `{ set, shuffle, config, time, canvas, destroy }`: loop, pointer, resize, visibility, reduced motion, context loss. |
-| `packages/lazuli/src/capture.ts` | `snapshot()` (entry `lazuli-bg/capture`): deterministic offline PNG on its own context. |
+| `packages/lazuli/src/presets.ts` | Named starting looks (patches over the defaults). Provisional until the v2 Paper design; then frozen. |
+| `packages/lazuli/src/capture.ts` | `snapshot()` (PNG) and `record()` (MP4/WebM via WebCodecs), entry `lazuli-bg/capture`: offline, fixed time step, own context. |
+| `packages/lazuli/src/mux/` | In-house MP4 (H.264) and WebM (VP9) writers for `record()`, so there's no muxer dependency. |
+| `packages/lazuli/bench.html`, `record.html` | Dev pages (`pnpm dev:engine`): loop seams + per-variant GPU timing; a recording check. |
+| `packages/lazuli/test/` | `node --test` config tests (`register.mjs` resolves the extensionless TS imports). |
+| `docs/PARAMETERS.md` | Parameter reference generated from the schema: `pnpm --filter lazuli-bg params-doc`. |
 | `packages/lazuli/src/element.ts` | `<lazuli-bg>` web component (shadow DOM, fills nearest positioned ancestor, `z-index: -1`). |
 | `packages/lazuli/src/element-define.ts` | Side-effect entry: `lazuli-bg/element` and the IIFE build register the element. |
 | `packages/lazuli/index.html`, `element.html` | Bare engine test page; script-tag element test page. |
 | `apps/playground` | The site: React 19 + Vite, Radix (Popover, Toggle, ToggleGroup, Slider, Dialog, Tooltip), react-colorful, plain CSS tokens in `src/styles.css`. |
-| `apps/playground/src/components/` | `Toolbar`, `panels` (`SchemaPanel` per section + preset rows), `Control` (one schema parameter → slider/segmented/switch/color rows), `InlineSlider`, `Segmented`, `ColorPicker`, `Welcome` (+ About button), `CodeDialog` (HTML / web component / JS / Image). |
+| `apps/playground/src/components/` | `Toolbar`, `panels` (`SchemaPanel` per section), `Control` (one schema parameter → slider/segmented/select/switch/color rows), `PresetsPanel` (offline thumbnails), `InlineSlider`, `Segmented`, `ColorPicker`, `Welcome` (+ About button), `CodeDialog` (HTML / web component / JS / Image / Video). |
 | `apps/playground/src/exportCode.ts` | "HTML file" export (engine IIFE inlined via `lazuli-bg/global?raw`), web component and JS snippets (active, non-default values only). |
 | `apps/playground/src/controls.ts` | Playground-only presentation hints per parameter (labels, formats, sqrt scale, switch). |
 | `apps/playground/src/state.ts` | `SECTIONS` (which params each panel shows/resets), presets, swatches, URL query (schema short keys, non-defaults only, v1 links still read), welcome flag. |
@@ -89,7 +95,15 @@ pnpm test         # engine config tests (node --test, runs the TS sources direct
 - **v2 (see `ITERATION.md`):** pattern and background are separate layers (solid / gradient /
   transparent). Defaults must keep rendering like v1: run `tools/regress` after engine changes.
   A new parameter = a `PARAMS` entry + its uniform in `uniforms.ts` (+ a hint in the playground's
-  `controls.ts` if the default control doesn't fit).
+  `controls.ts` if the default control doesn't fit, + `params-doc`).
+- Shapes share `shade(coverage, tone)`: stop 0 at the coverage, higher stops by tone alone, so a
+  shape's tone must fall below 0 outside it. Halftone/dither re-shade via the `g_*` globals.
+- Loop mode (`motion.loop`): every time rate goes through `lr()`/`lf()` and drifts through
+  `drift()` in the shader, or the loop won't close. `bench.html?loops` checks every shape.
+- Time-dependent GLSL must not use backticks (the chunks are template literals); the build strips
+  GLSL comments/indentation (`vite.config.ts`), so check all variants compile after shader edits.
+- Measured on an M1 at 2880×1800: 2.5–10 ms per frame for everything but jittered dots (19 ms);
+  `quality: 'auto'` drops the render scale while frames run over 24 ms.
 
 ## Conventions
 
