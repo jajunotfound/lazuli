@@ -4,3 +4,4 @@ dist
 .DS_Store
 *.log
 .claude/worktrees
+tools/visual-fit/layouts.json
