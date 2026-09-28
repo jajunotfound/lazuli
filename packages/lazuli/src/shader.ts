@@ -42,10 +42,14 @@ void main() {
   vec2 p = vec2(uv.x * aspect, uv.y);
   vec2 m = vec2(u_mouse.x * aspect, u_mouse.y);
 
-  // pointer: push away (u_pull > 0) or pull in (u_pull < 0), smear along motion
+  // pointer: push away (u_pull > 0) or pull in (u_pull < 0), smear along motion.
+  // Displacement scales with d itself, not normalize(d), so it fades to zero at the
+  // pointer instead of flipping direction at full strength (a sharp notch). The
+  // radial map is r * (1 + k * exp(-r^2/s)); k must stay below 1 or a full pull folds
+  // the center inside out. 0.9 peaks at r ~ 0.15, matching the old push there.
   vec2 d = p - m;
   float fall = exp(-dot(d, d) / 0.045) * u_active;
-  p += normalize(d + 1e-5) * fall * 0.14 * u_pull;
+  p += d * fall * 0.9 * u_pull;
   p -= vec2(u_vel.x * aspect, u_vel.y) * fall * 1.6;
 
   // slow organic wobble on the edges
