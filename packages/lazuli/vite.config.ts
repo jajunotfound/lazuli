@@ -1,4 +1,26 @@
-import { defineConfig } from 'vite'
+import { defineConfig, type Plugin } from 'vite'
+
+// Strip comments and indentation from the /* glsl */ template literals in the build. Line
+// breaks stay, so preprocessor lines (#define, #ifdef) keep working.
+function glslMinify(): Plugin {
+  return {
+    name: 'lazuli-glsl-minify',
+    // Before the TypeScript transform, which drops the /* glsl */ markers.
+    enforce: 'pre',
+    transform(code, id) {
+      if (!id.endsWith('/src/shader.ts')) return null
+      const out = code.replace(/\/\* glsl \*\/ `([^`]*)`/g, (_, src: string) => {
+        const lines = src
+          .replace(/\/\*[\s\S]*?\*\//g, '')
+          .split('\n')
+          .map((l) => l.replace(/\/\/.*$/, '').trim().replace(/\s+/g, ' '))
+          .filter(Boolean)
+        return '`' + lines.join('\n') + '`'
+      })
+      return { code: out, map: null }
+    },
+  }
+}
 
 // Two builds from one config:
 //   default      → ESM: dist/lazuli.js (API), dist/element.js (registers <lazuli-bg>), dist/capture.js (PNG)
@@ -6,6 +28,7 @@ import { defineConfig } from 'vite'
 export default defineConfig(({ mode }) => {
   const iife = mode === 'iife'
   return {
+    plugins: [glslMinify()],
     build: {
       target: 'es2020',
       sourcemap: true,

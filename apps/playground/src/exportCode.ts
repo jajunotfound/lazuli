@@ -1,5 +1,6 @@
 import { diffConfig, toFlat } from 'lazuli-bg'
 import engineSource from 'lazuli-bg/global?raw'
+import { version } from 'lazuli-bg/package.json'
 import type { Config } from './state'
 
 const PACKAGE = 'lazuli-bg'
@@ -21,10 +22,10 @@ const ENGINE_PLACEHOLDER = `/* Lazuli engine (${Math.round(engineSource.length /
 export function htmlFile(c: Config, preview = false): string {
   // Escape any "</script" so the inlined source can't end the tag early.
   const inlined = engineSource.trim().replace(/<\/script/gi, '<\\/script')
-  const engine = preview ? ENGINE_PLACEHOLDER : `/*! lazuli-bg · MIT */\n${inlined}`
+  const engine = preview ? ENGINE_PLACEHOLDER : `/*! lazuli-bg ${version} · MIT */\n${inlined}`
   // <html>, <head> and <body> are optional in HTML, which keeps the settings near the top.
   return `<!doctype html>
-<!-- Lazuli background: works offline, no dependencies. -->
+<!-- Lazuli background (lazuli-bg ${version}): works offline, no dependencies. -->
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Lazuli background</title>
