@@ -1,7 +1,7 @@
 import { isActive, type ParamPath } from 'lazuli-bg'
 import type { ReactNode } from 'react'
 import { HINTS } from '../controls'
-import { MOTION_PRESETS, PARAM, SECTIONS, texturePreset, TEXTURE_PRESETS, type Config, type PanelId, type Patch } from '../state'
+import { MOTION_PRESETS, PARAM, SECTIONS, type Config, type PanelId, type Patch } from '../state'
 import { Control } from './Control'
 import { Panel, Row } from './Panel'
 import { Segmented } from './Segmented'
@@ -26,21 +26,6 @@ export function SchemaPanel({ id, config, set, reset, compact, lead, footer }: P
       {footer}
     </Panel>
   )
-}
-
-export function TexturePanel(props: PanelProps) {
-  const lead = (
-    <Row className="row--preset">
-      <span className="row__label">Preset</span>
-      <Segmented
-        label="Texture preset"
-        options={TEXTURE_PRESETS}
-        value={texturePreset(props.config)}
-        onChange={(l) => props.set(TEXTURE_PRESETS.find((p) => p.label === l)!.patch)}
-      />
-    </Row>
-  )
-  return <SchemaPanel id="texture" {...props} lead={lead} />
 }
 
 export function MotionPanel(props: PanelProps) {

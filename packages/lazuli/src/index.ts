@@ -30,6 +30,8 @@ export {
   type ReducedMotion,
   type TextureTarget,
   type ColorMapping,
+  type DotShape,
+  type DitherMatrix,
   type BlendMode,
 } from './schema'
 export { normalizeHex } from './color'

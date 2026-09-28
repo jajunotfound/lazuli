@@ -105,3 +105,8 @@ test('palettes take up to five stops', () => {
   const pal = ['#111111', '#222222', '#333333', '#444444', '#555555', '#666666']
   assert.deepEqual(resolveConfig({ color: { palette: pal } }).color.palette, pal.slice(0, 5))
 })
+
+test('texture settings only count for the types that use them', () => {
+  const c = resolveConfig({ texture: { type: 'halftone', target: 'pattern', levels: 8, angle: 30 } })
+  assert.deepEqual(toFlat(c, 'attr'), [['texture-type', 'halftone'], ['texture-angle', '30']])
+})

@@ -6,8 +6,10 @@
 //   HEADER   uniforms shared by every variant, hash/noise helpers
 //   PALETTE  shade(): coverage + tone → premultiplied pattern color from the palette stops
 //   shape    vec4 shapeColor(vec2 p, float t): the pattern at p (premultiplied)
-//   texture  vec3 texSignal(vec2 frag, float t): signed overlay (grain), when TEX_OVERLAY
-//   MAIN     pointer warp → shape → opacity/fade → background → texture → output
+//   PATTERN  patternAt(frag): pointer warp + shape; fadeAt(frag): opacity × corner fade
+//   texture  TEX_OVERLAY: vec3 texSignal(frag, t), a signed overlay (grain, noise, paper)
+//            TEX_SCREEN: vec4 screenPattern(frag), re-renders the pattern (halftone, dither)
+//   MAIN     pattern → texture → background → blend → output
 //
 // The pattern is its own layer. Over a solid background it reproduces v1 exactly: v1 drew
 // the edge color with coverage e, then the core with coverage c, so the pattern alone is
@@ -31,6 +33,12 @@ uniform float u_bgType; uniform vec3 u_bg[3]; uniform float u_bgN;
 uniform float u_bgKind; uniform float u_bgAngle; uniform vec2 u_bgCenter;
 uniform float u_texIntensity; uniform float u_texScale; uniform float u_texGamma;
 uniform float u_texAnimated; uniform float u_texTarget; uniform float u_texMono;
+uniform float u_texOctaves; uniform float u_texAngle; uniform float u_texDotShape;
+uniform float u_texMatrix; uniform float u_texLevels; uniform float u_texFibers;
+
+// What the last shade() call saw, so a screening texture (halftone, dither) can re-shade
+// the same point with quantized inputs.
+float g_cov; float g_tone; vec3 g_flat; float g_isFlat;
 
 float hash(float n) { return fract(sin(n) * 43758.5453123); }
 
@@ -42,6 +50,24 @@ float noise(vec2 p) {
   float c = hash(dot(i + vec2(0.0, 1.0), vec2(1.0, 57.0)));
   float d = hash(dot(i + vec2(1.0, 1.0), vec2(1.0, 57.0)));
   return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
+}
+
+// Up to five octaves of value noise, normalized to 0..1.
+float fbm(vec2 p, float octaves) {
+  float v = 0.0, a = 0.5, sum = 0.0;
+  for (int i = 0; i < 5; i++) {
+    if (float(i) >= octaves) break;
+    v += a * noise(p);
+    sum += a;
+    p = p * 2.03 + 17.1;
+    a *= 0.5;
+  }
+  return v / sum;
+}
+
+float contrastCurve(float g) {
+  if (u_texGamma == 1.0) return g;
+  return sign(g) * 0.5 * pow(max(abs(2.0 * g), 1e-6), u_texGamma);
 }
 `
 
@@ -66,6 +92,7 @@ float stepTone(float u) {
 
 // One flat color at a coverage ('cycle' mapping).
 vec4 shadeFlat(float coverage, vec3 col) {
+  g_cov = coverage; g_flat = col; g_isFlat = 1.0;
   float a = stepEdge(coverage);
   return vec4(col * a, a);
 }
@@ -74,6 +101,7 @@ vec4 shadeFlat(float coverage, vec3 col) {
 // coverage rises over its slice of the tone ramp, composited over the ones below.
 // With two stops that's v1's edge + core exactly.
 vec4 shade(float coverage, float tone) {
+  g_cov = coverage; g_tone = tone; g_isFlat = 0.0;
   coverage = stepEdge(coverage);
   tone = stepTone(tone);
   vec4 P = vec4(u_pal[0] * coverage, coverage);
@@ -137,13 +165,34 @@ vec4 shapeColor(vec2 p, float t) {
 }
 `
 
-const GRAIN = /* glsl */ `
-#define TEX_OVERLAY
-float contrastCurve(float g) {
-  if (u_texGamma == 1.0) return g;
-  return sign(g) * 0.5 * pow(max(abs(2.0 * g), 1e-6), u_texGamma);
+const PATTERN = /* glsl */ `
+// The pattern at a pixel: pointer warp, then the shape (premultiplied, before opacity/fade).
+vec4 patternAt(vec2 frag) {
+  float aspect = u_res.x / u_res.y;
+  vec2 uv = frag / u_res;
+  vec2 p = vec2(uv.x * aspect, uv.y);
+  vec2 m = vec2(u_mouse.x * aspect, u_mouse.y);
+
+  // pointer: push away (u_pull > 0) or pull in (u_pull < 0), smear along motion.
+  // Displacement scales with d itself, not normalize(d), so it fades to zero at the
+  // pointer instead of flipping direction at full strength (a sharp notch). The
+  // radial map is r * (1 + k * exp(-r^2/s)); k must stay below 1 or a full pull folds
+  // the center inside out. 0.9 peaks at r ~ 0.15, matching the old push there.
+  vec2 d = p - m;
+  float fall = exp(-dot(d, d) / u_cursorR) * u_active;
+  p += d * fall * 0.9 * u_pull;
+  p -= vec2(u_vel.x * aspect, u_vel.y) * fall * u_smear;
+  return shapeColor(p, u_time);
 }
 
+// Opacity times the corner fade at a pixel.
+float fadeAt(vec2 frag) {
+  return u_opacity * (1.0 - smoothstep(0.55, 1.0, length(frag / u_res - 0.5)) * u_fade);
+}
+`
+
+const GRAIN = /* glsl */ `
+#define TEX_OVERLAY
 vec3 texSignal(vec2 frag, float t) {
   vec2 c = (floor(frag / u_texScale) + 0.5) * u_texScale;
   float seed = u_texAnimated > 0.5 ? fract(t) : 0.0;
@@ -153,6 +202,108 @@ vec3 texSignal(vec2 frag, float t) {
   float gg = contrastCurve(hash(n + seed + 17.13) - 0.5);
   float gb = contrastCurve(hash(n + seed + 41.71) - 0.5);
   return vec3(g, gg, gb) * u_texIntensity;
+}
+`
+
+const NOISE = /* glsl */ `
+#define TEX_OVERLAY
+// Soft, cloudy mottling. Base cell is 24 CSS px at scale 1; drifts slowly when animated.
+vec3 texSignal(vec2 frag, float t) {
+  vec2 p = frag / (u_texScale * 24.0 * u_dpr);
+  vec2 drift = u_texAnimated > 0.5 ? vec2(t * 0.6, -t * 0.45) : vec2(0.0);
+  float g = contrastCurve(fbm(p + drift, u_texOctaves) - 0.5);
+  if (u_texMono > 0.5) return vec3(g * u_texIntensity);
+  float gg = contrastCurve(fbm(p + drift + 31.7, u_texOctaves) - 0.5);
+  float gb = contrastCurve(fbm(p + drift + 57.3, u_texOctaves) - 0.5);
+  return vec3(g, gg, gb) * u_texIntensity;
+}
+`
+
+const PAPER = /* glsl */ `
+#define TEX_OVERLAY
+// Paper: fine tooth with a little embossed relief, plus long fibers in a few directions.
+// Always static. Base cell is 6 CSS px at scale 1.
+vec3 texSignal(vec2 frag, float t) {
+  vec2 p = frag / (u_texScale * 6.0 * u_dpr);
+  float tooth = fbm(p, u_texOctaves);
+  float relief = tooth - fbm(p + vec2(0.4, 0.4), u_texOctaves);
+  float fib = 0.0;
+  for (int i = 0; i < 3; i++) {
+    float a = float(i) * 2.1 + 0.4;
+    vec2 q = mat2(cos(a), sin(a), -sin(a), cos(a)) * p * 0.35;
+    fib += smoothstep(0.62, 0.9, noise(vec2(q.x * 0.25, q.y * 7.0) + float(i) * 13.0));
+  }
+  float g = relief * 1.4 + (tooth - 0.5) * 0.35 - fib * u_texFibers * 0.35;
+  return vec3(contrastCurve(g) * u_texIntensity);
+}
+`
+
+const DITHER = /* glsl */ `
+#define TEX_SCREEN
+// Ordered Bayer matrices from a recursive formula (no texture needed), or interleaved
+// gradient noise. Values in [0, 1).
+float bayer2(vec2 a) { a = floor(a); return fract(a.x / 2.0 + a.y * a.y * 0.75); }
+float bayer4(vec2 a) { return bayer2(0.5 * a) * 0.25 + bayer2(a); }
+float bayer8(vec2 a) { return bayer4(0.5 * a) * 0.25 + bayer2(a); }
+
+// Offset by half a matrix step so zero coverage never turns a dot on.
+float threshold(vec2 frag) {
+  vec2 c = floor(frag / u_texScale);
+  if (u_texMatrix < 0.5) return bayer4(c) + 0.5 / 16.0;
+  if (u_texMatrix < 1.5) return bayer8(c) + 0.5 / 64.0;
+  float o = u_texAnimated > 0.5 ? floor(fract(u_time) * 64.0) * 5.588238 : 0.0;
+  return fract(52.9829189 * fract(dot(c + o, vec2(0.06711056, 0.00583715))));
+}
+
+// Coverage becomes on/off dots; tone snaps to u_texLevels levels (the palette stops when
+// levels equals the stop count). Opacity and corner fade are dithered too.
+vec4 screenPattern(vec2 frag) {
+  vec4 P = patternAt(frag);
+  float k = fadeAt(frag);
+  float thr = threshold(frag);
+  float cov = g_cov * k;
+  // Stepped coverage has a hard edge already; dither what's left of it.
+  float on = step(thr, contrastCurve(cov - 0.5) + 0.5);
+  vec4 D;
+  if (g_isFlat > 0.5) {
+    D = shadeFlat(1.0, g_flat);
+  } else {
+    float L = u_texLevels - 1.0;
+    float tone = floor(clamp(g_tone, 0.0, 1.0) * L + thr) / L;
+    D = shade(1.0, tone);
+  }
+  return mix(P * k, D * on, u_texIntensity);
+}
+`
+
+const HALFTONE = /* glsl */ `
+#define TEX_SCREEN
+// A rotated screen of cells; each cell samples the pattern at its center and draws a dot
+// (or line, or square) whose area follows the coverage there. Base cell is 6 CSS px.
+vec4 screenPattern(vec2 frag) {
+  float cell = u_texScale * 6.0 * u_dpr;
+  float ca = cos(u_texAngle), sa = sin(u_texAngle);
+  mat2 rot = mat2(ca, sa, -sa, ca);
+  vec2 q = rot * frag / cell;           // screen space → cell space
+  vec2 id = floor(q) + 0.5;
+  vec2 center = (id * cell) * rot;      // back (rot is orthonormal: transpose = inverse)
+  vec2 local = (q - id) * cell;         // device px from the cell center
+
+  vec4 C = patternAt(center);
+  vec3 centerCol = C.a > 1e-4 ? C.rgb / C.a : u_pal[0];
+  float a = clamp(g_cov * fadeAt(center), 0.0, 1.0);
+  a = clamp(contrastCurve(a - 0.5) + 0.5, 0.0, 1.0);
+  float dist, r;
+  if (u_texDotShape < 0.5) { dist = length(local); r = sqrt(a) * 0.7072 * cell; }
+  else if (u_texDotShape < 1.5) { dist = abs(local.y); r = a * 0.5 * cell; }
+  else { dist = max(abs(local.x), abs(local.y)); r = sqrt(a) * 0.5 * cell; }
+  float mask = (1.0 - smoothstep(r - 0.75, r + 0.75, dist)) * step(1e-3, a);
+  // Dots take the pattern's color at each pixel, so palettes stay smooth across cells;
+  // where the pixel itself is outside the shape (a dot's rim), use the cell's color.
+  vec4 P = patternAt(frag);
+  vec3 col = mix(centerCol, P.rgb / max(P.a, 1e-4), smoothstep(0.02, 0.2, P.a));
+  vec4 H = vec4(col * mask, mask);
+  return mix(P * fadeAt(frag), H, u_texIntensity);
 }
 `
 
@@ -192,23 +343,12 @@ vec3 blendMode(vec3 b, vec3 s) {
 
 void main() {
   vec2 frag = gl_FragCoord.xy;
-  float aspect = u_res.x / u_res.y;
-  vec2 uv = frag / u_res;
-  vec2 p = vec2(uv.x * aspect, uv.y);
-  vec2 m = vec2(u_mouse.x * aspect, u_mouse.y);
 
-  // pointer: push away (u_pull > 0) or pull in (u_pull < 0), smear along motion.
-  // Displacement scales with d itself, not normalize(d), so it fades to zero at the
-  // pointer instead of flipping direction at full strength (a sharp notch). The
-  // radial map is r * (1 + k * exp(-r^2/s)); k must stay below 1 or a full pull folds
-  // the center inside out. 0.9 peaks at r ~ 0.15, matching the old push there.
-  vec2 d = p - m;
-  float fall = exp(-dot(d, d) / u_cursorR) * u_active;
-  p += d * fall * 0.9 * u_pull;
-  p -= vec2(u_vel.x * aspect, u_vel.y) * fall * u_smear;
-
-  vec4 P = shapeColor(p, u_time);
-  P *= u_opacity * (1.0 - smoothstep(0.55, 1.0, length(uv - 0.5)) * u_fade);
+#ifdef TEX_SCREEN
+  vec4 P = screenPattern(frag);
+#else
+  vec4 P = patternAt(frag) * fadeAt(frag);
+#endif
 
 #ifdef TEX_OVERLAY
   vec3 s = texSignal(frag, u_time);
@@ -236,12 +376,12 @@ void main() {
 `
 
 const SHAPES: Record<ShapeType, string> = { blobs: BLOBS }
-const TEXTURES: Record<TextureType, string> = { none: '', grain: GRAIN }
+const TEXTURES: Record<TextureType, string> = { none: '', grain: GRAIN, noise: NOISE, paper: PAPER, dither: DITHER, halftone: HALFTONE }
 
 export function variantKey(shape: ShapeType, texture: TextureType): string {
   return `${shape}|${texture}`
 }
 
 export function fragmentShader(shape: ShapeType, texture: TextureType): string {
-  return [HEADER, PALETTE, SHAPES[shape], TEXTURES[texture], MAIN].join('\n')
+  return [HEADER, PALETTE, SHAPES[shape], PATTERN, TEXTURES[texture], MAIN].join('\n')
 }

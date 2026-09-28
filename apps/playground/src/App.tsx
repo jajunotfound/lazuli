@@ -2,7 +2,7 @@ import * as Tooltip from '@radix-ui/react-tooltip'
 import { createLazuli, randomSeed, resolveConfig, type LazuliInstance } from 'lazuli-bg'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { CodeDialog } from './components/CodeDialog'
-import { CursorPanel, MotionPanel, SchemaPanel, TexturePanel } from './components/panels'
+import { CursorPanel, MotionPanel, SchemaPanel } from './components/panels'
 import { Toolbar, type ToolbarItem } from './components/Toolbar'
 import { AboutButton, WelcomeCard } from './components/Welcome'
 import { BackgroundIcon, CodeIcon, ColorsIcon, CursorIcon, HideIcon, MotionIcon, ShapesIcon, ShowIcon, ShuffleIcon, TextureIcon } from './icons'
@@ -104,7 +104,7 @@ export function App() {
       [
         { kind: 'panel', id: 'colors', label: 'Colors', icon: ColorsIcon, content: <SchemaPanel id="colors" {...panelProps('colors')} /> },
         { kind: 'panel', id: 'shapes', label: 'Shapes', icon: ShapesIcon, content: <SchemaPanel id="shapes" {...panelProps('shapes')} /> },
-        { kind: 'panel', id: 'texture', label: 'Texture', icon: TextureIcon, content: <TexturePanel {...panelProps('texture')} /> },
+        { kind: 'panel', id: 'texture', label: 'Texture', icon: TextureIcon, content: <SchemaPanel id="texture" {...panelProps('texture')} /> },
         { kind: 'panel', id: 'background', label: 'Background', icon: BackgroundIcon, content: <SchemaPanel id="background" {...panelProps('background')} /> },
       ],
       [

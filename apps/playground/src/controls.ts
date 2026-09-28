@@ -48,8 +48,14 @@ export const HINTS: Partial<Record<ParamPath, Hint>> = {
   },
   'color.opacity': { format: pct },
 
-  // The None / Fine / Heavy preset row picks the type.
-  'texture.type': { hidden: true },
+  'texture.type': {
+    options: { none: 'None', grain: 'Grain', noise: 'Noise', halftone: 'Halftone', dither: 'Dither', paper: 'Paper' },
+  },
+  'texture.dotShape': { label: 'Shape', options: { dot: 'Dot', line: 'Line', square: 'Square' } },
+  'texture.matrix': { options: { bayer4: 'Bayer 4', bayer8: 'Bayer 8', ign: 'Noise' } },
+  'texture.angle': { step: 1, format: (v) => `${Math.round(v)}°` },
+  'texture.octaves': { stepped: true },
+  'texture.levels': { stepped: true },
   'texture.scale': { step: 1, format: (v) => `${Math.round(v)}×` },
   'texture.target': { label: 'Applies to', options: { all: 'All', pattern: 'Shapes' } },
 

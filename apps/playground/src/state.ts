@@ -20,7 +20,21 @@ export const SECTIONS: Record<PanelId, { title: string; paths: ParamPath[] }> = 
   shapes: { title: 'Shapes', paths: ['blobs.count', 'blobs.size', 'blobs.softness'] },
   texture: {
     title: 'Texture',
-    paths: ['texture.type', 'texture.intensity', 'texture.scale', 'texture.contrast', 'texture.target', 'texture.animated', 'texture.mono'],
+    paths: [
+      'texture.type',
+      'texture.intensity',
+      'texture.scale',
+      'texture.contrast',
+      'texture.octaves',
+      'texture.fibers',
+      'texture.angle',
+      'texture.dotShape',
+      'texture.matrix',
+      'texture.levels',
+      'texture.target',
+      'texture.animated',
+      'texture.mono',
+    ],
   },
   background: {
     title: 'Background',
@@ -49,18 +63,6 @@ export function merge(a: Patch, b: Patch): Patch {
     out[k] = v && typeof v === 'object' && !Array.isArray(v) && prev && typeof prev === 'object' ? { ...prev, ...v } : v
   }
   return out as Patch
-}
-
-export const TEXTURE_PRESETS = [
-  { label: 'None', patch: { texture: { type: 'none' } } },
-  { label: 'Fine', patch: { texture: { type: 'grain', intensity: 35 } } },
-  { label: 'Heavy', patch: { texture: { type: 'grain', intensity: 80 } } },
-] as const satisfies readonly { label: string; patch: Patch }[]
-
-export function texturePreset(c: Config): (typeof TEXTURE_PRESETS)[number]['label'] | '' {
-  if (c.texture.type === 'none' || c.texture.intensity === 0) return 'None'
-  if (c.texture.type !== 'grain') return ''
-  return c.texture.intensity === 35 ? 'Fine' : c.texture.intensity === 80 ? 'Heavy' : ''
 }
 
 export const MOTION_PRESETS = [

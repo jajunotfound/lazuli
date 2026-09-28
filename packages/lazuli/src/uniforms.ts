@@ -3,7 +3,7 @@
 
 import { hexToRgb } from './color'
 import { layoutFromSeed, packLayout } from './layout'
-import type { LazuliConfig } from './schema'
+import type { LazuliConfig, TextureType } from './schema'
 
 export type UniformValue = number | number[] | Float32Array
 export type UniformValues = Record<string, UniformValue>
@@ -12,8 +12,9 @@ export type UniformValues = Record<string, UniformValue>
 const SIZE_SCALE = 0.91
 const SOFT_MIN = 0.02
 const SOFT_SPAN = 2.16 // softness 50 → 1.1, the widest band that keeps the ground clean
-// Paper shows no visible grain at the default (Fine = 35), so keep it a whisper there.
-const GRAIN_SCALE = 0.07
+// Texture strength at intensity 100, per type. Paper shows no visible grain at the default
+// (Fine = 35), so grain stays a whisper there. Halftone and dither mix 0–1 toward the screen.
+const TEXTURE_SCALE: Record<TextureType, number> = { none: 0, grain: 0.07, noise: 0.22, paper: 0.16, halftone: 1, dither: 1 }
 const CURSOR_RADIUS = 0.045 // falloff σ² in height units
 const CURSOR_SMEAR = 1.6
 const MAX_STOPS = 5
@@ -58,13 +59,19 @@ export function toUniforms(c: LazuliConfig): UniformValues {
     // GL's y axis points up; the public center is measured from the top.
     u_bgCenter: [bg.centerX / 100, 1 - bg.centerY / 100],
 
-    u_texIntensity: tex.type === 'none' ? 0 : (tex.intensity / 100) * GRAIN_SCALE,
+    u_texIntensity: (tex.intensity / 100) * TEXTURE_SCALE[tex.type],
     u_texScale: Math.round(tex.scale),
     // 50 → linear, 0 → soft (γ 4), 100 → hard (γ 0.25).
     u_texGamma: 2 ** ((50 - tex.contrast) / 25),
     u_texAnimated: tex.animated ? 1 : 0,
     u_texTarget: tex.target === 'pattern' ? 1 : 0,
     u_texMono: tex.mono ? 1 : 0,
+    u_texOctaves: tex.octaves,
+    u_texAngle: (tex.angle * Math.PI) / 180,
+    u_texDotShape: ['dot', 'line', 'square'].indexOf(tex.dotShape),
+    u_texMatrix: ['bayer4', 'bayer8', 'ign'].indexOf(tex.matrix),
+    u_texLevels: tex.levels,
+    u_texFibers: tex.fibers / 100,
 
     u_count: c.blobs.count,
     u_size: (c.blobs.size / 100) * SIZE_SCALE,
