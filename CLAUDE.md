@@ -100,7 +100,7 @@ pnpm test         # engine config tests (node --test, runs the TS sources direct
   shape's tone must fall below 0 outside it. Halftone/dither re-shade via the `g_*` globals.
 - Loop mode (`motion.loop`): every time rate goes through `lr()`/`lf()` and drifts through
   `drift()` in the shader, or the loop won't close. `bench.html?loops` checks every shape.
-- Time-dependent GLSL must not use backticks (the chunks are template literals); the build strips
+- GLSL chunks must not contain backticks (they are template literals); the build strips
   GLSL comments/indentation (`vite.config.ts`), so check all variants compile after shader edits.
 - Measured on an M1 at 2880×1800: 2.5–10 ms per frame for everything but jittered dots (19 ms);
   `quality: 'auto'` drops the render scale while frames run over 24 ms.
