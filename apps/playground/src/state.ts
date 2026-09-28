@@ -16,7 +16,7 @@ export type PanelId = 'colors' | 'shapes' | 'texture' | 'background' | 'motion' 
 
 /** Which parameters each popover shows (when active) and its Reset restores, in display order. */
 export const SECTIONS: Record<PanelId, { title: string; paths: ParamPath[] }> = {
-  colors: { title: 'Color', paths: ['color.palette', 'color.opacity', 'color.fade'] },
+  colors: { title: 'Color', paths: ['color.palette', 'color.mapping', 'color.steps', 'color.blend', 'color.opacity', 'color.fade'] },
   shapes: { title: 'Shapes', paths: ['blobs.count', 'blobs.size', 'blobs.softness'] },
   texture: {
     title: 'Texture',

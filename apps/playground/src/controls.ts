@@ -1,4 +1,5 @@
 import type { ParamPath } from 'lazuli-bg'
+import type { Config } from './state'
 
 /** Playground-only presentation of a parameter; ranges and defaults come from the engine schema. */
 export interface Hint {
@@ -14,7 +15,9 @@ export interface Hint {
   /** Show a two-option enum as an on/off switch. */
   switch?: { on: string; off: string }
   /** Row labels for a color list, in list order. */
-  colorLabels?(count: number): string[]
+  colorLabels?(count: number, config: Config): string[]
+  /** Where "Add color" puts the new color: before the last one (mixed from its neighbors) or at the end. */
+  insert?: 'beforeLast' | 'end'
   /** List the colors last-first (the palette shows its densest stop on top, like Paper's Core above Edge). */
   reverse?: boolean
   /** Not shown as a control (a custom row covers it). */
@@ -32,7 +35,16 @@ export const HINTS: Partial<Record<ParamPath, Hint>> = {
 
   'color.palette': {
     reverse: true,
-    colorLabels: (n) => (n === 2 ? ['Edge', 'Core'] : Array.from({ length: n }, (_, i) => `Stop ${i + 1}`)),
+    insert: 'beforeLast',
+    colorLabels: (n, c) =>
+      c.color.mapping === 'cycle'
+        ? Array.from({ length: n }, (_, i) => `Color ${i + 1}`)
+        : Array.from({ length: n }, (_, i) => (i === 0 ? 'Edge' : i === n - 1 ? 'Core' : n === 3 ? 'Middle' : `Middle ${i}`)),
+  },
+  'color.mapping': { options: { layers: 'By depth', cycle: 'Per shape' } },
+  'color.steps': { format: (v) => (v === 0 ? 'Smooth' : int(v)), stepped: true },
+  'color.blend': {
+    options: { normal: 'Normal', multiply: 'Multiply', screen: 'Screen', overlay: 'Overlay', 'soft-light': 'Soft light', difference: 'Difference' },
   },
   'color.opacity': { format: pct },
 

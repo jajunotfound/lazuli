@@ -125,3 +125,10 @@ export const CheckIcon = (p: IconProps) => (
     <path {...stroke} d="M5 12.5L10 17.5L19 7" />
   </Svg>
 )
+
+// Not in Paper yet: disclosure chevron for option lists.
+export const ChevronIcon = (p: IconProps) => (
+  <Svg viewBox="0 0 16 16" {...p}>
+    <path {...stroke} d="M4 6L8 10L12 6" />
+  </Svg>
+)

@@ -29,6 +29,8 @@ export {
   type CursorMode,
   type ReducedMotion,
   type TextureTarget,
+  type ColorMapping,
+  type BlendMode,
 } from './schema'
 export { normalizeHex } from './color'
 export { LazuliElement, defineLazuliElement, TAG_NAME } from './element'

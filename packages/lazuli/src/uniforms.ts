@@ -17,6 +17,7 @@ const GRAIN_SCALE = 0.07
 const CURSOR_RADIUS = 0.045 // falloff σ² in height units
 const CURSOR_SMEAR = 1.6
 const MAX_STOPS = 5
+const BLEND_MODES = ['normal', 'multiply', 'screen', 'overlay', 'soft-light', 'difference']
 
 const flat = (colors: string[], n: number) => {
   const out = new Float32Array(n * 3)
@@ -43,6 +44,9 @@ export function toUniforms(c: LazuliConfig): UniformValues {
 
     u_pal: flat(c.color.palette, MAX_STOPS),
     u_palN: c.color.palette.length,
+    u_mapping: c.color.mapping === 'cycle' ? 1 : 0,
+    u_steps: c.color.steps,
+    u_blend: BLEND_MODES.indexOf(c.color.blend),
     u_opacity: c.color.opacity / 100,
     u_fade: c.color.fade / 100,
 

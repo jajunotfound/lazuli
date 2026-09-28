@@ -90,3 +90,18 @@ test('every parameter has a unique attribute and URL key', () => {
     assert.equal(new Set(names).size, names.length, key)
   }
 })
+
+test('steps skip 1 (0 is smooth, bands start at 2)', () => {
+  assert.equal(resolveConfig({ color: { steps: 1 } }).color.steps, 2)
+  assert.equal(resolveConfig({ color: { steps: 0.4 } }).color.steps, 0)
+})
+
+test('blend has no effect over a transparent background', () => {
+  const c = resolveConfig({ color: { blend: 'screen' }, background: { type: 'transparent' } })
+  assert.deepEqual(toFlat(c, 'attr'), [['background-type', 'transparent']])
+})
+
+test('palettes take up to five stops', () => {
+  const pal = ['#111111', '#222222', '#333333', '#444444', '#555555', '#666666']
+  assert.deepEqual(resolveConfig({ color: { palette: pal } }).color.palette, pal.slice(0, 5))
+})

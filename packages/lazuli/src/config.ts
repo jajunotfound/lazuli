@@ -103,7 +103,8 @@ export function coerce(d: ParamDef, raw: unknown, fallback: unknown): unknown {
       const n = typeof raw === 'string' ? parseFloat(raw) : raw
       if (typeof n !== 'number' || !Number.isFinite(n)) return fallback
       const c = clamp(n, d.min, d.max)
-      return d.int ? Math.round(c) : c
+      const v = d.int ? Math.round(c) : c
+      return d.normalize ? d.normalize(v) : v
     }
     case 'enum':
       return d.options.includes(String(raw)) ? String(raw) : fallback

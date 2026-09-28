@@ -25,7 +25,7 @@ precision highp float;
 uniform vec2 u_res; uniform float u_time; uniform float u_dpr;
 uniform vec2 u_mouse; uniform vec2 u_vel; uniform float u_active;
 uniform float u_pull; uniform float u_cursorR; uniform float u_smear;
-uniform vec3 u_pal[5]; uniform float u_palN;
+uniform vec3 u_pal[5]; uniform float u_palN; uniform float u_mapping; uniform float u_steps; uniform float u_blend;
 uniform float u_opacity; uniform float u_fade;
 uniform float u_bgType; uniform vec3 u_bg[3]; uniform float u_bgN;
 uniform float u_bgKind; uniform float u_bgAngle; uniform vec2 u_bgCenter;
@@ -46,10 +46,36 @@ float noise(vec2 p) {
 `
 
 const PALETTE = /* glsl */ `
+// Palette stop i (wrapping), for the 'cycle' mapping. GLSL ES 1.00 only allows constant
+// or loop indices into uniform arrays, hence the loop.
+vec3 palAt(float i) {
+  float k = floor(mod(i + 0.5, u_palN));
+  vec3 c = u_pal[0];
+  for (int j = 1; j < 5; j++) if (float(j) == k) c = u_pal[j];
+  return c;
+}
+
+// Steps: a hard outer edge and a staircase of tone bands, with a thin soft riser
+// so the contours don't alias.
+float stepEdge(float a) { return u_steps > 0.5 ? smoothstep(0.46, 0.54, a) : a; }
+float stepTone(float u) {
+  if (u_steps < 0.5) return u;
+  float x = clamp(u, 0.0, 1.0) * u_steps;
+  return min((floor(x) + smoothstep(0.9, 1.0, fract(x))) / u_steps, 1.0);
+}
+
+// One flat color at a coverage ('cycle' mapping).
+vec4 shadeFlat(float coverage, vec3 col) {
+  float a = stepEdge(coverage);
+  return vec4(col * a, a);
+}
+
 // Stop 0 is drawn with the shape's outer coverage; each further stop k is a layer whose
 // coverage rises over its slice of the tone ramp, composited over the ones below.
 // With two stops that's v1's edge + core exactly.
 vec4 shade(float coverage, float tone) {
+  coverage = stepEdge(coverage);
+  tone = stepTone(tone);
   vec4 P = vec4(u_pal[0] * coverage, coverage);
   for (int k = 1; k < 5; k++) {
     if (float(k) >= u_palN) break;
@@ -78,6 +104,7 @@ vec4 shapeColor(vec2 p, float t) {
   p += 0.035 * vec2(noise(p * 3.0 + t * 0.4), noise(p * 3.0 - t * 0.4 + 7.0)) - 0.0175;
 
   float field = 0.0;
+  vec3 cyc = vec3(0.0);
   for (int i = 0; i < 6; i++) {
     if (float(i) >= u_count) break;
     vec4 b = u_blob[i];
@@ -90,7 +117,9 @@ vec4 shapeColor(vec2 p, float t) {
     float r = b.z * u_size;
     vec2 q = p - c;
     q.x *= b.w * (1.0 + 0.12 * (sin(t * 0.3 + p3) - sin(p3)));
-    field += exp(-pow(dot(q, q) / (r * r) + 1e-6, FALLOFF));
+    float f = exp(-pow(dot(q, q) / (r * r) + 1e-6, FALLOFF));
+    field += f;
+    cyc += f * palAt(float(i));
   }
 
   // Softness widens the edge band; past the point where it would tint the ground,
@@ -98,7 +127,13 @@ vec4 shapeColor(vec2 p, float t) {
   float lo = max(0.5 - u_soft * 0.45, 0.0);
   float hi = 0.5 + u_soft * 0.45;
   float e = smoothstep(lo, hi, field);
-  return shade(e, (field - CORE_LO) / (CORE_HI - CORE_LO));
+  float tone = (field - CORE_LO) / (CORE_HI - CORE_LO);
+  if (u_mapping > 0.5) {
+    // Each blob its own stop, mixed where they merge; same overall density as 'layers'.
+    float c = smoothstep(0.0, 1.0, tone);
+    return shadeFlat(1.0 - (1.0 - e) * (1.0 - c), cyc / max(field, 1e-4));
+  }
+  return shade(e, tone);
 }
 `
 
@@ -143,6 +178,18 @@ vec3 background(vec2 frag) {
   return col + (hash(dot(frag, vec2(7.13, 157.1))) - 0.5) / 255.0;
 }
 
+// Separable blend modes (W3C compositing), backdrop b, source s.
+vec3 blendMode(vec3 b, vec3 s) {
+  if (u_blend < 1.5) return b * s;
+  if (u_blend < 2.5) return 1.0 - (1.0 - b) * (1.0 - s);
+  if (u_blend < 3.5) return mix(2.0 * b * s, 1.0 - 2.0 * (1.0 - b) * (1.0 - s), step(0.5, b));
+  if (u_blend < 4.5) {
+    vec3 d = mix(((16.0 * b - 12.0) * b + 4.0) * b, sqrt(b), step(0.25, b));
+    return mix(b - (1.0 - 2.0 * s) * b * (1.0 - b), b + (2.0 * s - 1.0) * (d - b), step(0.5, s));
+  }
+  return abs(b - s);
+}
+
 void main() {
   vec2 frag = gl_FragCoord.xy;
   float aspect = u_res.x / u_res.y;
@@ -178,7 +225,12 @@ void main() {
     gl_FragColor = speck + P * (1.0 - a);
     return;
   }
-  vec3 col = background(frag) * (1.0 - P.a) + P.rgb;
+  vec3 b = background(frag);
+  vec3 col = b * (1.0 - P.a) + P.rgb;
+  if (u_blend > 0.5) {
+    vec3 src = clamp(P.rgb / max(P.a, 1e-4), 0.0, 1.0);
+    col = b * (1.0 - P.a) + P.a * blendMode(b, src);
+  }
   gl_FragColor = vec4(col + s, 1.0);
 }
 `

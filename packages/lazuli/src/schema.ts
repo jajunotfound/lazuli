@@ -10,6 +10,8 @@ export type GradientKind = 'linear' | 'radial'
 export type CursorMode = 'push' | 'pull'
 export type ReducedMotion = 'respect' | 'ignore'
 export type TextureTarget = 'all' | 'pattern'
+export type ColorMapping = 'layers' | 'cycle'
+export type BlendMode = 'normal' | 'multiply' | 'screen' | 'overlay' | 'soft-light' | 'difference'
 
 export interface LazuliConfig {
   /** Layout seed. Any number; each one gives a different arrangement. */
@@ -26,8 +28,14 @@ export interface LazuliConfig {
     softness: number
   }
   color: {
-    /** 2 hex colors, ordered from the soft outer edge to the dense core. */
+    /** 2–5 hex colors, ordered from the soft outer edge to the dense core. */
     palette: string[]
+    /** 'layers': stops stack by density (edge → core). 'cycle': each shape takes the next stop. */
+    mapping: ColorMapping
+    /** 0 = smooth; 2–8 posterizes into hard-edged bands. */
+    steps: number
+    /** How the pattern blends with the background (solid and gradient backgrounds). */
+    blend: BlendMode
     /** Opacity of the whole pattern, 0–100. */
     opacity: number
     /** How much the pattern fades out toward the corners, 0–100. */
@@ -99,7 +107,15 @@ interface Common {
   when?: (c: LazuliConfig) => boolean
 }
 
-export type NumberDef = Common & { kind: 'number'; min: number; max: number; int?: boolean; default: number }
+export type NumberDef = Common & {
+  kind: 'number'
+  min: number
+  max: number
+  int?: boolean
+  default: number
+  /** Final fix-up after clamping, for ranges with a gap (e.g. steps 0 or 2–8). */
+  normalize?: (v: number) => number
+}
 export type EnumDef = Common & { kind: 'enum'; options: readonly string[]; default: string }
 export type BoolDef = Common & { kind: 'bool'; default: boolean }
 export type ColorDef = Common & { kind: 'color'; default: string }
@@ -139,7 +155,18 @@ export const PARAMS: readonly ParamDef[] = [
   def('blobs.size', { kind: 'number', min: 40, max: 160, default: 100, attr: 'blobs-size', url: 'bs', label: 'Size', when: isBlobs }),
   def('blobs.softness', { kind: 'number', min: 0, max: 100, default: 50, attr: 'blobs-softness', url: 'bf', label: 'Softness', when: isBlobs }),
 
-  def('color.palette', { kind: 'colors', minItems: 2, maxItems: 2, default: ['#4c78d8', '#1f48a8'], attr: 'color-palette', url: 'pal', label: 'Palette' }),
+  def('color.palette', { kind: 'colors', minItems: 2, maxItems: 5, default: ['#4c78d8', '#1f48a8'], attr: 'color-palette', url: 'pal', label: 'Palette' }),
+  def('color.mapping', { kind: 'enum', options: ['layers', 'cycle'], default: 'layers', attr: 'color-mapping', url: 'map', label: 'Mapping' }),
+  def('color.steps', { kind: 'number', min: 0, max: 8, int: true, default: 0, normalize: (v) => (v === 1 ? 2 : v), attr: 'color-steps', url: 'st', label: 'Steps' }),
+  def('color.blend', {
+    kind: 'enum',
+    options: ['normal', 'multiply', 'screen', 'overlay', 'soft-light', 'difference'],
+    default: 'normal',
+    attr: 'color-blend',
+    url: 'bl',
+    label: 'Blend',
+    when: (c) => c.background.type !== 'transparent',
+  }),
   def('color.opacity', { kind: 'number', min: 0, max: 100, default: 100, attr: 'color-opacity', url: 'op', label: 'Opacity' }),
   def('color.fade', { kind: 'number', min: 0, max: 100, default: 35, attr: 'color-fade', url: 'fd', label: 'Corner fade' }),
 
