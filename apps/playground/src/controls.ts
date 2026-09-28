@@ -10,7 +10,7 @@ export interface Hint {
   stepped?: boolean
   /** Square-root slider scale: finer control at the low end. */
   sqrt?: boolean
-  /** Enum option labels, in display order. */
+  /** Enum option labels, in display order. Options left out aren't offered. */
   options?: Record<string, string>
   /** Show a two-option enum as an on/off switch. */
   switch?: { on: string; off: string }
@@ -90,7 +90,11 @@ export const HINTS: Partial<Record<ParamPath, Hint>> = {
   'background.centerY': { format: pct },
 
   'motion.speed': { sqrt: true, format: (v) => `${v.toFixed(2)}×` },
+  'motion.direction': { step: 1, format: (v) => `${Math.round(v)}°` },
+  'motion.loop': { step: 1, format: (v) => (v === 0 ? 'Off' : `${Math.round(v)} s`) },
+  quality: { options: { auto: 'Auto', high: 'High', low: 'Low' } },
 
-  'cursor.mode': { label: 'Pull in', switch: { on: 'pull', off: 'push' } },
+  // 'off' isn't offered: Strength 0 reads Off.
+  'cursor.mode': { options: { push: 'Push', pull: 'Pull', swirl: 'Swirl' } },
   'cursor.strength': { format: (v) => (v === 0 ? 'Off' : int(v)) },
 }

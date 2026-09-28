@@ -22,6 +22,10 @@ const MAX_DPR = 2
 const MAX_DT = 0.05
 const MIN_DT = 1 / 1000
 const REDUCED_SPEED = 0.05
+// quality 'auto': render scale steps, and the frame times (ms, smoothed) that move between them.
+const SCALES = [1, 0.75, 0.5]
+const SLOW_MS = 24
+const FAST_MS = 17.5
 
 /** Per-frame easing from the prototype, corrected so it feels the same at any refresh rate. */
 const ease = (k: number, frames: number) => 1 - Math.pow(1 - k, frames)
@@ -63,8 +67,10 @@ export function createLazuli(element: HTMLElement, input: LazuliInput = {}): Laz
 
   // ---- sizing -------------------------------------------------------------
   let dpr = 1
+  let scaleIndex = 0 // into SCALES, for quality 'auto'
+  const renderScale = () => (config.quality === 'low' ? 0.5 : config.quality === 'high' ? 1 : SCALES[scaleIndex])
   function resize() {
-    dpr = Math.min(window.devicePixelRatio || 1, MAX_DPR)
+    dpr = Math.min(window.devicePixelRatio || 1, MAX_DPR) * renderScale()
     const w = Math.max(1, Math.round(canvas.clientWidth * dpr))
     const h = Math.max(1, Math.round(canvas.clientHeight * dpr))
     if (w === canvas.width && h === canvas.height) return
@@ -134,20 +140,47 @@ export function createLazuli(element: HTMLElement, input: LazuliInput = {}): Laz
   let dirty = true
   let onScreen = true
   let destroyed = false
+  // Smoothed frame time and how long it has stayed past a threshold (quality 'auto').
+  let frameMs = 16.7
+  let slowFrames = 0
+  let fastFrames = 0
+
+  function adapt(ms: number) {
+    if (config.quality !== 'auto') return
+    frameMs += (ms - frameMs) * 0.1
+    slowFrames = frameMs > SLOW_MS ? slowFrames + 1 : 0
+    fastFrames = frameMs < FAST_MS ? fastFrames + 1 : 0
+    if (slowFrames > 45 && scaleIndex < SCALES.length - 1) {
+      scaleIndex++
+      slowFrames = 0
+      resize()
+    } else if (fastFrames > 240 && scaleIndex > 0) {
+      scaleIndex--
+      fastFrames = 0
+      resize()
+    }
+  }
 
   function frame(now: number) {
     raf = requestAnimationFrame(frame)
     // Two frames can share a timestamp; a zero dt would divide velocity by zero.
-    const dt = last ? Math.min(Math.max((now - last) / 1000, MIN_DT), MAX_DT) : 1 / 60
+    const raw = last ? now - last : 16.7
+    const dt = last ? Math.min(Math.max(raw / 1000, MIN_DT), MAX_DT) : 1 / 60
     last = now
     const frames = dt * 60
+    // Only frames that drew count toward the frame time (skipped frames are free).
+    if (drewLast) adapt(raw)
 
     const speed = effectiveSpeed()
     time += dt * speed
+    // Looping: keep time inside one period so it never drifts off the loop.
+    const period = config.motion.loop * config.motion.speed
+    if (config.motion.loop > 0 && period > 0) time %= period
 
     const px = mouse.x
     const py = mouse.y
-    const km = ease(0.12, frames)
+    // Follow 50 is v1's 0.12 per frame; each 50 either way is ×3.
+    const km = ease(Math.min(0.12 * 3 ** ((config.cursor.follow - 50) / 50), 1), frames)
     mouse.x += (target.x - mouse.x) * km
     mouse.y += (target.y - mouse.y) * km
     const kv = ease(0.25, frames)
@@ -160,9 +193,12 @@ export function createLazuli(element: HTMLElement, input: LazuliInput = {}): Laz
 
     // Nothing moves: frozen shapes, no pointer. Skip the draw.
     const still = speed === 0 && active === 0 && Math.abs(vel.x) + Math.abs(vel.y) < 1e-6
+    drewLast = false
     if (still && !dirty && !renderer?.pending) return
     draw()
+    drewLast = true
   }
+  let drewLast = false
 
   function draw() {
     if (!renderer) return
@@ -219,7 +255,9 @@ export function createLazuli(element: HTMLElement, input: LazuliInput = {}): Laz
   return {
     set(next) {
       if (destroyed) return
+      const quality = config.quality
       config = resolveConfig(next, config)
+      if (config.quality !== quality) resize()
       paintFallback()
       renderer?.setConfig(config)
       dirty = true

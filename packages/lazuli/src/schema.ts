@@ -11,7 +11,8 @@ export type DotShape = 'dot' | 'line' | 'square'
 export type DitherMatrix = 'bayer4' | 'bayer8' | 'ign'
 export type BackgroundType = 'solid' | 'gradient' | 'transparent'
 export type GradientKind = 'linear' | 'radial'
-export type CursorMode = 'push' | 'pull'
+export type CursorMode = 'push' | 'pull' | 'swirl' | 'off'
+export type Quality = 'auto' | 'high' | 'low'
 export type ReducedMotion = 'respect' | 'ignore'
 export type TextureTarget = 'all' | 'pattern'
 export type ColorMapping = 'layers' | 'cycle'
@@ -20,6 +21,8 @@ export type BlendMode = 'normal' | 'multiply' | 'screen' | 'overlay' | 'soft-lig
 export interface LazuliConfig {
   /** Layout seed. Any number; each one gives a different arrangement. */
   seed: number
+  /** Render resolution: 'auto' lowers it while frames run slow, 'low' is half resolution. */
+  quality: Quality
   shape: {
     type: ShapeType
   }
@@ -169,6 +172,10 @@ export interface LazuliConfig {
   motion: {
     /** Drift speed, 0–1.5. 0 freezes the shapes (the pointer still works). */
     speed: number
+    /** Travel direction in degrees for waves, bands, rings' warp, dots and noise (0 = right). */
+    direction: number
+    /** Seconds until the animation repeats exactly, 0 (off) or 2–60. For seamless video. */
+    loop: number
     /** 'respect' caps speed at 0.05 for users who prefer reduced motion. */
     reducedMotion: ReducedMotion
   }
@@ -176,6 +183,12 @@ export interface LazuliConfig {
     mode: CursorMode
     /** 0–100. 0 turns the pointer off. */
     strength: number
+    /** Reach of the effect, 0–100. */
+    radius: number
+    /** How much fast pointer motion drags the pattern along, 0–100. */
+    smear: number
+    /** How quickly the effect follows the pointer, 0–100. */
+    follow: number
   }
 }
 
@@ -238,6 +251,7 @@ const def = <P extends ParamPath>(path: P, spec: SpecFor<ValueAt<P>>): ParamDef 
 const shapeIs = (t: ShapeType) => (c: LazuliConfig) => c.shape.type === t
 const isBlobs = shapeIs('blobs')
 const hasTexture = (c: LazuliConfig) => c.texture.type !== 'none'
+const cursorOn = (c: LazuliConfig) => c.cursor.mode !== 'off'
 const texIn = (...types: TextureType[]) => (c: LazuliConfig) => types.includes(c.texture.type)
 const bgIs = (t: BackgroundType) => (c: LazuliConfig) => c.background.type === t
 const bgRadial = (c: LazuliConfig) => c.background.type === 'gradient' && c.background.kind === 'radial'
@@ -247,6 +261,8 @@ const bgLinear = (c: LazuliConfig) => c.background.type === 'gradient' && c.back
 // (frame 05), panel values from frames 07–10, and the seed whose layout matches frame 01.
 export const PARAMS: readonly ParamDef[] = [
   def('seed', { kind: 'number', min: -Infinity, max: Infinity, default: 7226165.5, attr: 'seed', url: 'seed', label: 'Seed' }),
+
+  def('quality', { kind: 'enum', options: ['auto', 'high', 'low'], default: 'auto', attr: 'quality', url: 'q', label: 'Quality' }),
 
   def('shape.type', { kind: 'enum', options: ['blobs', 'waves', 'bands', 'rings', 'dots', 'nodal'], default: 'blobs', attr: 'shape', url: 'sh', label: 'Shape' }),
 
@@ -336,10 +352,24 @@ export const PARAMS: readonly ParamDef[] = [
   def('background.centerY', { kind: 'number', min: 0, max: 100, default: 50, attr: 'background-center-y', url: 'bgy', label: 'Center Y', when: bgRadial }),
 
   def('motion.speed', { kind: 'number', min: 0, max: 1.5, default: 0.35, attr: 'motion-speed', url: 'sp', label: 'Speed' }),
+  def('motion.direction', {
+    kind: 'number',
+    min: 0,
+    max: 360,
+    default: 0,
+    attr: 'motion-direction',
+    url: 'dir',
+    label: 'Direction',
+    when: (c) => (c.shape.type !== 'blobs' && c.shape.type !== 'nodal') || c.texture.type === 'noise',
+  }),
+  def('motion.loop', { kind: 'number', min: 0, max: 60, default: 0, normalize: (v) => (v > 0 && v < 2 ? 2 : v), attr: 'motion-loop', url: 'lp', label: 'Loop' }),
   def('motion.reducedMotion', { kind: 'enum', options: ['respect', 'ignore'], default: 'respect', attr: 'reduced-motion', url: 'rm', label: 'Reduced motion' }),
 
-  def('cursor.mode', { kind: 'enum', options: ['push', 'pull'], default: 'push', attr: 'cursor-mode', url: 'cm', label: 'Mode' }),
-  def('cursor.strength', { kind: 'number', min: 0, max: 100, default: 60, attr: 'cursor-strength', url: 'cs', label: 'Strength' }),
+  def('cursor.mode', { kind: 'enum', options: ['push', 'pull', 'swirl', 'off'], default: 'push', attr: 'cursor-mode', url: 'cm', label: 'Mode' }),
+  def('cursor.strength', { kind: 'number', min: 0, max: 100, default: 60, attr: 'cursor-strength', url: 'cs', label: 'Strength', when: cursorOn }),
+  def('cursor.radius', { kind: 'number', min: 0, max: 100, default: 50, attr: 'cursor-radius', url: 'cr', label: 'Radius', when: cursorOn }),
+  def('cursor.smear', { kind: 'number', min: 0, max: 100, default: 50, attr: 'cursor-smear', url: 'cd', label: 'Smear', when: cursorOn }),
+  def('cursor.follow', { kind: 'number', min: 0, max: 100, default: 50, attr: 'cursor-follow', url: 'cf', label: 'Follow', when: cursorOn }),
 ]
 
 export const PARAM_BY_PATH = new Map(PARAMS.map((d) => [d.path, d])) as ReadonlyMap<ParamPath, ParamDef>

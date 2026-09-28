@@ -303,6 +303,25 @@ function stays byte-for-byte the same, so the default seed still reproduces fram
   gets a whitespace/comment strip at build time. Capture/video code goes in a separate entry
   (`lazuli-bg/capture`) so embeds don't ship it.
 
+**Measured in phase 5** (Apple M1, Chrome on Metal, 2880×1800 = a 1440×900 screen at 2×, one
+1-pixel readback per frame, so these slightly overstate; `packages/lazuli/bench.html?timing`):
+
+| Variant | ms/frame | Variant | ms/frame |
+| --- | --- | --- | --- |
+| Blobs (default, same maths as v1) | 5.7 | Noise | 7.2 |
+| Waves | 5.2 | Paper | 10.0 |
+| Bands | 4.1 | Halftone | 10.0 |
+| Rings, 3 sources | 5.1 | Dither | 6.2 |
+| Dots (hex) | 5.3 | Waves + halftone | 9.4 |
+| Dots with jitter | 18.8 | Dots + halftone | 10.4 |
+| Nodal | 2.5 | | |
+
+The 4 ms budget above was a guess, and v1's own maths doesn't meet it at this size, so `quality: 'auto'`
+(render scale 1 → 0.75 → 0.5 when frames run over 24 ms, back up under 17.5 ms) is the answer for
+now. Everything but jittered dots fits a 60 fps frame on an M1 at full resolution, so the
+half-resolution pattern pass stays deferred. Dots were 20.6 ms before they looked up only the
+nearest center when a dot can't reach past its cell. Phones still need measuring.
+
 ### 2.4 Transparency and blending
 
 - The context switches to `alpha: true, premultipliedAlpha: true`. The shader outputs a

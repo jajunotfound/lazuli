@@ -9,7 +9,7 @@ Tools used to fit the engine's default look to Paper frame 01. Not part of any b
 | `search.ts` | Scans millions of seeds through `layoutFromSeed` for the layout closest to target blob geometry (edit `T` for a new target). ~1M seeds/s. |
 | `pack.ts` | Writes `layouts.json` (packed uniforms) for chosen seeds, for `fit.html`. |
 | `fit.html` | Runs the fragment shader in WebGL and pixel-fits knobs (`rscale`, `soft`, `clo`, `chi`, `k`) per seed. `runFit()` fits the seeds in `layouts.json`; `runGeo(seed, init)` frees the blob geometry too (the best the shader can do); `show(p)` renders at 1280×832. |
-| `shoot.mjs` | Headless-Chrome (CDP) driver used for fitting and UI screenshots. `node shoot.mjs <url> <out-prefix> <w> <h> <steps.json>`. Steps: `eval`, `wait`, `shot`, `mouse`, `click`, `tap`, `key`, `save`. Env: `SCHEME`, `MOTION`. |
+| `shoot.mjs` | Headless-Chrome (CDP) driver used for fitting and UI screenshots. `node shoot.mjs <url> <out-prefix> <w> <h> <steps.json>`. Steps: `eval`, `wait`, `shot`, `mouse`, `click`, `tap`, `key`, `save`. Env: `SCHEME`, `MOTION`, `GPU=1` (real GPU instead of SwiftShader, for timing). |
 
 ## Workflow
 

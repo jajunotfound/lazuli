@@ -26,7 +26,8 @@ const HEADER = /* glsl */ `
 precision highp float;
 uniform vec2 u_res; uniform float u_time; uniform float u_dpr;
 uniform vec2 u_mouse; uniform vec2 u_vel; uniform float u_active;
-uniform float u_pull; uniform float u_cursorR; uniform float u_smear;
+uniform float u_pull; uniform float u_cursorR; uniform float u_smear; uniform float u_cursorMode;
+uniform float u_period; uniform vec2 u_flow;
 uniform vec3 u_pal[5]; uniform float u_palN; uniform float u_mapping; uniform float u_steps; uniform float u_blend;
 uniform float u_opacity; uniform float u_fade;
 uniform float u_bgType; uniform vec3 u_bg[3]; uniform float u_bgN;
@@ -50,6 +51,26 @@ float noise(vec2 p) {
   float c = hash(dot(i + vec2(0.0, 1.0), vec2(1.0, 57.0)));
   float d = hash(dot(i + vec2(1.0, 1.0), vec2(1.0, 57.0)));
   return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
+}
+
+// Loop mode (u_period > 0): every rate snaps to a whole number of cycles per period and
+// straight drifts become circles of the same speed, so frame u_period matches frame 0.
+// Rate of something with period 1 (a phase in cycles):
+float lr(float rate) {
+  if (u_period <= 0.0) return rate;
+  float k = max(floor(abs(rate) * u_period + 0.5), 1.0);
+  return sign(rate) * k / u_period;
+}
+// Angular frequency (period 2π):
+float lf(float f) { return u_period <= 0.0 ? f : 6.2831853 * lr(f / 6.2831853); }
+// Offset after drifting at velocity v for time t.
+vec2 drift(vec2 v, float t) {
+  if (u_period <= 0.0) return v * t;
+  float speed = length(v);
+  if (speed == 0.0) return vec2(0.0);
+  vec2 d = v / speed;
+  float th = 6.2831853 * t / u_period;
+  return speed * u_period / 6.2831853 * (sin(th) * d + (1.0 - cos(th)) * vec2(-d.y, d.x));
 }
 
 // Up to five octaves of value noise, normalized to 0..1.
@@ -130,7 +151,8 @@ const float CORE_HI = 1.54;  // field where it's fully core
 vec4 shapeColor(vec2 p, float t) {
   float aspect = u_res.x / u_res.y;
   // slow organic wobble on the edges
-  p += u_wobble * vec2(noise(p * 3.0 + t * 0.4), noise(p * 3.0 - t * 0.4 + 7.0)) - u_wobble * 0.5;
+  vec2 wob = drift(vec2(0.4), t);
+  p += u_wobble * vec2(noise(p * 3.0 + wob), noise(p * 3.0 - wob + 7.0)) - u_wobble * 0.5;
 
   float field = 0.0;
   float peak = 0.0;
@@ -143,10 +165,10 @@ vec4 shapeColor(vec2 p, float t) {
     float p2 = o.w * 1.3 + 1.7;
     float p3 = o.w * 0.7 + 2.9;
     // Orbits are offset so every blob starts exactly at its layout position (t = 0).
-    vec2 c = vec2(b.x * aspect, b.y) + vec2(sin(t * o.x + p1) - sin(p1), cos(t * o.y + p2) - cos(p2)) * o.z;
+    vec2 c = vec2(b.x * aspect, b.y) + vec2(sin(t * lf(o.x) + p1) - sin(p1), cos(t * lf(o.y) + p2) - cos(p2)) * o.z;
     float r = b.z * u_size;
     vec2 q = p - c;
-    q.x *= (1.0 + (b.w - 1.0) * u_stretch) * (1.0 + 0.12 * (sin(t * 0.3 + p3) - sin(p3)));
+    q.x *= (1.0 + (b.w - 1.0) * u_stretch) * (1.0 + 0.12 * (sin(t * lf(0.3) + p3) - sin(p3)));
     float f = exp(-pow(dot(q, q) / (r * r) + 1e-6, FALLOFF));
     field += f;
     peak = max(peak, f);
@@ -186,7 +208,13 @@ vec4 patternAt(vec2 frag) {
   // the center inside out. 0.9 peaks at r ~ 0.15, matching the old push there.
   vec2 d = p - m;
   float fall = exp(-dot(d, d) / u_cursorR) * u_active;
-  p += d * fall * 0.9 * u_pull;
+  if (u_cursorMode < 0.5) {
+    p += d * fall * 0.9 * u_pull;
+  } else {
+    // Swirl: rotate around the pointer, most at the center, none at the edge of its reach.
+    float a = u_pull * fall * 2.5;
+    p = m + mat2(cos(a), sin(a), -sin(a), cos(a)) * d;
+  }
   p -= vec2(u_vel.x * aspect, u_vel.y) * fall * u_smear;
   return shapeColor(p, u_time);
 }
@@ -218,6 +246,7 @@ void flatten(vec4 P) { g_cov = P.a; g_flat = P.rgb / max(P.a, 1e-4); g_isFlat = 
 const WAVES = /* glsl */ `
 uniform float u_wCount; uniform float u_wAmp; uniform float u_wK; uniform float u_wHalf;
 uniform float u_wSoft; uniform float u_wSpread; uniform float u_wTwist; uniform float u_wAngle;
+uniform float u_wTravel; // +1 or -1: which way along the ribbons motion.direction points
 // Per ribbon: phase, speed, second-harmonic amount, its phase.
 uniform vec4 u_wave[8];
 
@@ -230,11 +259,13 @@ vec4 shapeColor(vec2 p, float t) {
     if (float(i) >= u_wCount) break;
     vec4 w = u_wave[i];
     float base = (float(i) - (u_wCount - 1.0) * 0.5) * u_wSpread;
-    float ph = w.x + float(i) * u_wTwist + t * w.y;
+    float ph0 = w.x + float(i) * u_wTwist;
+    float ph = ph0 + t * lf(w.y) * u_wTravel;
+    float ph2 = w.w + ph0 * 0.7 + t * lf(0.7 * w.y) * u_wTravel;
     float a2 = u_wAmp * w.z * 0.35;
     float x = q.x * u_wK;
-    float y = base + u_wAmp * sin(x + ph) + a2 * sin(2.0 * x + w.w + ph * 0.7);
-    float dy = u_wK * (u_wAmp * cos(x + ph) + 2.0 * a2 * cos(2.0 * x + w.w + ph * 0.7));
+    float y = base + u_wAmp * sin(x + ph) + a2 * sin(2.0 * x + ph2);
+    float dy = u_wK * (u_wAmp * cos(x + ph) + 2.0 * a2 * cos(2.0 * x + ph2));
     // Distance across the ribbon, not straight down, so steep parts keep their width.
     float d = abs(q.y - y) / sqrt(1.0 + dy * dy) / u_wHalf;
     P = over(shadeInstance(d, u_wSoft, aa, float(i)), P);
@@ -252,8 +283,9 @@ vec4 shapeColor(vec2 p, float t) {
   float aspect = u_res.x / u_res.y;
   vec2 n = vec2(-sin(u_kAngle), cos(u_kAngle)); // across the bands
   float s = dot(p - vec2(0.5 * aspect, 0.5), n);
-  s += u_kWarp * (fbm(p * u_kWarpFreq + u_kSeed + t * 0.12, 3.0) - 0.5);
-  float x = s * u_kCount + t * 0.25;
+  s += u_kWarp * (fbm(p * u_kWarpFreq + u_kSeed + drift(vec2(0.12), t), 3.0) - 0.5);
+  // Bands scroll with the part of the flow that crosses them (whole bands per loop).
+  float x = s * u_kCount - t * lr(dot(u_flow, n) * u_kCount);
   float i = floor(x);
   float f = fract(x) - 0.5;
   float aa = u_kCount / (u_res.y * u_kHalf);
@@ -275,15 +307,17 @@ uniform vec2 u_rSrc[3];
 
 vec4 shapeColor(vec2 p, float t) {
   float aspect = u_res.x / u_res.y;
-  if (u_rDist > 0.0) p += u_rDist * (vec2(fbm(p * 2.5 + t * 0.1, 3.0), fbm(p * 2.5 + 9.1 - t * 0.1, 3.0)) - 0.5);
+  vec2 dr = drift(u_flow * 1.6, t);
+  if (u_rDist > 0.0) p += u_rDist * (vec2(fbm(p * 2.5 + dr, 3.0), fbm(p * 2.5 + 9.1 - dr, 3.0)) - 0.5);
   float r0 = length(p - vec2(u_rCenter.x * aspect, u_rCenter.y));
-  float phase = r0 / u_rSpacing - t * 0.4; // rings travel outward
+  float speed = lr(0.4);
+  float phase = r0 / u_rSpacing - t * speed; // rings travel outward
   float v = cos(6.2831853 * phase);
   float rmin = r0;
   for (int k = 1; k < 3; k++) {
     if (float(k) >= u_rSources) break;
     float r = length(p - vec2(u_rSrc[k].x * aspect, u_rSrc[k].y));
-    v += cos(6.2831853 * (r / u_rSpacing - t * 0.4));
+    v += cos(6.2831853 * (r / u_rSpacing - t * speed));
     rmin = min(rmin, r);
   }
   // 0 on a ring (or where the waves from all sources agree), 1 halfway between.
@@ -308,7 +342,7 @@ vec2 jitter(vec2 id) {
 // One dot: sized (and, with 'layers', colored) by a slow noise field at its center.
 vec4 dotAt(vec2 p, vec2 center, vec2 id, float sp, float t) {
   center += jitter(id) * u_oJitter * sp * 0.5;
-  float n = fbm(center * 1.8 + u_oSeed + vec2(t * 0.12, -t * 0.09), 3.0);
+  float n = fbm(center * 1.8 + u_oSeed - drift(u_flow * 2.0, t), 2.0);
   float m = mix(1.0, smoothstep(0.3, 0.72, n), u_oMod);
   float r = u_oSize * 0.5 * sp * m;
   if (r < 1e-5) return vec4(0.0);
@@ -325,7 +359,21 @@ vec4 dotAt(vec2 p, vec2 center, vec2 id, float sp, float t) {
 vec4 shapeColor(vec2 p, float t) {
   float sp = u_oSpacing * u_dpr / u_res.y; // CSS px → height units
   vec4 P = vec4(0.0);
-  if (u_oHex < 0.5) {
+  // A dot reaches (size / 2)·(1 + softness) cells from its center. Within half a cell,
+  // only the nearest center of each lattice can touch this pixel: one or two lookups
+  // instead of four or eight.
+  bool near = u_oJitter == 0.0 && u_oSize * 0.5 * (1.0 + u_oSoft) <= 0.5;
+  if (near) {
+    if (u_oHex < 0.5) {
+      vec2 id = floor(p / sp);
+      P = dotAt(p, (id + 0.5) * sp, id, sp, t);
+    } else {
+      vec2 a = vec2(1.0, 1.7320508) * sp;
+      vec2 id1 = floor(p / a);
+      vec2 id2 = floor(p / a + 0.5);
+      P = over(dotAt(p, (id1 + 0.5) * a, id1 * 2.0, sp, t), dotAt(p, id2 * a, id2 * 2.0 + 1.0, sp, t));
+    }
+  } else if (u_oHex < 0.5) {
     // The four nearest cell centers (nine with jitter, which can push a dot one cell over).
     if (u_oJitter > 0.0) {
       vec2 id = floor(p / sp);
@@ -370,7 +418,7 @@ vec4 shapeColor(vec2 p, float t) {
   float unit = 0.5 * u_nScale; // height units per plate unit
   vec2 x = (p - vec2(0.5 * aspect, 0.5)) / unit;
   float a = 3.14159265 * u_nN, b = 3.14159265 * u_nM;
-  float ct = cos(t * 0.5), st = sin(t * 0.5);
+  float ct = cos(t * lf(0.5)), st = sin(t * lf(0.5));
   float cax = cos(a * x.x), sax = sin(a * x.x), cby = cos(b * x.y), sby = sin(b * x.y);
   float cbx = cos(b * x.x), sbx = sin(b * x.x), cay = cos(a * x.y), say = sin(a * x.y);
   float f = ct * (cax * cby - cbx * cay) + st * (sax * sby - sbx * say);
@@ -407,11 +455,11 @@ const NOISE = /* glsl */ `
 // Soft, cloudy mottling. Base cell is 24 CSS px at scale 1; drifts slowly when animated.
 vec3 texSignal(vec2 frag, float t) {
   vec2 p = frag / (u_texScale * 24.0 * u_dpr);
-  vec2 drift = u_texAnimated > 0.5 ? vec2(t * 0.6, -t * 0.45) : vec2(0.0);
-  float g = contrastCurve(fbm(p + drift, u_texOctaves) - 0.5);
+  vec2 dn = u_texAnimated > 0.5 ? -drift(u_flow * 10.0, t) : vec2(0.0);
+  float g = contrastCurve(fbm(p + dn, u_texOctaves) - 0.5);
   if (u_texMono > 0.5) return vec3(g * u_texIntensity);
-  float gg = contrastCurve(fbm(p + drift + 31.7, u_texOctaves) - 0.5);
-  float gb = contrastCurve(fbm(p + drift + 57.3, u_texOctaves) - 0.5);
+  float gg = contrastCurve(fbm(p + dn + 31.7, u_texOctaves) - 0.5);
+  float gb = contrastCurve(fbm(p + dn + 57.3, u_texOctaves) - 0.5);
   return vec3(g, gg, gb) * u_texIntensity;
 }
 `

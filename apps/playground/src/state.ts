@@ -51,8 +51,8 @@ export const SECTIONS: Record<PanelId, { title: string; paths: ParamPath[] }> = 
     title: 'Background',
     paths: ['background.type', 'background.color', 'background.gradient', 'background.kind', 'background.angle', 'background.centerX', 'background.centerY'],
   },
-  motion: { title: 'Motion', paths: ['motion.speed'] },
-  cursor: { title: 'Cursor', paths: ['cursor.mode', 'cursor.strength'] },
+  motion: { title: 'Motion', paths: ['motion.speed', 'motion.direction', 'motion.loop', 'quality'] },
+  cursor: { title: 'Cursor', paths: ['cursor.mode', 'cursor.strength', 'cursor.radius', 'cursor.smear', 'cursor.follow'] },
 }
 
 /** Patch that puts one path back to its default. */

@@ -9,9 +9,11 @@ const [url, prefix, w = '1280', h = '832', stepsFile] = process.argv.slice(2)
 const steps = stepsFile ? JSON.parse(readFileSync(stepsFile, 'utf8')) : [{ wait: 1500, shot: 'default' }]
 const port = 9300 + Math.floor(Math.random() * 500)
 const profile = mkdtempSync(join(tmpdir(), 'lazuli-chrome-'))
+// GPU=1 renders on the real GPU (for timing); the default SwiftShader is deterministic.
+const gl = process.env.GPU ? ['--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist'] : ['--use-angle=swiftshader', '--enable-unsafe-swiftshader']
 const chrome = spawn('/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', [
   '--headless=new', `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`,
-  '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--hide-scrollbars',
+  ...gl, '--hide-scrollbars',
   `--window-size=${w},${h}`, 'about:blank',
 ], { stdio: 'ignore' })
 

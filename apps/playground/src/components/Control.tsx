@@ -62,7 +62,7 @@ export function Control({ path, config, set, compact }: ControlProps) {
       }
       if (d.options.length < 2) return null
       const labels = hint.options ?? Object.fromEntries(d.options.map((o) => [o, o[0].toUpperCase() + o.slice(1)]))
-      const options = d.options.map((o) => ({ label: labels[o] ?? o, value: o }))
+      const options = Object.keys(labels).map((o) => ({ label: labels[o], value: o }))
       // More than three options don't fit a 228px row as a segmented control.
       if (options.length > 3) {
         return <SelectRow label={label} options={options} value={String(value)} onChange={change} />

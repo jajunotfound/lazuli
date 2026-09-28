@@ -27,6 +27,7 @@ export {
   type BackgroundType,
   type GradientKind,
   type CursorMode,
+  type Quality,
   type ReducedMotion,
   type TextureTarget,
   type ColorMapping,

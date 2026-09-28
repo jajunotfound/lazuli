@@ -15,8 +15,9 @@ const SOFT_SPAN = 2.16 // softness 50 → 1.1, the widest band that keeps the gr
 // Texture strength at intensity 100, per type. Paper shows no visible grain at the default
 // (Fine = 35), so grain stays a whisper there. Halftone and dither mix 0–1 toward the screen.
 const TEXTURE_SCALE: Record<TextureType, number> = { none: 0, grain: 0.07, noise: 0.22, paper: 0.16, halftone: 1, dither: 1 }
-const CURSOR_RADIUS = 0.045 // falloff σ² in height units
-const CURSOR_SMEAR = 1.6
+const CURSOR_RADIUS = 0.045 // falloff σ² in height units at radius 50
+const CURSOR_SMEAR = 1.6 // at smear 50
+const FLOW_SPEED = 0.06 // height units per unit of time
 const MAX_STOPS = 5
 const BLEND_MODES = ['normal', 'multiply', 'screen', 'overlay', 'soft-light', 'difference']
 
@@ -47,9 +48,15 @@ export function toUniforms(c: LazuliConfig): UniformValues {
   const nodalM = n.m === n.n ? (n.n < 12 ? n.n + 1 : n.n - 1) : n.m
   const tex = c.texture
   return {
-    u_pull: (c.cursor.mode === 'pull' ? -1 : 1) * (c.cursor.strength / 100),
-    u_cursorR: CURSOR_RADIUS,
-    u_smear: CURSOR_SMEAR,
+    u_pull: c.cursor.mode === 'off' ? 0 : (c.cursor.mode === 'pull' ? -1 : 1) * (c.cursor.strength / 100),
+    u_cursorMode: c.cursor.mode === 'swirl' ? 1 : 0,
+    // 50 is v1's reach; each 50 either way is ×4 (σ²).
+    u_cursorR: CURSOR_RADIUS * 4 ** ((c.cursor.radius - 50) / 50),
+    u_smear: c.cursor.mode === 'off' ? 0 : CURSOR_SMEAR * (c.cursor.smear / 50),
+
+    u_period: c.motion.loop > 0 && c.motion.speed > 0 ? c.motion.loop * c.motion.speed : 0,
+    // Screen convention: 0° points right, 90° down (GL's y axis points up).
+    u_flow: [Math.cos(deg(c.motion.direction)) * FLOW_SPEED, -Math.sin(deg(c.motion.direction)) * FLOW_SPEED],
 
     u_pal: flat(c.color.palette, MAX_STOPS),
     u_palN: c.color.palette.length,
@@ -98,6 +105,7 @@ export function toUniforms(c: LazuliConfig): UniformValues {
     u_wSpread: lerp(0.03, 0.3, w.spread / 100),
     u_wTwist: (w.twist / 100) * Math.PI,
     u_wAngle: deg(w.angle),
+    u_wTravel: Math.cos(deg(c.motion.direction) + deg(w.angle)) >= 0 ? 1 : -1,
     u_wave: wavesFromSeed(c.seed),
 
     u_kCount: k.count,
