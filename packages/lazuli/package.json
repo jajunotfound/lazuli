@@ -26,7 +26,7 @@
   "keywords": ["webgl", "shader", "gradient", "background", "metaballs", "web-component"],
   "repository": {
     "type": "git",
-    "url": "https://github.com/REPLACE_ME/lazuli"
+    "url": "https://github.com/jajunotfound/lazuli"
   },
   "scripts": {
     "dev": "vite",

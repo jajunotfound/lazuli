@@ -4,7 +4,7 @@ import { useEffect, useRef, type CSSProperties } from 'react'
 import { CloseIcon, InfoIcon } from '../icons'
 import type { Params } from '../state'
 
-export const GITHUB_URL = 'https://github.com/REPLACE_ME/lazuli'
+export const GITHUB_URL = 'https://github.com/jajunotfound/lazuli'
 const AUTHOR_URL = 'https://elisha.ma'
 const PREVIEW_ZOOM = 2.4
 
