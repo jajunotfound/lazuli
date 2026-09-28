@@ -1,16 +1,20 @@
 import * as Tooltip from '@radix-ui/react-tooltip'
-import { createLazuli, randomSeed, resolveConfig, type LazuliInstance } from 'lazuli-bg'
+import { createLazuli, presetConfig, randomSeed, resolveConfig, type LazuliInstance, type PresetId } from 'lazuli-bg'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { CodeDialog } from './components/CodeDialog'
+import { PresetsPanel } from './components/PresetsPanel'
 import { CursorPanel, MotionPanel, SchemaPanel } from './components/panels'
 import { Toolbar, type ToolbarItem } from './components/Toolbar'
 import { AboutButton, WelcomeCard } from './components/Welcome'
-import { BackgroundIcon, CodeIcon, ColorsIcon, CursorIcon, HideIcon, MotionIcon, ShapesIcon, ShowIcon, ShuffleIcon, TextureIcon } from './icons'
-import { hasSeenWelcome, markWelcomeSeen, readUrlConfig, sectionDefaults, writeUrlConfig, type Config, type PanelId, type Patch } from './state'
+import { BackgroundIcon, CodeIcon, ColorsIcon, CursorIcon, HideIcon, MotionIcon, PresetsIcon, ShapesIcon, ShowIcon, ShuffleIcon, TextureIcon } from './icons'
+import { hasSeenWelcome, markWelcomeSeen, readUrlState, sectionDefaults, writeUrlState, type Config, type PanelId, type Patch, type SectionId } from './state'
 import { useMediaQuery } from './useMediaQuery'
 
 export function App() {
-  const [config, setConfig] = useState<Config>(readUrlConfig)
+  const [initial] = useState(readUrlState)
+  const [config, setConfig] = useState<Config>(initial.config)
+  // The preset the current look started from: the base for Reset and for the URL.
+  const [preset, setPreset] = useState<PresetId | null>(initial.preset)
   const [openPanel, setOpenPanel] = useState<PanelId | null>(null)
   const [codeOpen, setCodeOpen] = useState(false)
   const [welcomeOpen, setWelcomeOpen] = useState(() => !hasSeenWelcome())
@@ -45,14 +49,19 @@ export function App() {
 
   // ---- URL ---------------------------------------------------------------
   useEffect(() => {
-    const t = setTimeout(() => writeUrlConfig(config), 200)
+    const t = setTimeout(() => writeUrlState(config, preset), 200)
     return () => clearTimeout(t)
-  }, [config])
+  }, [config, preset])
 
   // ---- actions -----------------------------------------------------------
   const set = useCallback((patch: Patch) => {
     if (patch.motion?.speed !== undefined) setSpeedTouched(true)
     setConfig((c) => resolveConfig(patch, c))
+  }, [])
+
+  const pickPreset = useCallback((id: PresetId) => {
+    setPreset(id)
+    setConfig(presetConfig(id))
   }, [])
 
   const shuffle = useCallback(() => {
@@ -96,12 +105,14 @@ export function App() {
   }, [welcomeOpen, openPanel, codeOpen, closeWelcome, shuffle, toggleControls])
 
   // ---- toolbar -----------------------------------------------------------
-  const panelProps = (id: PanelId) => ({ config, set, compact, reset: () => set(sectionDefaults(id)) })
+  const base = preset ? presetConfig(preset) : undefined
+  const panelProps = (id: SectionId) => ({ config, set, compact, reset: () => set(sectionDefaults(id, base)) })
 
   const groups: ToolbarItem[][] = useMemo(
     () => [
       [{ kind: 'action', id: 'shuffle', label: 'Shuffle', icon: ShuffleIcon, onClick: shuffle, shortcut: 'R', flash: shuffleFlash }],
       [
+        { kind: 'panel', id: 'presets', label: 'Presets', icon: PresetsIcon, content: <PresetsPanel config={config} preset={preset} onPick={pickPreset} /> },
         { kind: 'panel', id: 'colors', label: 'Colors', icon: ColorsIcon, content: <SchemaPanel id="colors" {...panelProps('colors')} /> },
         { kind: 'panel', id: 'shapes', label: 'Shapes', icon: ShapesIcon, content: <SchemaPanel id="shapes" {...panelProps('shapes')} /> },
         { kind: 'panel', id: 'texture', label: 'Texture', icon: TextureIcon, content: <SchemaPanel id="texture" {...panelProps('texture')} /> },
@@ -124,7 +135,7 @@ export function App() {
       ],
     ],
     // panelProps closes over config, set and compact, all listed.
-    [config, set, shuffle, shuffleFlash, compact, coarse, toggleControls],
+    [config, preset, set, pickPreset, shuffle, shuffleFlash, compact, coarse, toggleControls],
   )
 
   return (

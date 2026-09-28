@@ -1,10 +1,11 @@
 import { fromFlat, LEGACY_KEYS, resolveConfig, type LazuliInput } from './config'
 import { createLazuli, type LazuliInstance } from './engine'
+import { isPreset } from './presets'
 import { DEFAULT_CONFIG, getPath, PARAMS } from './schema'
 
 export const TAG_NAME = 'lazuli-bg'
 
-const ATTRS = [...new Set([...PARAMS.map((d) => d.attr), ...LEGACY_KEYS, 'config'])]
+const ATTRS = [...new Set([...PARAMS.map((d) => d.attr), ...LEGACY_KEYS, 'config', 'preset'])]
 
 // Base class is resolved lazily so importing this module on a server (no DOM) doesn't throw.
 const Base = (typeof HTMLElement === 'undefined' ? class {} : HTMLElement) as typeof HTMLElement
@@ -15,9 +16,10 @@ const Base = (typeof HTMLElement === 'undefined' ? class {} : HTMLElement) as ty
  * `color-palette="#4c78d8,#1f48a8"`, `background-type="transparent"`, …; see
  * PARAMS), plus `config='{…json…}'` for a whole config at once. The v1 names
  * (`core`, `edge`, `ground`, `count`, `size`, `softness`, `texture`, `speed`,
- * `cursor`, `strength`) still work. Precedence: individual attribute > `config`
- * > defaults. `reduced-motion="ignore"` opts out of slowing down for users who
- * prefer reduced motion.
+ * `cursor`, `strength`) still work. `preset="silk"` starts from a preset.
+ * Precedence: individual attribute > `config` > `preset` > defaults.
+ * `reduced-motion="ignore"` opts out of slowing down for users who prefer
+ * reduced motion.
  */
 export class LazuliElement extends Base {
   static get observedAttributes() {
@@ -57,7 +59,7 @@ export class LazuliElement extends Base {
 
   attributeChangedCallback(name: string, _old: string | null, value: string | null) {
     if (!this.#instance) return
-    if (name === 'config') {
+    if (name === 'config' || name === 'preset') {
       this.#instance.set(resolveConfig(this.#readAttributes()))
       return
     }
@@ -65,12 +67,9 @@ export class LazuliElement extends Base {
       this.#instance.set(fromFlat({ [name]: value }, 'attr'))
       return
     }
-    // Removed: back to what `config` (or the default) says for that parameter.
+    // Removed: back to what `config` / `preset` (or the default) says for that parameter.
     const d = PARAMS.find((p) => p.attr === name)
-    if (d) {
-      const base = resolveConfig(this.#configAttribute())
-      this.#instance.set(fromFlat({ [name]: String(getPath(base, d.path)) }, 'attr'))
-    }
+    if (d) this.#instance.set(fromFlat({ [name]: String(getPath(this.#base(), d.path)) }, 'attr'))
   }
 
   /** New random seed; reflected to the `seed` attribute. */
@@ -78,6 +77,12 @@ export class LazuliElement extends Base {
     const seed = this.#instance?.shuffle() ?? 0
     this.setAttribute('seed', String(seed))
     return seed
+  }
+
+  /** What the `config` and `preset` attributes describe, before individual attributes. */
+  #base() {
+    const preset = this.getAttribute('preset')
+    return resolveConfig({ ...this.#configAttribute(), ...(isPreset(preset) ? { preset } : {}) }, DEFAULT_CONFIG)
   }
 
   #configAttribute(): LazuliInput {
@@ -95,10 +100,9 @@ export class LazuliElement extends Base {
     const record: Record<string, string> = {}
     for (const name of ATTRS) {
       const v = this.getAttribute(name)
-      if (v !== null && name !== 'config') record[name] = v
+      if (v !== null && name !== 'config' && name !== 'preset') record[name] = v
     }
-    const base = resolveConfig(this.#configAttribute(), DEFAULT_CONFIG)
-    return resolveConfig(fromFlat(record, 'attr'), base)
+    return resolveConfig(fromFlat(record, 'attr'), this.#base())
   }
 }
 

@@ -132,3 +132,13 @@ export const ChevronIcon = (p: IconProps) => (
     <path {...stroke} d="M4 6L8 10L12 6" />
   </Svg>
 )
+
+// Not in Paper yet: four tiles for Presets.
+export const PresetsIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <rect {...stroke} x="3.5" y="3.5" width="7" height="7" rx="2" />
+    <rect {...stroke} x="13.5" y="3.5" width="7" height="7" rx="2" />
+    <rect {...stroke} x="3.5" y="13.5" width="7" height="7" rx="2" />
+    <rect {...stroke} x="13.5" y="13.5" width="7" height="7" rx="3.5" />
+  </Svg>
+)

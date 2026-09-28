@@ -1,4 +1,5 @@
 import { normalizeHex } from './color'
+import { isPreset, PRESETS, type PresetId } from './presets'
 import {
   cloneConfig,
   DEFAULT_CONFIG,
@@ -45,6 +46,8 @@ export type LazuliInput = Omit<ConfigPatch, 'shape' | 'texture' | 'cursor'> &
     texture?: ConfigPatch['texture'] | number | string
     /** Cursor settings, or a v1 mode ('push' | 'pull'). */
     cursor?: ConfigPatch['cursor'] | CursorMode
+    /** Start from a preset (over the defaults), then apply everything else given. */
+    preset?: PresetId
   }
 
 const isObject = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v)
@@ -129,8 +132,8 @@ export function coerce(d: ParamDef, raw: unknown, fallback: unknown): unknown {
  * Accepts v2 nested sections and the v1 flat keys; v2 wins when both are present.
  */
 export function resolveConfig(input: LazuliInput = {}, base: Readonly<LazuliConfig> = DEFAULT_CONFIG): LazuliConfig {
-  const out = cloneConfig(base)
   const raw = input as Record<string, unknown>
+  const out = isPreset(raw.preset) ? presetConfig(raw.preset) : cloneConfig(base)
   const entries = [...legacyEntries(raw), ...nestedEntries(raw)]
   for (const [path, value] of entries) {
     const d = PARAMS.find((p) => p.path === path)!
@@ -147,6 +150,11 @@ export function resolveConfig(input: LazuliInput = {}, base: Readonly<LazuliConf
   return out
 }
 
+/** A preset's full config: the defaults (and default seed) with its patch applied. */
+export function presetConfig(id: PresetId): LazuliConfig {
+  return resolveConfig(PRESETS[id].config as LazuliInput, DEFAULT_CONFIG)
+}
+
 export type FlatKey = 'attr' | 'url'
 
 /**
@@ -155,6 +163,8 @@ export type FlatKey = 'attr' | 'url'
  */
 export function fromFlat(record: Record<string, string | null | undefined>, key: FlatKey): LazuliInput {
   const out: Record<string, unknown> = {}
+  const preset = record[key === 'url' ? 'p' : 'preset']
+  if (isPreset(preset)) out.preset = preset
   for (const d of PARAMS) {
     const v = record[d[key]]
     if (v == null) continue

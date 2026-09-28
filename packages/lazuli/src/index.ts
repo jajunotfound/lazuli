@@ -1,6 +1,7 @@
 export { createLazuli, randomSeed, type LazuliInstance } from './engine'
 export {
   resolveConfig,
+  presetConfig,
   fromFlat,
   toFlat,
   diffConfig,
@@ -38,5 +39,6 @@ export {
   type BlendMode,
 } from './schema'
 export { normalizeHex } from './color'
+export { PRESETS, PRESET_IDS, isPreset, type PresetId } from './presets'
 export { LazuliElement, defineLazuliElement, TAG_NAME } from './element'
 export { layoutFromSeed, type Blob } from './layout'

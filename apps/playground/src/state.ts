@@ -2,20 +2,24 @@ import {
   DEFAULT_CONFIG,
   fromFlat,
   getPath,
+  isPreset,
   PARAMS,
+  presetConfig,
   resolveConfig,
   toFlat,
   type LazuliConfig,
   type LazuliInput,
   type ParamPath,
+  type PresetId,
 } from 'lazuli-bg'
 
 export type Config = LazuliConfig
 export type Patch = LazuliInput
-export type PanelId = 'colors' | 'shapes' | 'texture' | 'background' | 'motion' | 'cursor'
+export type SectionId = 'colors' | 'shapes' | 'texture' | 'background' | 'motion' | 'cursor'
+export type PanelId = SectionId | 'presets'
 
 /** Which parameters each popover shows (when active) and its Reset restores, in display order. */
-export const SECTIONS: Record<PanelId, { title: string; paths: ParamPath[] }> = {
+export const SECTIONS: Record<SectionId, { title: string; paths: ParamPath[] }> = {
   colors: { title: 'Color', paths: ['color.palette', 'color.mapping', 'color.steps', 'color.blend', 'color.opacity', 'color.fade'] },
   shapes: {
     title: 'Shapes',
@@ -61,9 +65,10 @@ export function patchFor(path: ParamPath, value: unknown): Patch {
   return (k === undefined ? { [s]: value } : { [s]: { [k]: value } }) as Patch
 }
 
-export function sectionDefaults(id: PanelId): Patch {
+/** Reset a section to its values in `base` (the chosen preset, or the defaults). */
+export function sectionDefaults(id: SectionId, base: Config = DEFAULT_CONFIG as Config): Patch {
   let out: Patch = {}
-  for (const path of SECTIONS[id].paths) out = merge(out, patchFor(path, getPath(DEFAULT_CONFIG, path)))
+  for (const path of SECTIONS[id].paths) out = merge(out, patchFor(path, getPath(base, path)))
   return out
 }
 
@@ -85,22 +90,24 @@ export const MOTION_PRESETS = [
 export const SWATCHES = ['#1f48a8', '#6b4ee6', '#f0508c', '#ff8a3d', '#ffc93c', '#3cc6a0', '#1a1a1a', '#d9dee8']
 
 // ---- URL state --------------------------------------------------------------
-// Only active, non-default values go in the query string, under the schema's short keys
-// (colors without the "#"). v1 links (`?core=…&count=4`) still read through the legacy names.
+// The preset you started from (`p=silk`), then only active values that differ from it,
+// under the schema's short keys (colors without the "#"). v1 links (`?core=…&count=4`)
+// still read through the legacy names.
 
-export function readUrlConfig(): Config {
-  const q = new URLSearchParams(location.search)
-  return resolveConfig(fromFlat(Object.fromEntries(q), 'url'))
+export function readUrlState(): { config: Config; preset: PresetId | null } {
+  const q = Object.fromEntries(new URLSearchParams(location.search))
+  return { config: resolveConfig(fromFlat(q, 'url')), preset: isPreset(q.p) ? q.p : null }
 }
 
-export function toQuery(c: Config): string {
-  const q = new URLSearchParams(toFlat(c, 'url'))
+export function toQuery(c: Config, preset: PresetId | null): string {
+  const base = preset ? presetConfig(preset) : DEFAULT_CONFIG
+  const q = new URLSearchParams([...(preset ? [['p', preset]] : []), ...toFlat(c, 'url', { base })])
   const s = q.toString()
   return s ? `?${s}` : ''
 }
 
-export function writeUrlConfig(c: Config) {
-  const next = `${location.pathname}${toQuery(c)}${location.hash}`
+export function writeUrlState(c: Config, preset: PresetId | null) {
+  const next = `${location.pathname}${toQuery(c, preset)}${location.hash}`
   if (next !== `${location.pathname}${location.search}${location.hash}`) history.replaceState(null, '', next)
 }
 

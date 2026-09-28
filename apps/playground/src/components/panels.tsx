@@ -1,7 +1,7 @@
 import { isActive, type ParamPath } from 'lazuli-bg'
 import type { ReactNode } from 'react'
 import { HINTS } from '../controls'
-import { MOTION_PRESETS, PARAM, SECTIONS, type Config, type PanelId, type Patch } from '../state'
+import { MOTION_PRESETS, PARAM, SECTIONS, type Config, type Patch, type SectionId } from '../state'
 import { Control } from './Control'
 import { Panel, Row } from './Panel'
 import { Segmented } from './Segmented'
@@ -14,7 +14,7 @@ export interface PanelProps {
 }
 
 /** A section's active parameters, in schema-section order, with optional rows on top. */
-export function SchemaPanel({ id, config, set, reset, compact, lead, footer }: PanelProps & { id: PanelId; lead?: ReactNode; footer?: ReactNode }) {
+export function SchemaPanel({ id, config, set, reset, compact, lead, footer }: PanelProps & { id: SectionId; lead?: ReactNode; footer?: ReactNode }) {
   const { title, paths } = SECTIONS[id]
   const shown = paths.filter((p: ParamPath) => !HINTS[p]?.hidden && isActive(PARAM[p], config))
   return (

@@ -121,3 +121,24 @@ test('cursor off hides its settings; loop skips 0–2 s', () => {
   assert.equal(resolveConfig({ motion: { loop: 1 } }).motion.loop, 2)
   assert.equal(resolveConfig({ cursor: 'swirl' }).cursor.mode, 'swirl')
 })
+
+test('presets start from the defaults, then explicit values apply', () => {
+  const c = resolveConfig({ preset: 'silk', waves: { count: 2 } })
+  assert.equal(c.shape.type, 'waves')
+  assert.equal(c.waves.count, 2)
+  assert.equal(c.waves.amplitude, 35)
+  assert.equal(resolveConfig(fromFlat({ p: 'ripple', rc: '20' }, 'url')).rings.count, 20)
+  assert.equal(resolveConfig({ preset: 'nope' as never }).shape.type, 'blobs')
+})
+
+test('every preset resolves to valid, distinct configs', async () => {
+  const { PRESET_IDS } = await import('../src/presets')
+  const { presetConfig } = await import('../src/config')
+  const seen = new Set<string>()
+  for (const id of PRESET_IDS) {
+    const c = presetConfig(id)
+    assert.deepEqual(resolveConfig(c), c, id) // already valid: resolving again changes nothing
+    seen.add(JSON.stringify(c))
+  }
+  assert.equal(seen.size, PRESET_IDS.length)
+})
