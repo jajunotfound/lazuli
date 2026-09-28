@@ -1,0 +1,25 @@
+<!doctype html>
+<!-- Compares two screenshots: ?a=<png>&b=<png>. Sets window.result to
+     { max, mean, over } (over = pixels with any channel differing by more than `tol`). -->
+<meta charset="utf-8" />
+<script>
+  const q = new URLSearchParams(location.search)
+  const tol = Number(q.get('tol') ?? 2)
+  const load = (src) => new Promise((r, e) => { const i = new Image(); i.onload = () => r(i); i.onerror = e; i.src = src })
+  window.done = Promise.all([load(q.get('a')), load(q.get('b'))]).then(([a, b]) => {
+    const px = (img) => {
+      const c = Object.assign(document.createElement('canvas'), { width: img.width, height: img.height })
+      const g = c.getContext('2d')
+      g.drawImage(img, 0, 0)
+      return g.getImageData(0, 0, img.width, img.height).data
+    }
+    const A = px(a), B = px(b)
+    let max = 0, sum = 0, over = 0
+    for (let i = 0; i < A.length; i += 4) {
+      let m = 0
+      for (let k = 0; k < 3; k++) m = Math.max(m, Math.abs(A[i + k] - B[i + k]))
+      max = Math.max(max, m); sum += m; if (m > tol) over++
+    }
+    return (window.result = { size: `${a.width}x${a.height}`, max, mean: +(sum / (A.length / 4)).toFixed(4), over })
+  })
+</script>

@@ -1,16 +1,16 @@
 import * as Tooltip from '@radix-ui/react-tooltip'
-import { createLazuli, randomSeed, type LazuliInstance } from 'lazuli-bg'
+import { createLazuli, randomSeed, resolveConfig, type LazuliInstance } from 'lazuli-bg'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { CodeDialog } from './components/CodeDialog'
-import { ColorsPanel, CursorPanel, MotionPanel, ShapesPanel, TexturePanel } from './components/panels'
+import { CursorPanel, MotionPanel, SchemaPanel, TexturePanel } from './components/panels'
 import { Toolbar, type ToolbarItem } from './components/Toolbar'
 import { AboutButton, WelcomeCard } from './components/Welcome'
-import { CodeIcon, ColorsIcon, CursorIcon, HideIcon, MotionIcon, ShapesIcon, ShowIcon, ShuffleIcon, TextureIcon } from './icons'
-import { hasSeenWelcome, markWelcomeSeen, readUrlParams, sectionDefaults, writeUrlParams, type PanelId, type Params } from './state'
+import { BackgroundIcon, CodeIcon, ColorsIcon, CursorIcon, HideIcon, MotionIcon, ShapesIcon, ShowIcon, ShuffleIcon, TextureIcon } from './icons'
+import { hasSeenWelcome, markWelcomeSeen, readUrlConfig, sectionDefaults, writeUrlConfig, type Config, type PanelId, type Patch } from './state'
 import { useMediaQuery } from './useMediaQuery'
 
 export function App() {
-  const [params, setParams] = useState<Params>(readUrlParams)
+  const [config, setConfig] = useState<Config>(readUrlConfig)
   const [openPanel, setOpenPanel] = useState<PanelId | null>(null)
   const [codeOpen, setCodeOpen] = useState(false)
   const [welcomeOpen, setWelcomeOpen] = useState(() => !hasSeenWelcome())
@@ -25,37 +25,38 @@ export function App() {
 
   const [stage, setStage] = useState<HTMLDivElement | null>(null)
   const engine = useRef<LazuliInstance | null>(null)
-  const initialParams = useRef(params)
+  const initialConfig = useRef(config)
 
   // ---- engine ------------------------------------------------------------
   // Created once per stage element; later updates go through set() below.
   useEffect(() => {
     if (!stage) return
-    engine.current = createLazuli(stage, initialParams.current)
+    engine.current = createLazuli(stage, initialConfig.current)
     return () => {
       engine.current?.destroy()
       engine.current = null
     }
   }, [stage])
 
+  // The reduced-motion lift is the playground's own; it never reaches the exported config.
   useEffect(() => {
-    engine.current?.set({ ...params, respectReducedMotion: !speedTouched })
-  }, [params, speedTouched, stage])
+    engine.current?.set({ ...config, motion: { ...config.motion, reducedMotion: speedTouched ? 'ignore' : config.motion.reducedMotion } })
+  }, [config, speedTouched, stage])
 
   // ---- URL ---------------------------------------------------------------
   useEffect(() => {
-    const t = setTimeout(() => writeUrlParams(params), 200)
+    const t = setTimeout(() => writeUrlConfig(config), 200)
     return () => clearTimeout(t)
-  }, [params])
+  }, [config])
 
   // ---- actions -----------------------------------------------------------
-  const set = useCallback((patch: Partial<Params>) => {
-    if ('speed' in patch) setSpeedTouched(true)
-    setParams((p) => ({ ...p, ...patch }))
+  const set = useCallback((patch: Patch) => {
+    if (patch.motion?.speed !== undefined) setSpeedTouched(true)
+    setConfig((c) => resolveConfig(patch, c))
   }, [])
 
   const shuffle = useCallback(() => {
-    setParams((p) => ({ ...p, seed: randomSeed() }))
+    setConfig((c) => resolveConfig({ seed: randomSeed() }, c))
     setShuffleFlash(true)
   }, [])
 
@@ -95,15 +96,16 @@ export function App() {
   }, [welcomeOpen, openPanel, codeOpen, closeWelcome, shuffle, toggleControls])
 
   // ---- toolbar -----------------------------------------------------------
-  const panelProps = (id: PanelId) => ({ params, set, reset: () => set(sectionDefaults(id)) })
+  const panelProps = (id: PanelId) => ({ config, set, compact, reset: () => set(sectionDefaults(id)) })
 
   const groups: ToolbarItem[][] = useMemo(
     () => [
       [{ kind: 'action', id: 'shuffle', label: 'Shuffle', icon: ShuffleIcon, onClick: shuffle, shortcut: 'R', flash: shuffleFlash }],
       [
-        { kind: 'panel', id: 'colors', label: 'Colors', icon: ColorsIcon, content: <ColorsPanel {...panelProps('colors')} compact={compact} /> },
-        { kind: 'panel', id: 'shapes', label: 'Shapes', icon: ShapesIcon, content: <ShapesPanel {...panelProps('shapes')} /> },
+        { kind: 'panel', id: 'colors', label: 'Colors', icon: ColorsIcon, content: <SchemaPanel id="colors" {...panelProps('colors')} /> },
+        { kind: 'panel', id: 'shapes', label: 'Shapes', icon: ShapesIcon, content: <SchemaPanel id="shapes" {...panelProps('shapes')} /> },
         { kind: 'panel', id: 'texture', label: 'Texture', icon: TextureIcon, content: <TexturePanel {...panelProps('texture')} /> },
+        { kind: 'panel', id: 'background', label: 'Background', icon: BackgroundIcon, content: <SchemaPanel id="background" {...panelProps('background')} /> },
       ],
       [
         { kind: 'panel', id: 'motion', label: 'Motion', icon: MotionIcon, content: <MotionPanel {...panelProps('motion')} /> },
@@ -121,8 +123,8 @@ export function App() {
         { kind: 'action', id: 'hide', label: 'Hide controls', icon: HideIcon, onClick: toggleControls, shortcut: 'H' },
       ],
     ],
-    // panelProps closes over params and set, both listed.
-    [params, set, shuffle, shuffleFlash, compact, coarse, toggleControls],
+    // panelProps closes over config, set and compact, all listed.
+    [config, set, shuffle, shuffleFlash, compact, coarse, toggleControls],
   )
 
   return (
@@ -151,9 +153,9 @@ export function App() {
         </button>
       )}
 
-      {welcomeOpen ? <WelcomeCard params={params} onClose={closeWelcome} /> : <AboutButton onClick={() => setWelcomeOpen(true)} />}
+      {welcomeOpen ? <WelcomeCard config={config} onClose={closeWelcome} /> : <AboutButton onClick={() => setWelcomeOpen(true)} />}
 
-      <CodeDialog open={codeOpen} onOpenChange={setCodeOpen} params={params} />
+      <CodeDialog open={codeOpen} onOpenChange={setCodeOpen} config={config} engine={engine} />
     </Tooltip.Provider>
   )
 }

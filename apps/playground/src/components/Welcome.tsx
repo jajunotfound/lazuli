@@ -2,13 +2,13 @@ import * as Tooltip from '@radix-ui/react-tooltip'
 import { createLazuli, layoutFromSeed, type LazuliInstance } from 'lazuli-bg'
 import { useEffect, useRef, type CSSProperties } from 'react'
 import { CloseIcon, InfoIcon } from '../icons'
-import type { Params } from '../state'
+import type { Config } from '../state'
 
 export const GITHUB_URL = 'https://github.com/jajunotfound/lazuli'
 const AUTHOR_URL = 'https://elisha.ma'
 const PREVIEW_ZOOM = 2.4
 
-export function WelcomeCard({ params, onClose }: { params: Params; onClose(): void }) {
+export function WelcomeCard({ config, onClose }: { config: Config; onClose(): void }) {
   return (
     <>
       {/* Dim layer: clicking the canvas area closes the card. */}
@@ -38,7 +38,7 @@ export function WelcomeCard({ params, onClose }: { params: Params; onClose(): vo
           </p>
         </div>
         <div className="welcome__card welcome__preview-card">
-          <Preview params={params} />
+          <Preview config={config} />
         </div>
       </section>
     </>
@@ -46,14 +46,14 @@ export function WelcomeCard({ params, onClose }: { params: Params; onClose(): vo
 }
 
 /** A second, live engine instance inside the squircle, mirroring current settings. */
-function Preview({ params }: { params: Params }) {
+function Preview({ config }: { config: Config }) {
   const ref = useRef<HTMLDivElement>(null)
   const engine = useRef<LazuliInstance | null>(null)
-  const initialParams = useRef(params)
+  const initialConfig = useRef(config)
 
   // Created once; later changes flow through set() below.
   useEffect(() => {
-    engine.current = createLazuli(ref.current!, initialParams.current)
+    engine.current = createLazuli(ref.current!, initialConfig.current)
     return () => {
       engine.current?.destroy()
       engine.current = null
@@ -61,12 +61,12 @@ function Preview({ params }: { params: Params }) {
   }, [])
 
   useEffect(() => {
-    engine.current?.set(params)
-  }, [params])
+    engine.current?.set(config)
+  }, [config])
 
   // Paper frames the preview as a close-up of the shapes, not the whole scene: render
   // into a larger stage and center the main mass (between anchor and companion) in the squircle.
-  const [anchor, companion] = layoutFromSeed(params.seed)
+  const [anchor, companion] = layoutFromSeed(config.seed)
   const cx = (anchor.x * 2 + companion.x) / 3
   const cy = 1 - (anchor.y * 2 + companion.y) / 3 // layout y points up
   const clamp = (v: number) => Math.min(0, Math.max(1 - PREVIEW_ZOOM, v))

@@ -25,20 +25,27 @@ pnpm workspaces monorepo (pnpm via corepack; Node 20+; TypeScript 7, Vite 8).
 | Path | What |
 | --- | --- |
 | `packages/lazuli` | Engine, published as **`lazuli-bg`** (`lazuli` is taken on npm). TS + raw WebGL, zero runtime deps. |
-| `packages/lazuli/src/shader.ts` | GLSL ES 1.00 fragment shader (works on WebGL2 and WebGL1). Fitted constants `FALLOFF`, `CORE_LO`, `CORE_HI`. |
+| `packages/lazuli/src/schema.ts` | **The parameter table** (`PARAMS`): every parameter's path, type, range, default, `when`, attribute and URL key. `DEFAULT_CONFIG` is built from it. Attributes, URLs, export and the playground's controls are generated from it. |
+| `packages/lazuli/src/config.ts` | `resolveConfig` (validate/clamp/merge), v1 legacy keys (`core`, `count`, `texture: 35`, …), `fromFlat`/`toFlat` (attributes, URL), `diffConfig`. |
+| `packages/lazuli/src/shader.ts` | GLSL ES 1.00 chunks assembled per (shape, texture) variant. Fitted constants `FALLOFF`, `CORE_LO`, `CORE_HI`. Pattern is a premultiplied layer over the background. |
+| `packages/lazuli/src/uniforms.ts` | Config → uniform values (`SIZE_SCALE`, `SOFT_*`, `GRAIN_SCALE`), CSS fallback background. |
+| `packages/lazuli/src/renderer.ts` | GL context, shader-variant cache (parallel compile when available), uniform upload by name. Shared by the engine and capture. |
 | `packages/lazuli/src/layout.ts` | Seeded blob layout on the CPU (mulberry32): anchor + companion + satellite drop + extras. Passed as `u_blob[6]`/`u_orbit[6]` uniforms. |
-| `packages/lazuli/src/params.ts` | Public params, `DEFAULTS`, clamping, param → uniform mapping (`SIZE_SCALE`, `SOFT_*`, `GRAIN_SCALE`). |
-| `packages/lazuli/src/engine.ts` | `createLazuli(el, opts)` → `{ set, shuffle, params, canvas, destroy }`: loop, pointer, resize, visibility, reduced motion, context loss. |
+| `packages/lazuli/src/engine.ts` | `createLazuli(el, input)` → `{ set, shuffle, config, time, canvas, destroy }`: loop, pointer, resize, visibility, reduced motion, context loss. |
+| `packages/lazuli/src/capture.ts` | `snapshot()` (entry `lazuli-bg/capture`): deterministic offline PNG on its own context. |
 | `packages/lazuli/src/element.ts` | `<lazuli-bg>` web component (shadow DOM, fills nearest positioned ancestor, `z-index: -1`). |
 | `packages/lazuli/src/element-define.ts` | Side-effect entry: `lazuli-bg/element` and the IIFE build register the element. |
 | `packages/lazuli/index.html`, `element.html` | Bare engine test page; script-tag element test page. |
 | `apps/playground` | The site: React 19 + Vite, Radix (Popover, Toggle, ToggleGroup, Slider, Dialog, Tooltip), react-colorful, plain CSS tokens in `src/styles.css`. |
-| `apps/playground/src/components/` | `Toolbar`, `panels` (Colors/Shapes/Texture/Motion/Cursor), `InlineSlider`, `Segmented`, `ColorPicker`, `Welcome` (+ About button), `CodeDialog`. |
-| `apps/playground/src/exportCode.ts` | "HTML file" export (engine IIFE inlined via `lazuli-bg/global?raw`) and "npm / web component" snippet. |
-| `apps/playground/src/state.ts` | Section keys for Reset, presets, swatches, URL query (non-defaults only), welcome localStorage flag. |
+| `apps/playground/src/components/` | `Toolbar`, `panels` (`SchemaPanel` per section + preset rows), `Control` (one schema parameter → slider/segmented/switch/color rows), `InlineSlider`, `Segmented`, `ColorPicker`, `Welcome` (+ About button), `CodeDialog` (HTML / web component / JS / Image). |
+| `apps/playground/src/exportCode.ts` | "HTML file" export (engine IIFE inlined via `lazuli-bg/global?raw`), web component and JS snippets (active, non-default values only). |
+| `apps/playground/src/controls.ts` | Playground-only presentation hints per parameter (labels, formats, sqrt scale, switch). |
+| `apps/playground/src/state.ts` | `SECTIONS` (which params each panel shows/resets), presets, swatches, URL query (schema short keys, non-defaults only, v1 links still read), welcome flag. |
 | `tools/visual-fit/` | Seed search + WebGL pixel fitter + CDP screenshot driver used to match Paper frame 01. See its README. |
+| `tools/regress/` | v1 reference build + pixel diff: `node tools/regress/run.mjs` checks the defaults still render like v1 (≤ 2/255). |
+| `ITERATION.md` | The v2 plan (approved): parameter model, engine, API, phases. |
 
-Builds: ESM (`dist/lazuli.js`, `dist/element.js`, shared `dist/core.js`) + IIFE
+Builds: ESM (`dist/lazuli.js`, `dist/element.js`, `dist/capture.js`, shared chunks) + IIFE
 `dist/lazuli.global.js` (`window.Lazuli`, registers `<lazuli-bg>`), types via `tsc`.
 
 ## Run
@@ -75,8 +82,13 @@ pnpm lint         # TypeScript type-check only (no ESLint yet)
   trigger and closes the new panel); magnification uses pointermove and resets when panels change.
 - Engine listens for the pointer on `window` (works under overlaid content); dt floored at 1 ms
   (a zero dt produced NaN velocity and a solid-color canvas).
-- Reduced motion: speed capped at 0.05 unless `respectReducedMotion: false` /
-  `reduced-motion="ignore"`; the playground lifts the cap once the user touches Speed.
+- Reduced motion: speed capped at 0.05 unless `motion.reducedMotion: 'ignore'` /
+  `reduced-motion="ignore"`; the playground lifts the cap once the user touches Speed (engine only,
+  never in exports).
+- **v2 (see `ITERATION.md`):** pattern and background are separate layers (solid / gradient /
+  transparent). Defaults must keep rendering like v1: run `tools/regress` after engine changes.
+  A new parameter = a `PARAMS` entry + its uniform in `uniforms.ts` (+ a hint in the playground's
+  `controls.ts` if the default control doesn't fit).
 
 ## Conventions
 

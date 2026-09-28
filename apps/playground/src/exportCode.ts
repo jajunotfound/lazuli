@@ -1,19 +1,13 @@
-import { DEFAULTS, PARAM_KEYS } from 'lazuli-bg'
+import { diffConfig, toFlat } from 'lazuli-bg'
 import engineSource from 'lazuli-bg/global?raw'
-import { round, type Params } from './state'
+import type { Config } from './state'
 
 const PACKAGE = 'lazuli-bg'
 
-/** `core="#1f48a8" count="4" …`: every param, so the snippet is self-describing. */
-function attributes(p: Params, onlyChanged = false): string[] {
-  return PARAM_KEYS.filter((k) => !onlyChanged || p[k] !== DEFAULTS[k]).map((k) => {
-    const v = p[k]
-    return `${k}="${typeof v === 'number' ? round(v) : v}"`
-  })
-}
-
-function elementTag(p: Params, indent: string): string {
-  const attrs = attributes(p)
+/** Only what differs from the defaults and has an effect, so the snippet stays short. */
+function elementTag(c: Config, indent: string): string {
+  const attrs = toFlat(c, 'attr').map(([k, v]) => `${k}="${v}"`)
+  if (attrs.length === 0) return `${indent}<lazuli-bg></lazuli-bg>`
   return `${indent}<lazuli-bg\n${attrs.map((a) => `${indent}  ${a}`).join('\n')}\n${indent}></lazuli-bg>`
 }
 
@@ -24,7 +18,7 @@ const ENGINE_PLACEHOLDER = `/* Lazuli engine (${Math.round(engineSource.length /
  * the engine inlined, so it works offline and needs nothing else.
  * `preview` swaps the minified engine for a one-line note so it stays readable.
  */
-export function htmlFile(p: Params, preview = false): string {
+export function htmlFile(c: Config, preview = false): string {
   // Escape any "</script" so the inlined source can't end the tag early.
   const inlined = engineSource.trim().replace(/<\/script/gi, '<\\/script')
   const engine = preview ? ENGINE_PLACEHOLDER : `/*! lazuli-bg · MIT */\n${inlined}`
@@ -35,7 +29,7 @@ export function htmlFile(p: Params, preview = false): string {
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Lazuli background</title>
 
-${elementTag(p, '')}
+${elementTag(c, '')}
 
 <style>
   html, body { margin: 0; height: 100%; }
@@ -49,13 +43,38 @@ ${engine}
 `
 }
 
-export function npmSnippet(p: Params): string {
+export function elementSnippet(c: Config): string {
   return `npm install ${PACKAGE}
 
 // In your app's entry file
 import '${PACKAGE}/element'
 
 <!-- In your markup, inside a positioned container -->
-${elementTag(p, '')}
+${elementTag(c, '')}
 `
+}
+
+export function jsSnippet(c: Config): string {
+  const options = toSource(diffConfig(c), '')
+  return `npm install ${PACKAGE}
+
+import { createLazuli } from '${PACKAGE}'
+
+// Fills the element (give it position: relative) and sits behind its content.
+const background = createLazuli(document.querySelector('#hero'), ${options})
+
+// Later: background.set({ … }), background.shuffle(), background.destroy()
+`
+}
+
+/** Object literal in JS style: unquoted keys, single quotes, short arrays on one line. */
+function toSource(v: unknown, indent: string): string {
+  if (Array.isArray(v)) return `[${v.map((x) => toSource(x, indent)).join(', ')}]`
+  if (v && typeof v === 'object') {
+    const entries = Object.entries(v)
+    if (entries.length === 0) return '{}'
+    const inner = indent + '  '
+    return `{\n${entries.map(([k, x]) => `${inner}${k}: ${toSource(x, inner)},`).join('\n')}\n${indent}}`
+  }
+  return typeof v === 'string' ? `'${v}'` : String(v)
 }

@@ -1,26 +1,22 @@
-import { FRAGMENT_SHADER, VERTEX_SHADER } from './shader'
-import { layoutFromSeed, packLayout } from './layout'
-import { resolveParams, toUniforms, type LazuliOptions, type LazuliParams } from './params'
+import { resolveConfig, type LazuliInput } from './config'
+import { createRenderer, type Renderer } from './renderer'
+import type { LazuliConfig } from './schema'
+import { cssBackground } from './uniforms'
 
 export interface LazuliInstance {
-  /** Update any subset of parameters. Unknown or invalid values are ignored. */
-  set(options: LazuliOptions): void
+  /** Update any subset of the config (nested v2 sections or v1 flat keys). Invalid values are ignored. */
+  set(input: LazuliInput): void
   /** Pick a random seed (new arrangement). Returns the new seed. */
   shuffle(): number
-  /** Current resolved parameters. */
-  readonly params: Readonly<LazuliParams>
+  /** Current resolved config. */
+  readonly config: Readonly<LazuliConfig>
+  /** Animation time (seconds scaled by speed); what capture renders by default. */
+  readonly time: number
   /** The canvas being drawn into. */
   readonly canvas: HTMLCanvasElement
   /** Stop rendering and release listeners, observers and the GL context. */
   destroy(): void
 }
-
-const UNIFORM_NAMES = [
-  'u_res', 'u_time', 'u_mouse', 'u_vel', 'u_active', 'u_count', 'u_size',
-  'u_soft', 'u_pull', 'u_grain', 'u_deep', 'u_mid', 'u_bg', 'u_blob', 'u_orbit',
-] as const
-type UniformName = (typeof UNIFORM_NAMES)[number]
-type GL = WebGLRenderingContext | WebGL2RenderingContext
 
 const MAX_DPR = 2
 const MAX_DT = 0.05
@@ -34,9 +30,8 @@ export function randomSeed(): number {
   return Math.round(Math.random() * 1e8) / 10
 }
 
-export function createLazuli(element: HTMLElement, options: LazuliOptions = {}): LazuliInstance {
-  let params = resolveParams(options)
-  let respectReducedMotion = options.respectReducedMotion ?? true
+export function createLazuli(element: HTMLElement, input: LazuliInput = {}): LazuliInstance {
+  let config = resolveConfig(input)
 
   // ---- canvas -------------------------------------------------------------
   const ownCanvas = !(element instanceof HTMLCanvasElement)
@@ -56,81 +51,23 @@ export function createLazuli(element: HTMLElement, options: LazuliOptions = {}):
     element.prepend(canvas)
   }
   // Painted until the first frame lands, and whenever WebGL is missing.
-  canvas.style.backgroundColor = params.ground
+  const paintFallback = () => (canvas.style.background = cssBackground(config))
+  paintFallback()
 
-  // ---- GL setup -----------------------------------------------------------
-  let gl: GL | null = null
-  let uniforms = {} as Record<UniformName, WebGLUniformLocation | null>
-  let program: WebGLProgram | null = null
-  let buffer: WebGLBuffer | null = null
-  // Blob layout for the current seed; recomputed only when the seed changes.
-  let layout = packLayout(layoutFromSeed(params.seed))
-  let layoutSeed = params.seed
-
-  function initGL(): boolean {
-    const attrs: WebGLContextAttributes = { antialias: false, alpha: false, depth: false, stencil: false, powerPreference: 'low-power' }
-    gl = (canvas.getContext('webgl2', attrs) as GL | null) ?? (canvas.getContext('webgl', attrs) as GL | null)
-    if (!gl) return false
-    const vs = compile(gl, gl.VERTEX_SHADER, VERTEX_SHADER)
-    const fs = compile(gl, gl.FRAGMENT_SHADER, FRAGMENT_SHADER)
-    if (!vs || !fs) return false
-    program = gl.createProgram()!
-    gl.attachShader(program, vs)
-    gl.attachShader(program, fs)
-    gl.linkProgram(program)
-    gl.deleteShader(vs)
-    gl.deleteShader(fs)
-    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-      console.error('[lazuli] Shader program failed to link:', gl.getProgramInfoLog(program))
-      return false
-    }
-    gl.useProgram(program)
-    buffer = gl.createBuffer()
-    gl.bindBuffer(gl.ARRAY_BUFFER, buffer)
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW)
-    const loc = gl.getAttribLocation(program, 'a_pos')
-    gl.enableVertexAttribArray(loc)
-    gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0)
-    uniforms = {} as typeof uniforms
-    for (const name of UNIFORM_NAMES) uniforms[name] = gl.getUniformLocation(program, name)
-    uploadParams()
-    return true
-  }
-
-  function uploadParams() {
-    if (!gl) return
-    const u = toUniforms(params)
-    gl.uniform3fv(uniforms.u_deep, u.deep)
-    gl.uniform3fv(uniforms.u_mid, u.mid)
-    gl.uniform3fv(uniforms.u_bg, u.bg)
-    gl.uniform1f(uniforms.u_count, u.count)
-    gl.uniform1f(uniforms.u_size, u.size)
-    gl.uniform1f(uniforms.u_soft, u.soft)
-    gl.uniform1f(uniforms.u_grain, u.grain)
-    gl.uniform1f(uniforms.u_pull, u.pull)
-    if (layoutSeed !== params.seed) {
-      layout = packLayout(layoutFromSeed(params.seed))
-      layoutSeed = params.seed
-    }
-    gl.uniform4fv(uniforms.u_blob, layout.blob)
-    gl.uniform4fv(uniforms.u_orbit, layout.orbit)
-  }
-
-  const hasGL = initGL()
+  // ---- GL -----------------------------------------------------------------
+  let renderer: Renderer | null = createRenderer(canvas, config)
+  const hasGL = renderer !== null
   if (!hasGL) {
-    console.warn('[lazuli] WebGL is unavailable, so the background shows the ground color only.')
+    console.warn('[lazuli] WebGL is unavailable, so the background shows its color only.')
   }
 
   // ---- sizing -------------------------------------------------------------
-  let width = 1
-  let height = 1
+  let dpr = 1
   function resize() {
-    const dpr = Math.min(window.devicePixelRatio || 1, MAX_DPR)
+    dpr = Math.min(window.devicePixelRatio || 1, MAX_DPR)
     const w = Math.max(1, Math.round(canvas.clientWidth * dpr))
     const h = Math.max(1, Math.round(canvas.clientHeight * dpr))
-    if (w === width && h === height) return
-    width = w
-    height = h
+    if (w === canvas.width && h === canvas.height) return
     canvas.width = w
     canvas.height = h
     dirty = true
@@ -186,7 +123,9 @@ export function createLazuli(element: HTMLElement, options: LazuliOptions = {}):
   // ---- reduced motion -----------------------------------------------------
   const motionQuery = typeof matchMedia === 'function' ? matchMedia('(prefers-reduced-motion: reduce)') : null
   const effectiveSpeed = () =>
-    respectReducedMotion && motionQuery?.matches ? Math.min(params.speed, REDUCED_SPEED) : params.speed
+    config.motion.reducedMotion === 'respect' && motionQuery?.matches
+      ? Math.min(config.motion.speed, REDUCED_SPEED)
+      : config.motion.speed
 
   // ---- loop ---------------------------------------------------------------
   let time = 0
@@ -221,24 +160,18 @@ export function createLazuli(element: HTMLElement, options: LazuliOptions = {}):
 
     // Nothing moves: frozen shapes, no pointer. Skip the draw.
     const still = speed === 0 && active === 0 && Math.abs(vel.x) + Math.abs(vel.y) < 1e-6
-    if (still && !dirty) return
+    if (still && !dirty && !renderer?.pending) return
     draw()
   }
 
   function draw() {
-    if (!gl) return
-    dirty = false
-    gl.viewport(0, 0, width, height)
-    gl.uniform2f(uniforms.u_res, width, height)
-    gl.uniform1f(uniforms.u_time, time)
-    gl.uniform2f(uniforms.u_mouse, mouse.x, mouse.y)
-    gl.uniform2f(uniforms.u_vel, vel.x, vel.y)
-    gl.uniform1f(uniforms.u_active, active)
-    gl.drawArrays(gl.TRIANGLES, 0, 3)
+    if (!renderer) return
+    const drawn = renderer.draw({ time, mouse: [mouse.x, mouse.y], vel: [vel.x, vel.y], active, dpr })
+    if (drawn) dirty = false
   }
 
   function updateRunning() {
-    const shouldRun = hasGL && !destroyed && onScreen && document.visibilityState !== 'hidden' && gl !== null
+    const shouldRun = hasGL && !destroyed && onScreen && document.visibilityState !== 'hidden' && renderer !== null
     if (shouldRun && !raf) {
       last = 0
       raf = requestAnimationFrame(frame)
@@ -267,11 +200,12 @@ export function createLazuli(element: HTMLElement, options: LazuliOptions = {}):
   // Context loss (GPU reset, too many contexts): wait for restore, then rebuild.
   const onLost = (e: Event) => {
     e.preventDefault()
-    gl = null
+    renderer = null
     updateRunning()
   }
   const onRestored = () => {
-    if (initGL()) {
+    renderer = createRenderer(canvas, config)
+    if (renderer) {
       dirty = true
       updateRunning()
     }
@@ -285,10 +219,9 @@ export function createLazuli(element: HTMLElement, options: LazuliOptions = {}):
   return {
     set(next) {
       if (destroyed) return
-      params = resolveParams(next, params)
-      if (next.respectReducedMotion !== undefined) respectReducedMotion = next.respectReducedMotion
-      canvas.style.backgroundColor = params.ground
-      uploadParams()
+      config = resolveConfig(next, config)
+      paintFallback()
+      renderer?.setConfig(config)
       dirty = true
     },
     shuffle() {
@@ -296,8 +229,11 @@ export function createLazuli(element: HTMLElement, options: LazuliOptions = {}):
       this.set({ seed })
       return seed
     },
-    get params() {
-      return params
+    get config() {
+      return config
+    },
+    get time() {
+      return time
     },
     canvas,
     destroy() {
@@ -315,28 +251,12 @@ export function createLazuli(element: HTMLElement, options: LazuliOptions = {}):
       intersectionObserver?.disconnect()
       canvas.removeEventListener('webglcontextlost', onLost)
       canvas.removeEventListener('webglcontextrestored', onRestored)
-      if (gl) {
-        gl.deleteBuffer(buffer)
-        gl.deleteProgram(program)
-        gl.getExtension('WEBGL_lose_context')?.loseContext()
-        gl = null
-      }
+      renderer?.destroy()
+      renderer = null
       if (ownCanvas) {
         canvas.remove()
         element.style.position = restorePosition
       }
     },
   }
-}
-
-function compile(gl: GL, type: number, source: string): WebGLShader | null {
-  const shader = gl.createShader(type)!
-  gl.shaderSource(shader, source)
-  gl.compileShader(shader)
-  if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-    console.error('[lazuli] Shader failed to compile:', gl.getShaderInfoLog(shader))
-    gl.deleteShader(shader)
-    return null
-  }
-  return shader
 }

@@ -1,23 +1,27 @@
+import { fromFlat, LEGACY_KEYS, resolveConfig, type LazuliInput } from './config'
 import { createLazuli, type LazuliInstance } from './engine'
-import { PARAM_KEYS, type LazuliParams } from './params'
+import { DEFAULT_CONFIG, getPath, PARAMS } from './schema'
 
 export const TAG_NAME = 'lazuli-bg'
 
-const ATTRS = [...PARAM_KEYS, 'reduced-motion'] as const
+const ATTRS = [...new Set([...PARAMS.map((d) => d.attr), ...LEGACY_KEYS, 'config'])]
 
 // Base class is resolved lazily so importing this module on a server (no DOM) doesn't throw.
 const Base = (typeof HTMLElement === 'undefined' ? class {} : HTMLElement) as typeof HTMLElement
 
 /**
  * `<lazuli-bg>`: fills its nearest positioned ancestor and sits behind that
- * ancestor's content. Attributes mirror the parameters (`core`, `edge`,
- * `ground`, `count`, `size`, `softness`, `texture`, `speed`, `cursor`,
- * `strength`, `seed`). `reduced-motion="ignore"` opts out of slowing down for
- * users who prefer reduced motion.
+ * ancestor's content. Every parameter has an attribute (`shape`, `blobs-count`,
+ * `color-palette="#4c78d8,#1f48a8"`, `background-type="transparent"`, …; see
+ * PARAMS), plus `config='{…json…}'` for a whole config at once. The v1 names
+ * (`core`, `edge`, `ground`, `count`, `size`, `softness`, `texture`, `speed`,
+ * `cursor`, `strength`) still work. Precedence: individual attribute > `config`
+ * > defaults. `reduced-motion="ignore"` opts out of slowing down for users who
+ * prefer reduced motion.
  */
 export class LazuliElement extends Base {
   static get observedAttributes() {
-    return ATTRS as unknown as string[]
+    return ATTRS
   }
 
   #instance: LazuliInstance | null = null
@@ -43,10 +47,7 @@ export class LazuliElement extends Base {
 
   connectedCallback() {
     if (this.#instance) return
-    this.#instance = createLazuli(this.#surface, {
-      ...this.#readAttributes(),
-      respectReducedMotion: this.getAttribute('reduced-motion') !== 'ignore',
-    })
+    this.#instance = createLazuli(this.#surface, this.#readAttributes())
   }
 
   disconnectedCallback() {
@@ -56,10 +57,19 @@ export class LazuliElement extends Base {
 
   attributeChangedCallback(name: string, _old: string | null, value: string | null) {
     if (!this.#instance) return
-    if (name === 'reduced-motion') {
-      this.#instance.set({ respectReducedMotion: value !== 'ignore' })
-    } else if (value !== null) {
-      this.#instance.set({ [name]: value } as Partial<LazuliParams>)
+    if (name === 'config') {
+      this.#instance.set(resolveConfig(this.#readAttributes()))
+      return
+    }
+    if (value !== null) {
+      this.#instance.set(fromFlat({ [name]: value }, 'attr'))
+      return
+    }
+    // Removed: back to what `config` (or the default) says for that parameter.
+    const d = PARAMS.find((p) => p.attr === name)
+    if (d) {
+      const base = resolveConfig(this.#configAttribute())
+      this.#instance.set(fromFlat({ [name]: String(getPath(base, d.path)) }, 'attr'))
     }
   }
 
@@ -70,13 +80,25 @@ export class LazuliElement extends Base {
     return seed
   }
 
-  #readAttributes(): Partial<LazuliParams> {
-    const out: Record<string, string> = {}
-    for (const key of PARAM_KEYS) {
-      const v = this.getAttribute(key)
-      if (v !== null) out[key] = v
+  #configAttribute(): LazuliInput {
+    const raw = this.getAttribute('config')
+    if (!raw) return {}
+    try {
+      return JSON.parse(raw) as LazuliInput
+    } catch {
+      console.warn('[lazuli] Ignoring the config attribute: it is not valid JSON.')
+      return {}
     }
-    return out as Partial<LazuliParams>
+  }
+
+  #readAttributes(): LazuliInput {
+    const record: Record<string, string> = {}
+    for (const name of ATTRS) {
+      const v = this.getAttribute(name)
+      if (v !== null && name !== 'config') record[name] = v
+    }
+    const base = resolveConfig(this.#configAttribute(), DEFAULT_CONFIG)
+    return resolveConfig(fromFlat(record, 'attr'), base)
   }
 }
 

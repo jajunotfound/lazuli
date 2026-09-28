@@ -49,6 +49,14 @@ export const TextureIcon = (p: IconProps) => (
   </Svg>
 )
 
+// Not in Paper yet: a layer stack for the Background section (pattern over background).
+export const BackgroundIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path {...stroke} d="M12 3.5L20.5 8L12 12.5L3.5 8L12 3.5Z" />
+    <path {...stroke} d="M3.5 12L12 16.5L20.5 12M3.5 16L12 20.5L20.5 16" />
+  </Svg>
+)
+
 export const MotionIcon = (p: IconProps) => (
   <Svg {...p}>
     <path {...stroke} d="M3 12H6C7.105 12 8 11.105 8 10V7C8 5.895 8.895 5 10 5C11.105 5 12 5.895 12 7V17C12 18.105 12.895 19 14 19C15.104 19 16 18.105 16 17L16 14C16 12.895 16.895 12 18 12H21" />
