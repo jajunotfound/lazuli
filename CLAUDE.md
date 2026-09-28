@@ -56,6 +56,7 @@ pnpm dev          # builds the engine, then the playground (Vite picks 5173 or t
 pnpm dev:engine   # bare engine test page
 pnpm build        # engine (ESM + IIFE + d.ts) then playground
 pnpm lint         # TypeScript type-check only (no ESLint yet)
+pnpm test         # engine config tests (node --test, runs the TS sources directly)
 ```
 
 - The playground imports the engine's **built `dist`**. After changing `packages/lazuli/src`, run

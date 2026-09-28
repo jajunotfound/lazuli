@@ -47,7 +47,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build && vite build --mode iife && tsc -p tsconfig.build.json",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "test": "node --import ./test/register.mjs --test test/*.test.ts"
   },
   "devDependencies": {
     "typescript": "^7.0.2",

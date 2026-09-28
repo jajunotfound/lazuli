@@ -7,7 +7,8 @@
     "dev": "pnpm --filter lazuli-bg build && pnpm --filter @lazuli/playground dev",
     "dev:engine": "pnpm --filter lazuli-bg dev",
     "build": "pnpm -r build",
-    "lint": "pnpm -r lint"
+    "lint": "pnpm -r lint",
+    "test": "pnpm --filter lazuli-bg test"
   },
   "devDependencies": {
     "typescript": "^7.0.2",
