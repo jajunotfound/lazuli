@@ -6,7 +6,7 @@ import type { PanelId } from '../state'
 type Icon = ComponentType<SVGProps<SVGSVGElement>>
 
 export type ToolbarItem =
-  | { kind: 'action'; id: string; label: string; icon: Icon; onClick(): void; shortcut?: string; flash?: boolean }
+  | { kind: 'action'; id: string; label: string; icon: Icon; onClick(): void; shortcut?: string; flash?: boolean; pressed?: boolean }
   | { kind: 'panel'; id: PanelId; label: string; icon: Icon; content: ReactNode; keepOpenOnCanvas?: boolean }
 
 interface ToolbarProps {
@@ -70,6 +70,7 @@ export function Toolbar({ groups, open, setOpen, compact, magnify, hidden, canva
                     aria-label={item.label}
                     aria-keyshortcuts={item.shortcut}
                     data-flash={item.flash || undefined}
+                    aria-pressed={item.pressed}
                     onPointerMove={onPointerMove}
                     onClick={item.onClick}
                   >

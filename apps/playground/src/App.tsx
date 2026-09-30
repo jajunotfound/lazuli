@@ -2,11 +2,12 @@ import * as Tooltip from '@radix-ui/react-tooltip'
 import { createLazuli, presetConfig, randomSeed, resolveConfig, type LazuliInstance, type PresetId } from 'lazuli-bg'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { CodeDialog } from './components/CodeDialog'
+import { Frames, readImage, type Frame } from './components/Frames'
 import { PresetsPanel } from './components/PresetsPanel'
 import { CursorPanel, MotionPanel, SchemaPanel } from './components/panels'
 import { Toolbar, type ToolbarItem } from './components/Toolbar'
 import { AboutButton, WelcomeCard } from './components/Welcome'
-import { BackgroundIcon, CodeIcon, ColorsIcon, CursorIcon, HideIcon, MotionIcon, PresetsIcon, ShapesIcon, ShowIcon, ShuffleIcon, TextureIcon } from './icons'
+import { BackgroundIcon, CodeIcon, ColorsIcon, CursorIcon, FrameIcon, HideIcon, MotionIcon, PresetsIcon, ShapesIcon, ShowIcon, ShuffleIcon, TextureIcon } from './icons'
 import { hasSeenWelcome, markWelcomeSeen, readUrlState, sectionDefaults, writeUrlState, type Config, type PanelId, type Patch, type SectionId } from './state'
 import { useMediaQuery } from './useMediaQuery'
 
@@ -26,6 +27,17 @@ export function App() {
   const compact = useMediaQuery('(max-width: 640px)')
   const reducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)')
   const coarse = useMediaQuery('(pointer: coarse)')
+
+  // ---- frames ------------------------------------------------------------
+  const [frames, setFrames] = useState<Frame[]>([])
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [frameTool, setFrameTool] = useState(false)
+  const frameEngines = useRef(new Map<string, LazuliInstance>())
+  const frameCount = useRef(0)
+  const frame = frames.find((f) => f.id === selectedId) ?? null
+  // While a frame is selected, the dock edits that frame; otherwise the background.
+  const target = frame ? (frame.config ?? blankFrameConfig(frame)) : config
+  const targetPreset = frame ? (frame.preset ?? null) : preset
 
   const [stage, setStage] = useState<HTMLDivElement | null>(null)
   const engine = useRef<LazuliInstance | null>(null)
@@ -54,20 +66,84 @@ export function App() {
   }, [config, preset])
 
   // ---- actions -----------------------------------------------------------
-  const set = useCallback((patch: Patch) => {
-    if (patch.motion?.speed !== undefined) setSpeedTouched(true)
-    setConfig((c) => resolveConfig(patch, c))
+  const updateFrame = useCallback((id: string, patch: Partial<Frame>) => {
+    setFrames((fs) => fs.map((f) => (f.id === id ? { ...f, ...patch } : f)))
+  }, [])
+  const setFrameConfig = useCallback((id: string, next: (c: Config, f: Frame) => Config) => {
+    setFrames((fs) => fs.map((f) => (f.id === id ? { ...f, config: next(f.config ?? blankFrameConfig(f), f) } : f)))
   }, [])
 
-  const pickPreset = useCallback((id: PresetId) => {
-    setPreset(id)
-    setConfig(presetConfig(id))
-  }, [])
+  const set = useCallback(
+    (patch: Patch) => {
+      if (selectedId) return setFrameConfig(selectedId, (c) => resolveConfig(patch, c))
+      if (patch.motion?.speed !== undefined) setSpeedTouched(true)
+      setConfig((c) => resolveConfig(patch, c))
+    },
+    [selectedId, setFrameConfig],
+  )
+
+  const pickPreset = useCallback(
+    (id: PresetId) => {
+      if (selectedId) {
+        updateFrame(selectedId, { preset: id })
+        return setFrameConfig(selectedId, (_, f) => overImage(presetConfig(id), f))
+      }
+      setPreset(id)
+      setConfig(presetConfig(id))
+    },
+    [selectedId, updateFrame, setFrameConfig],
+  )
 
   const shuffle = useCallback(() => {
-    setConfig((c) => resolveConfig({ seed: randomSeed() }, c))
+    if (selectedId) setFrameConfig(selectedId, (c) => resolveConfig({ seed: randomSeed() }, c))
+    else setConfig((c) => resolveConfig({ seed: randomSeed() }, c))
     setShuffleFlash(true)
+  }, [selectedId, setFrameConfig])
+
+  const addFrame = useCallback((box: Pick<Frame, 'x' | 'y' | 'w' | 'h'>, image?: string) => {
+    const f: Frame = { id: `frame-${++frameCount.current}`, name: `Frame ${frameCount.current}`, ...box, image }
+    setFrames((fs) => [...fs, f])
+    setSelectedId(f.id)
+    setFrameTool(false)
   }, [])
+
+  // An image goes into the frame it was dropped on, or becomes a new frame sized to the image.
+  const placeImage = useCallback(
+    (id: string | null, src: string, at: { x: number; y: number; w: number; h: number }) => {
+      if (id) {
+        updateFrame(id, { image: src })
+        setFrames((fs) => fs.map((f) => (f.id === id && f.config ? { ...f, config: overImage(f.config, f) } : f)))
+        setSelectedId(id)
+        return
+      }
+      const k = Math.min(1, 480 / at.w, 360 / at.h)
+      const w = Math.round(at.w * k), h = Math.round(at.h * k)
+      addFrame({ x: at.x - w / 2, y: at.y - h / 2, w, h }, src)
+    },
+    [updateFrame, addFrame],
+  )
+
+  const removeFrame = useCallback((id: string) => {
+    setFrames((fs) => fs.filter((f) => f.id !== id))
+    setSelectedId(null)
+  }, [])
+
+  const registerEngine = useCallback((id: string, e: LazuliInstance | null) => {
+    if (e) frameEngines.current.set(id, e)
+    else frameEngines.current.delete(id)
+  }, [])
+
+  // Paste an image: into the selected frame, or a new frame in the middle of the screen.
+  useEffect(() => {
+    const onPaste = (e: ClipboardEvent) => {
+      const file = [...(e.clipboardData?.files ?? [])].find((f) => f.type.startsWith('image/'))
+      if (!file) return
+      e.preventDefault()
+      readImage(file).then(({ src, w, h }) => placeImage(selectedId, src, { x: innerWidth / 2, y: innerHeight / 2, w, h }))
+    }
+    window.addEventListener('paste', onPaste)
+    return () => window.removeEventListener('paste', onPaste)
+  }, [selectedId, placeImage])
 
   useEffect(() => {
     if (!shuffleFlash) return
@@ -96,23 +172,36 @@ export function App() {
         return
       }
       if (codeOpen) return
+      if (e.key === 'Escape' && !openPanel && (frameTool || selectedId)) {
+        if (frameTool) setFrameTool(false)
+        else setSelectedId(null)
+        return
+      }
+      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedId && !openPanel) {
+        removeFrame(selectedId)
+        return
+      }
       const key = e.key.toLowerCase()
-      if (key === 'r') shuffle()
+      if (key === 'f') setFrameTool((t) => !t)
+      else if (key === 'r') shuffle()
       else if (key === 'h') toggleControls()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [welcomeOpen, openPanel, codeOpen, closeWelcome, shuffle, toggleControls])
+  }, [welcomeOpen, openPanel, codeOpen, closeWelcome, shuffle, toggleControls, frameTool, selectedId, removeFrame])
 
   // ---- toolbar -----------------------------------------------------------
-  const base = preset ? presetConfig(preset) : undefined
-  const panelProps = (id: SectionId) => ({ config, set, compact, reset: () => set(sectionDefaults(id, base)) })
+  const base = targetPreset ? presetConfig(targetPreset) : undefined
+  const panelProps = (id: SectionId) => ({ config: target, set, compact, reset: () => set(sectionDefaults(id, base)) })
 
   const groups: ToolbarItem[][] = useMemo(
     () => [
-      [{ kind: 'action', id: 'shuffle', label: 'Shuffle', icon: ShuffleIcon, onClick: shuffle, shortcut: 'R', flash: shuffleFlash }],
       [
-        { kind: 'panel', id: 'presets', label: 'Presets', icon: PresetsIcon, content: <PresetsPanel config={config} preset={preset} onPick={pickPreset} /> },
+        { kind: 'action', id: 'shuffle', label: 'Shuffle', icon: ShuffleIcon, onClick: shuffle, shortcut: 'R', flash: shuffleFlash },
+        { kind: 'action', id: 'frame', label: 'Frame', icon: FrameIcon, onClick: () => setFrameTool((t) => !t), shortcut: 'F', pressed: frameTool },
+      ],
+      [
+        { kind: 'panel', id: 'presets', label: 'Presets', icon: PresetsIcon, content: <PresetsPanel config={target} preset={targetPreset} onPick={pickPreset} /> },
         { kind: 'panel', id: 'colors', label: 'Colors', icon: ColorsIcon, content: <SchemaPanel id="colors" {...panelProps('colors')} /> },
         { kind: 'panel', id: 'shapes', label: 'Shapes', icon: ShapesIcon, content: <SchemaPanel id="shapes" {...panelProps('shapes')} /> },
         { kind: 'panel', id: 'texture', label: 'Texture', icon: TextureIcon, content: <SchemaPanel id="texture" {...panelProps('texture')} /> },
@@ -135,7 +224,7 @@ export function App() {
       ],
     ],
     // panelProps closes over config, set and compact, all listed.
-    [config, preset, set, pickPreset, shuffle, shuffleFlash, compact, coarse, toggleControls],
+    [target, targetPreset, set, pickPreset, shuffle, shuffleFlash, compact, coarse, toggleControls, frameTool],
   )
 
   return (
@@ -143,9 +232,23 @@ export function App() {
       <div
         className="stage"
         ref={setStage}
-        onPointerDown={() => welcomeOpen && closeWelcome()}
+        onPointerDown={() => {
+          if (welcomeOpen) closeWelcome()
+          setSelectedId(null)
+        }}
         role="img"
         aria-label="Interactive gradient background preview"
+      />
+
+      <Frames
+        frames={frames}
+        selected={selectedId}
+        drawing={frameTool}
+        onDraw={addFrame}
+        onSelect={setSelectedId}
+        onChange={updateFrame}
+        onImage={placeImage}
+        registerEngine={registerEngine}
       />
 
       <Toolbar
@@ -166,7 +269,21 @@ export function App() {
 
       {welcomeOpen ? <WelcomeCard config={config} onClose={closeWelcome} /> : <AboutButton onClick={() => setWelcomeOpen(true)} />}
 
-      <CodeDialog open={codeOpen} onOpenChange={setCodeOpen} config={config} engine={engine} />
+      <CodeDialog
+        open={codeOpen}
+        onOpenChange={setCodeOpen}
+        config={target}
+        engine={frame ? { current: frameEngines.current.get(frame.id) ?? null } : engine}
+      />
     </Tooltip.Provider>
   )
+}
+
+// A frame with no look yet starts from the defaults; over an image, the background goes transparent
+// so the pattern sits on the picture.
+function blankFrameConfig(f: Frame): Config {
+  return overImage(resolveConfig({}), f)
+}
+function overImage(c: Config, f: Frame): Config {
+  return f.image ? resolveConfig({ background: { type: 'transparent' } }, c) : c
 }

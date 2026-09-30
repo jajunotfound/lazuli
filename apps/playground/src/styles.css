@@ -138,6 +138,111 @@ button {
 }
 
 /* ==========================================================================
+   Frames (Figma-style: name above, empty frames are white, selection in the accent)
+   ========================================================================== */
+
+.frames {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+}
+
+.frame-draw {
+  position: fixed;
+  inset: 0;
+  cursor: crosshair;
+  touch-action: none;
+}
+
+.frame {
+  position: absolute;
+  pointer-events: auto;
+}
+
+.frame__name {
+  position: absolute;
+  left: 0;
+  bottom: 100%;
+  max-width: 100%;
+  padding-bottom: 4px;
+  overflow: hidden;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 14px;
+  color: var(--ink-50);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  cursor: default;
+  user-select: none;
+}
+
+.frame__body {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: var(--surface);
+  box-shadow: 0 0 0 1px rgb(var(--ink) / 0.08), 0 1px 2px #0000000a;
+}
+
+.frame__image,
+.frame__pattern {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.frame__image {
+  object-fit: cover;
+  user-select: none;
+}
+
+.frame[data-selected] .frame__name {
+  color: var(--accent);
+}
+
+.frame[data-selected] .frame__body,
+.frame[data-dropping] .frame__body {
+  box-shadow: 0 0 0 1.5px var(--accent), 0 1px 2px #0000000a;
+}
+
+.frame--draft {
+  border: 1px solid var(--accent);
+  background: rgb(31 72 168 / 0.04);
+}
+
+.frame__handle {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border: 1px solid var(--accent);
+  background: var(--surface);
+  z-index: 1;
+}
+
+.frame__handle--nw { left: -4px; top: -4px; cursor: nwse-resize; }
+.frame__handle--ne { right: -4px; top: -4px; cursor: nesw-resize; }
+.frame__handle--sw { left: -4px; bottom: -4px; cursor: nesw-resize; }
+.frame__handle--se { right: -4px; bottom: -4px; cursor: nwse-resize; }
+
+.frame__size {
+  position: absolute;
+  left: 50%;
+  top: calc(100% + 8px);
+  transform: translateX(-50%);
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 14px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+
+/* ==========================================================================
    Toolbar
    ========================================================================== */
 
@@ -209,7 +314,8 @@ button {
   background: var(--tool-pressed);
 }
 
-.tool[data-state='open'] {
+.tool[data-state='open'],
+.tool[aria-pressed='true'] {
   border-color: var(--tool-open-border);
   background: var(--tool-open);
   color: var(--ink-80);

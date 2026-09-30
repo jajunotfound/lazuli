@@ -27,6 +27,13 @@ export const ShuffleIcon = (p: IconProps) => (
   </Svg>
 )
 
+// Frame tool: Figma's "#" frame mark, drawn to match the 16-unit stroke icons above.
+export const FrameIcon = (p: IconProps) => (
+  <Svg viewBox="0 0 16 16" {...p}>
+    <path {...stroke} d="M5.333 2V14M10.667 2V14M2 5.333H14M2 10.667H14" />
+  </Svg>
+)
+
 export const ColorsIcon = (p: IconProps) => (
   <Svg {...p}>
     <path {...stroke} d="M19 12.129L12.939 18.207C11.156 19.995 10.264 20.889 9.17 20.988C8.989 21.004 8.807 21.004 8.626 20.988C7.532 20.889 6.64 19.995 4.857 18.207L2.837 16.181C1.721 15.062 1.721 13.248 2.837 12.129M19 12.129L10.918 4.026M19 12.129H2.837M10.918 4.026L2.837 12.129M10.918 4.026L8.898 2" />
