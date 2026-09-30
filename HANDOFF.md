@@ -88,7 +88,10 @@ Everything else matches what was built; these are the user's changes and they wi
 - **Frames prototype**: `design/lazuli-frames.html`, published at
   https://claude.ai/artifact/4MfQiFxF5PHEj42zzmm2jG (private). Canvas of frames (name + export
   size above each), presets open as frames beside the selected one, aspect 16:9 / 1:1 / 4:5 /
-  9:16, docked panel edits the selection, only the selected frame is "Live". **Image frames**: an
+  9:16, docked panel edits the selection, only the selected frame is "Live". **One kind of frame**
+  (user feedback): Source is a Shape / Image setting on any frame, not a separate frame type; new
+  frames come from the Presets popover on the toolbar "+" (frame 13 style), no horizontal preset
+  strip; drop an image onto a frame to use it there, or on the canvas for a new frame. Image: an
   uploaded or dropped image, gradient-mapped through a preset's palette (SVG filter stand-in for
   the engine's image-as-field pass) with Steps, Softness, Grain, Mix; Get code shows a proposed
   `source=` attribute. Paper was disconnected, so this isn't in Paper yet.

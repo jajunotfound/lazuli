@@ -49,7 +49,7 @@
     position: relative; border-radius: 16px; overflow: auto; min-height: 560px;
     background-color: #f7f8fa; background-image: radial-gradient(#d9dce2 1px, transparent 1px); background-size: 20px 20px;
   }
-  .frames { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 36px 28px; padding: 40px 32px 120px; }
+  .frames { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 36px 28px; padding: 40px 32px 48px; }
   .frame { position: relative; display: flex; flex-direction: column; gap: 6px; outline: none; }
   .frame-label { display: flex; align-items: baseline; gap: 6px; font-size: 12px; font-weight: 500; letter-spacing: -0.02em; color: var(--ink-50); white-space: nowrap; cursor: default; }
   .frame-label b { font-weight: 600; color: var(--ink-80); }
@@ -75,16 +75,15 @@
   .badge i { width: 6px; height: 6px; border-radius: 99px; background: #b9bcc4; }
   .frame[aria-selected='true'] .badge i { background: #2fb36b; }
 
-  .open-bar {
-    position: sticky; left: 0; bottom: 0; margin-top: -104px; display: flex; align-items: center; gap: 8px; padding: 8px; margin-inline: 16px; margin-bottom: 16px;
-    border-radius: 16px; background: var(--surface); border: 1px solid var(--border); box-shadow: 0 1px 2px #0000000a; overflow-x: auto; z-index: 4;
-  }
-  .open-bar .lbl { flex-shrink: 0; padding: 0 6px 0 4px; font-size: 12px; font-weight: 500; color: var(--ink-50); white-space: nowrap; }
-  .chip { flex-shrink: 0; display: flex; align-items: center; gap: 8px; height: 40px; padding: 4px 10px 4px 4px; border-radius: 10px; border: 0; background: var(--row); cursor: pointer; font-size: 13px; font-weight: 500; letter-spacing: -0.03em; color: var(--ink-80); }
-  .chip:hover { background: #eceef0; }
-  .chip img { width: 44px; height: 32px; border-radius: 6px; object-fit: cover; }
-  .chip.image { background: var(--accent-soft); color: var(--accent); padding-left: 10px; }
-  .chip.image svg { width: 18px; height: 18px; }
+  .pop { position: absolute; left: 76px; top: 12px; width: 268px; display: flex; flex-direction: column; gap: 4px; padding: 12px; border-radius: 16px; background: var(--surface); border: 1px solid var(--border); box-shadow: 0 1px 2px #0000000f; z-index: 8; }
+  .pop[hidden] { display: none; }
+  .pop .p-title { padding: 0 2px 6px; }
+  .preset-grid.fixed { grid-template-columns: repeat(3, 1fr); }
+  .pop-image { display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 12px; margin-top: 4px; border-radius: 10px; background: var(--row); font-size: 13px; font-weight: 500; letter-spacing: -0.03em; color: var(--ink-80); cursor: pointer; white-space: nowrap; }
+  .pop-image:hover { background: #eceef0; }
+  .pop-image svg { width: 18px; height: 18px; color: var(--ink-60); flex-shrink: 0; }
+  .pop-image span { margin-left: auto; font-size: 11.5px; color: var(--ink-40); white-space: nowrap; }
+  .frame.drop-target .frame-box { box-shadow: 0 0 0 2px var(--accent); }
   .drop-veil { position: absolute; inset: 0; display: none; place-items: center; background: rgb(31 72 168 / 0.08); border: 2px dashed var(--accent); border-radius: 16px; font-weight: 600; color: var(--accent); z-index: 6; pointer-events: none; }
   .canvas.dragging .drop-veil { display: grid; }
 
@@ -147,7 +146,7 @@
   @media (max-width: 480px) {
     body { padding-inline: 16px; }
     .app { padding: 8px; }
-    .frames { padding: 28px 16px 120px; gap: 28px 16px; }
+    .frames { padding: 28px 16px 40px; gap: 28px 16px; }
     .frame-box { height: auto !important; width: min(100%, 300px); }
   }
 </style>
@@ -156,14 +155,13 @@
   <header>
     <div class="brand"><span class="mark" aria-hidden="true"></span><b>Lazuli</b><span>v2.1 · frames prototype</span></div>
     <h1>Work in frames, not one full-screen background</h1>
-    <p class="lede">A preset opens as a frame beside the others, each with its own look, size and export. An image frame runs your picture through Lazuli's palette, steps, softness and grain. Only the selected frame animates. Try it: open a preset or an image from the bar, or drop an image anywhere on the canvas.</p>
+    <p class="lede">A preset opens as a frame beside the others, each with its own look, size and export. Any frame can use your image as its source instead of a shape, running it through the preset's palette, steps, softness and grain. Only the selected frame animates. Try it: the + tool opens the presets, and you can drop an image onto any frame.</p>
   </header>
 
   <div class="app">
     <nav class="tools" aria-label="Tools">
       <button class="tool" type="button" aria-pressed="true" aria-label="Select"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M5 3.5l10 6-4.4 1.2L8.4 15z"/></svg><span class="tip">Select · V</span></button>
-      <button class="tool" type="button" id="tool-frame" aria-label="New frame"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M6.5 3v14M13.5 3v14M3 6.5h14M3 13.5h14"/></svg><span class="tip">Frame · F</span></button>
-      <button class="tool" type="button" id="tool-image" aria-label="Image frame"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="3" y="4" width="14" height="12" rx="2.5"/><circle cx="7.5" cy="8.5" r="1.4"/><path d="M3.5 14l4-3.5 3 2.5 2.5-2 3.5 3"/></svg><span class="tip">Image frame · I</span></button>
+      <button class="tool" type="button" id="tool-frame" aria-label="New frame" aria-haspopup="dialog" aria-expanded="false"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M6.5 3v14M13.5 3v14M3 6.5h14M3 13.5h14"/></svg><span class="tip">New frame · F</span></button>
       <hr />
       <button class="tool" type="button" id="tool-dup" aria-label="Duplicate frame"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="6.5" y="6.5" width="10" height="10" rx="2"/><path d="M13.5 6.5V5a1.5 1.5 0 0 0-1.5-1.5H5A1.5 1.5 0 0 0 3.5 5v7A1.5 1.5 0 0 0 5 13.5h1.5"/></svg><span class="tip">Duplicate · ⌘D</span></button>
       <button class="tool" type="button" id="tool-del" aria-label="Delete frame"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M4 6h12M8 6V4.5h4V6M6 6l.7 9.5h6.6L14 6"/></svg><span class="tip">Delete · ⌫</span></button>
@@ -171,20 +169,22 @@
 
     <div class="canvas" id="canvas">
       <div class="frames" id="frames" role="listbox" aria-label="Frames"></div>
-      <div class="open-bar" id="open-bar">
-        <span class="lbl">Open as frame</span>
-        <label class="chip image" for="file-new"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M10 4v12M4 10h12"/></svg>Your image</label>
-        <input type="file" id="file-new" accept="image/*" hidden />
-      </div>
-      <div class="drop-veil">Drop to open as an image frame</div>
+      <div class="drop-veil">Drop on a frame to use the image, or anywhere for a new frame</div>
     </div>
+
+    <div class="pop" id="pop" role="dialog" aria-label="New frame" hidden>
+      <div class="p-title"><span>New frame</span><span>Presets</span></div>
+      <div class="preset-grid fixed" id="pop-grid"></div>
+      <label class="pop-image" for="file-new"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="3" y="4" width="14" height="12" rx="2.5"/><circle cx="7.5" cy="8.5" r="1.4"/><path d="M3.5 14l4-3.5 3 2.5 2.5-2 3.5 3"/></svg>Use an image<span>or drop it</span></label>
+    </div>
+    <input type="file" id="file-new" accept="image/*" hidden />
 
     <aside class="panel" id="panel" aria-label="Selected frame"></aside>
   </div>
 
   <section class="notes">
     <div class="note-card"><span class="eyebrow">What a frame is</span><h3>One look, one size, one export</h3><p>A frame holds a full config (preset plus your changes), an aspect ratio and a source. The full-screen background today is just a single frame filling the window, so nothing breaks: <code>&lt;lazuli-bg&gt;</code> embeds one frame.</p></div>
-    <div class="note-card"><span class="eyebrow">Image frames</span><h3>Your picture, Lazuli's color</h3><p>The image's brightness becomes the field that the palette maps onto, so Palette, Steps, Softness and Grain all apply. Here that's an SVG gradient map; in the engine it's the image as a texture feeding the same color pass the shapes use.</p></div>
+    <div class="note-card"><span class="eyebrow">Source: Shape or Image</span><h3>Your picture, Lazuli's color</h3><p>Every frame is the same thing; the source is a setting. With Image, the image's brightness becomes the field that the palette maps onto, so Palette, Steps, Softness and Grain all apply. Here that's an SVG gradient map; in the engine it's the image as a texture feeding the same color pass the shapes use.</p></div>
     <div class="note-card"><span class="eyebrow">Performance and saving</span><h3>One live frame at a time</h3><p>Browsers allow only a few WebGL contexts, so unselected frames show a still render and only the selected one runs. A canvas of frames is a document worth keeping, which is where accounts come in later.</p></div>
   </section>
 </div>
@@ -237,11 +237,13 @@ const ASSETS = {"lazuli": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2w
   const frames = []
   let selected = null
 
-  function make(kind, opts = {}) {
-    const f = { id: 'f' + ++uid, kind, preset: 'lazuli', aspect: '16:9', steps: 4, soft: 15, grain: 30, mix: 100, ...opts }
-    if (!f.name) f.name = kind === 'image' ? (f.imgName || 'Image') : PRESETS[f.preset].label
+  // Every frame is the same: a preset, a size and a source (shape or an image).
+  function make(opts = {}) {
+    const f = { id: 'f' + ++uid, source: 'shape', img: null, imgName: '', preset: 'lazuli', aspect: '16:9', steps: 4, soft: 15, grain: 30, mix: 100, ...opts }
+    if (!f.name) f.name = PRESETS[f.preset].label
     return f
   }
+  const isImage = (f) => f.source === 'image' && f.img
 
   const host = document.getElementById('frames')
   const panel = document.getElementById('panel')
@@ -285,7 +287,7 @@ const ASSETS = {"lazuli": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2w
       const box = document.createElement('div')
       box.className = 'frame-box'
       box.style.setProperty('--ar', a.ar); box.style.setProperty('--fh', a.h + 'px')
-      if (f.kind === 'pattern') {
+      if (!isImage(f)) {
         box.innerHTML = `<img class="pattern" alt="" src="${ASSETS[f.preset]}">`
       } else {
         filterFor(f)
@@ -317,7 +319,7 @@ const ASSETS = {"lazuli": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2w
     el.querySelector('.dims').textContent = a.dims
     const box = el.querySelector('.frame-box')
     box.style.setProperty('--ar', a.ar); box.style.setProperty('--fh', a.h + 'px')
-    if (f.kind === 'pattern') { box.querySelector('img.pattern').src = ASSETS[f.preset] }
+    if (!isImage(f)) { box.querySelector('img.pattern').src = ASSETS[f.preset] }
     else {
       filterFor(f)
       box.querySelector('.mapped').style.opacity = f.mix / 100
@@ -383,7 +385,7 @@ const ASSETS = {"lazuli": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2w
     panel.textContent = ''
     const title = document.createElement('div')
     title.className = 'p-title'
-    title.innerHTML = `<span>${f.kind === 'image' ? 'Image frame' : 'Frame'}</span><span class="acts">
+    title.innerHTML = `<span>Frame</span><span class="acts">
       <button class="icon-btn" type="button" data-act="dup" aria-label="Duplicate frame"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="6.5" y="6.5" width="10" height="10" rx="2"/><path d="M13.5 6.5V5a1.5 1.5 0 0 0-1.5-1.5H5A1.5 1.5 0 0 0 3.5 5v7A1.5 1.5 0 0 0 5 13.5h1.5"/></svg></button>
       <button class="icon-btn" type="button" data-act="del" aria-label="Delete frame"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 6h12M8 6V4.5h4V6M6 6l.7 9.5h6.6L14 6"/></svg></button></span>`
     title.querySelector('[data-act=dup]').addEventListener('click', duplicate)
@@ -391,18 +393,22 @@ const ASSETS = {"lazuli": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2w
     const name = document.createElement('div'); name.className = 'name-row'; name.textContent = f.name
     panel.append(title, name, sec('Size'), seg('Aspect ratio', Object.keys(ASPECTS).map((k) => [k, k]), f.aspect, (v) => { f.aspect = v; refreshSelected() }))
 
-    if (f.kind === 'image') {
+    panel.append(sec('Source'), seg('Source', [['Shape', 'shape'], ['Image', 'image']], f.source, (v) => {
+      if (v === 'image' && !f.img) { pickFor = f; fileInput.click(); renderPanel(); return }
+      f.source = v; renderFrames(); renderPanel()
+    }))
+    if (f.source === 'image' && f.img) {
       const row = document.createElement('div'); row.className = 'img-row'
       row.innerHTML = `<img alt=""><span></span><label>Replace<input type="file" accept="image/*"></label>`
       row.querySelector('img').src = f.img
       row.querySelector('span').textContent = f.imgName
       row.querySelector('input').addEventListener('change', (e) => readFile(e.target.files[0], (url, n) => {
-        f.img = url; f.imgName = n; f.name = n; renderFrames(); renderPanel()
+        f.img = url; f.imgName = n; renderFrames(); renderPanel()
       }))
-      panel.append(sec('Source'), row)
+      panel.append(row)
     }
 
-    panel.append(sec(f.kind === 'image' ? 'Palette from' : 'Preset'))
+    panel.append(sec('Preset'))
     const grid = document.createElement('div'); grid.className = 'preset-grid'
     for (const [id, p] of Object.entries(PRESETS)) {
       const b = document.createElement('button'); b.type = 'button'
@@ -410,7 +416,7 @@ const ASSETS = {"lazuli": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2w
       b.innerHTML = `<img alt="" src="${ASSETS[id]}"><span>${p.label}</span>`
       b.addEventListener('click', () => {
         for (const x of grid.children) x.setAttribute('aria-pressed', String(x === b))
-        const wasDefault = f.kind === 'pattern' && f.name === PRESETS[f.preset].label
+        const wasDefault = f.name === PRESETS[f.preset].label
         f.preset = id
         if (wasDefault) { f.name = p.label; name.textContent = p.label }
         if (ramp) paintRamp()
@@ -422,7 +428,7 @@ const ASSETS = {"lazuli": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2w
 
     let ramp = null
     const paintRamp = () => { ramp.innerHTML = PRESETS[f.preset].map.map((c) => `<i style="background:${c}"></i>`).join('') }
-    if (f.kind === 'image') {
+    if (isImage(f)) {
       ramp = document.createElement('div'); ramp.className = 'ramp'; ramp.setAttribute('aria-label', 'Palette, shadows to highlights'); paintRamp()
       panel.append(sec('Color'), ramp,
         seg('Steps', STEPS, f.steps, (v) => { f.steps = v; refreshSelected() }),
@@ -442,14 +448,14 @@ const ASSETS = {"lazuli": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2w
   function snippet(f) {
     const ar = ASPECTS[f.aspect].ar
     const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
-    if (f.kind === 'pattern') return esc(`<lazuli-bg preset="${f.preset}"\n  style="aspect-ratio: ${ar}"></lazuli-bg>`)
+    if (!isImage(f)) return esc(`<lazuli-bg preset="${f.preset}"\n  style="aspect-ratio: ${ar}"></lazuli-bg>`)
     const file = f.imgName.replace(/\s+/g, '-').toLowerCase()
     return `<span class="c">&lt;!-- proposed: an image as the source --&gt;</span>\n` + esc(`<lazuli-bg source="${file}"\n  palette="${PRESETS[f.preset].map.join(',')}"\n  steps="${f.steps || 'smooth'}" softness="${f.soft}"\n  texture="grain" grain="${f.grain}"\n  style="aspect-ratio: ${ar}"></lazuli-bg>`)
   }
 
   function duplicate() {
     const f = selected
-    add(make(f.kind, { ...f, id: undefined, name: f.name + ' copy' }))
+    add(make({ ...f, id: undefined, name: f.name + ' copy' }))
   }
 
   function readFile(file, done) {
@@ -458,34 +464,57 @@ const ASSETS = {"lazuli": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2w
     r.onload = () => done(r.result, file.name.replace(/\.[^.]+$/, ''))
     r.readAsDataURL(file)
   }
-  const openImage = (file) => readFile(file, (url, n) => add(make('image', { img: url, imgName: n, name: n, aspect: '4:5' })))
-
-  // ---------- open bar, tools, drop ----------
-  const bar = document.getElementById('open-bar')
-  for (const [id, p] of Object.entries(PRESETS)) {
-    const b = document.createElement('button'); b.type = 'button'; b.className = 'chip'
-    b.innerHTML = `<img alt="" src="${ASSETS[id]}">${p.label}`
-    b.addEventListener('click', () => add(make('pattern', { preset: id })))
-    bar.append(b)
+  // ---------- new frame popover, tools, drop ----------
+  const fileInput = document.getElementById('file-new')
+  let pickFor = null // a frame switching to Image; null means the image starts a new frame
+  fileInput.addEventListener('change', (e) => {
+    const target = pickFor; pickFor = null
+    readFile(e.target.files[0], (url, n) => useImage(target, url, n))
+    e.target.value = ''
+  })
+  function useImage(f, url, n) {
+    if (f) { if (f.name === PRESETS[f.preset].label) f.name = n; Object.assign(f, { source: 'image', img: url, imgName: n }); selected = f; renderFrames(); renderPanel() }
+    else add(make({ source: 'image', img: url, imgName: n, name: n, aspect: '4:5' }))
   }
-  document.getElementById('file-new').addEventListener('change', (e) => { openImage(e.target.files[0]); e.target.value = '' })
-  document.getElementById('tool-frame').addEventListener('click', () => add(make('pattern', { preset: 'lazuli' })))
-  document.getElementById('tool-image').addEventListener('click', () => document.getElementById('file-new').click())
+
+  const pop = document.getElementById('pop'), frameTool = document.getElementById('tool-frame')
+  const setPop = (open) => { pop.hidden = !open; frameTool.setAttribute('aria-expanded', String(open)); frameTool.setAttribute('aria-pressed', String(open)) }
+  const popGrid = document.getElementById('pop-grid')
+  for (const [id, p] of Object.entries(PRESETS)) {
+    const b = document.createElement('button'); b.type = 'button'
+    b.innerHTML = `<img alt="" src="${ASSETS[id]}"><span>${p.label}</span>`
+    b.addEventListener('click', () => { setPop(false); add(make({ preset: id })) })
+    popGrid.append(b)
+  }
+  pop.querySelector('.pop-image').addEventListener('click', () => { pickFor = null; setPop(false) })
+  frameTool.addEventListener('click', (e) => { e.stopPropagation(); setPop(pop.hidden) })
+  document.addEventListener('click', (e) => { if (!pop.hidden && !pop.contains(e.target) && e.target !== frameTool) setPop(false) })
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !pop.hidden) { setPop(false); frameTool.focus() }
+    if ((e.key === 'f' || e.key === 'F') && !e.metaKey && !e.ctrlKey && document.activeElement.tagName !== 'INPUT') setPop(pop.hidden)
+  })
   document.getElementById('tool-dup').addEventListener('click', duplicate)
   document.getElementById('tool-del').addEventListener('click', () => remove(selected))
 
+  // Drop on a frame: that frame uses the image. Drop elsewhere: a new frame.
   let depth = 0
+  const frameAt = (e) => { const el = e.target.closest && e.target.closest('.frame'); return el ? frames.find((f) => f.id === el.dataset.id) : null }
+  const mark = (el) => host.querySelectorAll('.frame').forEach((x) => x.classList.toggle('drop-target', x === el))
   canvas.addEventListener('dragenter', (e) => { if ([...e.dataTransfer.types].includes('Files')) { depth++; canvas.classList.add('dragging') } })
-  canvas.addEventListener('dragleave', () => { if (--depth <= 0) { depth = 0; canvas.classList.remove('dragging') } })
-  canvas.addEventListener('dragover', (e) => e.preventDefault())
-  canvas.addEventListener('drop', (e) => { e.preventDefault(); depth = 0; canvas.classList.remove('dragging'); openImage(e.dataTransfer.files[0]) })
+  canvas.addEventListener('dragleave', () => { if (--depth <= 0) { depth = 0; canvas.classList.remove('dragging'); mark(null) } })
+  canvas.addEventListener('dragover', (e) => { e.preventDefault(); mark(e.target.closest && e.target.closest('.frame')) })
+  canvas.addEventListener('drop', (e) => {
+    e.preventDefault(); depth = 0; canvas.classList.remove('dragging'); mark(null)
+    const target = frameAt(e)
+    readFile(e.dataTransfer.files[0], (url, n) => useImage(target, url, n))
+  })
 
   // ---------- starting canvas (the still life is a drawn sample) ----------
   frames.push(
-    make('pattern', { preset: 'lazuli', aspect: '16:9' }),
-    make('pattern', { preset: 'silk', aspect: '1:1' }),
-    make('image', { img: ASSETS.sample, imgName: 'Sample still life', name: 'Sample still life', aspect: '4:5', preset: 'lazuli', steps: 4, soft: 35 }),
-    make('pattern', { preset: 'night', aspect: '9:16' }),
+    make({ preset: 'lazuli', aspect: '16:9' }),
+    make({ preset: 'silk', aspect: '1:1' }),
+    make({ source: 'image', img: ASSETS.sample, imgName: 'Sample still life', name: 'Sample still life', aspect: '4:5', preset: 'lazuli', steps: 4, soft: 35 }),
+    make({ preset: 'night', aspect: '9:16' }),
   )
   selected = frames[2]
   renderFrames(); renderPanel()
