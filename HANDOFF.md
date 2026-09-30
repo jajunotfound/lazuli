@@ -1,4 +1,4 @@
-# Handoff: 2026-09-30 (v2 built; next: design it in Paper)
+# Handoff: 2026-09-30 (v2 built and designed in Paper; next: review the design, then implement)
 
 Read `CLAUDE.md` first for stable context and `ITERATION.md` for the v2 plan. This file is the
 state of play.
@@ -14,12 +14,52 @@ state of play.
   hashes). Pointing it at `build-lazuli` needs a force push, which the permission check blocked.
   To fix it, from `~/lazuli`: `git reset --keep origin/build-lazuli && git push --force-with-lease=main:404601e origin main`.
   Then set `main` as the default branch on GitHub; `build-lazuli` stays until main is confirmed.
-- **The reel branch** (`worktree-lazuli-reel`, commit `a704b1d`, not pushed) still sits on the old
-  scaffold and still has a Co-Authored-By trailer. To do, in its worktree:
-  `git rebase --onto origin/main 404601e`, `git commit --amend` (drop the trailer),
-  `git push -u origin HEAD:lazuli-reel`.
+  Still pending (the session can't force-push); the user runs:
+  `cd ~/lazuli/.claude/worktrees/build-lazuli && git push --force-with-lease=main:404601e origin a9097b6:refs/heads/main && gh repo edit jajunotfound/lazuli --default-branch main`
+- **The reel** is on GitHub as branch `lazuli-reel` (`8ca486b`): rebuilt on top of `build-lazuli`
+  with the same 11 `promo/reel/*` files and no Co-Authored-By trailer. The local
+  `worktree-lazuli-reel` branch (`a704b1d`) is the old copy and can be deleted.
 
-## Current task: design the v2 UI in Paper
+## Done this session: the v2 design pass in Paper
+
+New frames in the Paper file, in a row below the v1 frames (x 258→, y 4700–9800). All reuse v1's
+exact type, colors, 242px panel, 48px rows, segmented, switch and slider styles.
+
+| Frame | What |
+| --- | --- |
+| 13 Presets | 10-tool toolbar (new Presets + Background icons, Hide), Presets popover: 3-column grid of real engine thumbnails, current ring, "Edited · Revert" state, hint. |
+| 14 Shapes · Blobs | New **select row** (label, value, chevron), stepped Count with dots, Stretch/Merge/Wobble, Satellite switch. |
+| 15 Shape select open | Menu under the row: 36px options with a glyph per shape, check on current. |
+| 16 Shapes · per-type controls | Sheet: Waves, Nodal, Bands, Rings, Dots cards. Rings gets a **Center** position pad instead of X/Y sliders. |
+| 17 Color · 3 stops | Ramp bar, Core/Middle/Edge (Middle hovered with remove), dashed "Add color", divider, Mapping, Steps (Smooth), Blend select, Opacity, Corner fade. |
+| 18 Blend select open | Menu flipping **up** when there's no room below. |
+| 19 Texture · per-type controls | Grain, Halftone, Dither, Paper cards. |
+| 20 Background · types | Solid, Gradient linear (stops, add stop, angle), Gradient radial (center pad), None (checker + note). |
+| 21 Motion & Cursor | Motion (presets, speed, direction with arrow, loop, quality); Cursor Push/Pull/Swirl + Strength/Radius/Smear/Follow; Cursor off (rows dimmed). |
+| 22 Get code · new tabs | JavaScript, Image (preview, size, Download PNG), Video idle (Format/Size/Rate/Length rows), Video rendering (progress + Cancel). |
+| 23 Docked side panel | The alternative to toolbar + popovers: floating right panel, Preset select, accordion sections with one-line summaries, Get code footer. |
+| Phone 03–05 | Phone: collapsed bar (Shuffle, Presets, Edit, Get code, Hide); Edit sheet with section chips; Presets sheet (3×3). |
+
+Design rules introduced (apply them in code):
+- The slider **handle hides while the fill edge is under the label** (long labels, low values).
+- **Step dots only for ranges of ≤ 8 steps** (Levels 2–16 gets none).
+- Menus open below their row and **flip up** when they'd collide.
+- Tabs in Get code: "HTML · Web component · JavaScript | Image · Video" (hairline between code and media).
+- Dither Pattern labels: **4×4 / 8×8 / Noise**.
+- Progress bar: light accent fill + accent label (readable at any %).
+- Phone: 10 tools don't fit, so the phone gets a bar + bottom sheet (chips per section).
+
+Assets used by the frames (real engine renders, thumbnails, checkerboards) are in
+`~/lazuli-review/paper-assets/` on this Mac.
+
+## Next: review the design, then implement it
+
+1. User reviews frames 13–23 and Phone 03–05; decides **docked panel (23) vs toolbar + popovers**.
+2. Implement the chosen layout from the frames (`get_jsx` / `get_computed_styles` for values).
+3. Swap the placeholder icons in `apps/playground/src/icons.tsx` for the Paper ones (Presets,
+   Background, Chevron, shape glyphs, Edit sliders icon).
+
+## (Previous) task description: design the v2 UI in Paper
 
 The user asked for **every page and state that isn't in Paper yet** to be designed there.
 - File: https://app.paper.design/file/01M3HS8GJTKKBKPPYXYW1ZV876/p-1-0/1F0-0 (Paper desktop app
@@ -96,8 +136,8 @@ Kármán vortex street.
 
 ## Next steps
 
-1. Fix `main` and the reel branch (commands above).
-2. Review the v2 playground; then the Paper design pass for the sectioned UI (phase 9).
+1. Fix `main` (command above; the reel branch is done).
+2. Review the Paper design (frames 13–23, Phone 03–05); pick docked panel vs popovers; implement.
 3. Freeze the presets after that pass.
 4. Measure on a phone; decide on the half-resolution pattern pass if needed.
 5. Deploy to Vercel, record the demo GIF, publish `lazuli-bg`.
