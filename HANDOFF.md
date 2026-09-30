@@ -1,4 +1,4 @@
-# Handoff: 2026-09-28 (v2 build)
+# Handoff: 2026-09-30 (v2 built; next: design it in Paper)
 
 Read `CLAUDE.md` first for stable context and `ITERATION.md` for the v2 plan. This file is the
 state of play.
@@ -18,6 +18,43 @@ state of play.
   scaffold and still has a Co-Authored-By trailer. To do, in its worktree:
   `git rebase --onto origin/main 404601e`, `git commit --amend` (drop the trailer),
   `git push -u origin HEAD:lazuli-reel`.
+
+## Current task: design the v2 UI in Paper
+
+The user asked for **every page and state that isn't in Paper yet** to be designed there.
+- File: https://app.paper.design/file/01M3HS8GJTKKBKPPYXYW1ZV876/p-1-0/1F0-0 (Paper desktop app
+  must be open; the session needs the `paper` MCP connected).
+- Paper has only the v1 frames: `01 Default` … `12 Get code copied`, `Phone 01 Shapes`,
+  `Phone 02 Cursor`. First read them (`get_jsx` / `get_computed_styles`) and reuse their exact
+  type, spacing, radii, colors and components. Don't invent a new visual language.
+- Reference for what exists: run the playground (`pnpm dev` in this worktree) and click through.
+  The current UI is schema-generated in the v1 popover style, so the design wins over it.
+- Frames to add:
+  1. Presets panel (9 cards with thumbnails, current + "edited" states).
+  2. Shape panel: shape select + per-shape controls (Blobs, Waves, Nodal at least; list states
+     for Bands, Rings, Dots).
+  3. Color panel: 2–5 stops (Core / Middle / Edge), Mapping (By depth / Per shape), Steps, Blend.
+  4. Texture panel: Type select + per-type controls (Grain, Halftone, Dither, Paper).
+  5. Background panel: Solid, Gradient (stops, kind, angle / center), None (transparent).
+  6. Motion (Speed, Direction, Loop, Quality) and Cursor (Push/Pull/Swirl, Strength, Radius,
+     Smear, Follow).
+  7. Select menu open state (e.g. Blend, Shape).
+  8. Get code: JavaScript, Image, Video (idle + rendering progress) tabs.
+  9. A docked side-panel alternative to the 10-tool toolbar + popovers (agreed direction to explore).
+  10. Phone versions of the new sections.
+- New icons (Presets, Background, chevron) are placeholders in `apps/playground/src/icons.tsx`;
+  design proper ones.
+
+## Proposed next: physics-inspired patterns (waiting for the user's go-ahead)
+
+Presets that reproduce real experiments, each with a one-line "what you're seeing". Cheap batch
+(single pass, same cost as current shapes): Faraday waves (N plane waves: squares / hexagons /
+quasicrystals), circular Chladni plate / drumhead (Bessel modes, as a Nodal option), magnetic
+field lines (iron filings around 2–4 poles), Young's slits (2-source Rings exists; add a plane
+source), soap film / Newton's rings (an "iridescent" color mode for any shape), diffraction (Airy
+disk, slit gratings), moiré. Medium: Bénard convection cells, harmonograph / Lissajous. Heavy (needs
+a ping-pong simulation pass the engine doesn't have): reaction–diffusion (Turing, BZ spirals),
+Kármán vortex street.
 
 ## Done (v2, phases 1–8 of ITERATION.md)
 
