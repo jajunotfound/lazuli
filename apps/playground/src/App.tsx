@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { CodeDialog } from './components/CodeDialog'
 import { Entrance } from './components/Entrance'
 import { FramePanel } from './components/FramePanel'
-import { Frames, readImage, type Frame } from './components/Frames'
+import { Frames, readImage, toWorld, type Camera, type Frame } from './components/Frames'
 import type { Mood } from './components/Mascot'
 import { PresetsPanel } from './components/PresetsPanel'
 import { CursorPanel, MotionPanel, SchemaPanel } from './components/panels'
@@ -40,6 +40,11 @@ export function App() {
   const frameEngines = useRef(new Map<string, LazuliInstance>())
 
   const [workspace, setWorkspace] = useState<HTMLDivElement | null>(null)
+  // Pan and zoom over the canvas, Figma-style.
+  const [camera, setCamera] = useState<Camera>({ x: 0, y: 0, z: 1 })
+  const cameraRef = useRef(camera)
+  cameraRef.current = camera
+  const [panning, setPanning] = useState(false)
   const [openPanel, setOpenPanel] = useState<PanelId | null>(null)
   const [codeOpen, setCodeOpen] = useState(false)
   const [meeting, setMeeting] = useState(shouldMeet)
@@ -55,7 +60,7 @@ export function App() {
 
   const active = frames.find((f) => f.id === activeId) ?? frames[0]
   const selected = frames.find((f) => f.id === selectedId) ?? null
-  const config = active?.config ?? blankConfig(active)
+  const config = active?.config ?? DEFAULT
   const preset = active?.preset ?? null
 
   // ---- Lazuli's mood (the corner mascot) ---------------------------------
@@ -101,13 +106,12 @@ export function App() {
         if (f.id !== id) return f
         const next = { ...f, ...patch }
         // Over an image, the pattern's background goes transparent so it sits on the picture.
-        if ('image' in patch && next.config) next.config = patch.image ? overImage(next.config) : next.config
         return next
       }),
     )
   }, [])
   const setFrameConfig = useCallback((id: string, next: (c: Config, f: Frame) => Config) => {
-    setFrames((fs) => fs.map((f) => (f.id === id ? { ...f, config: next(f.config ?? blankConfig(f), f) } : f)))
+    setFrames((fs) => fs.map((f) => (f.id === id ? { ...f, config: next(f.config ?? DEFAULT, f) } : f)))
   }, [])
 
   const select = useCallback((id: string | null) => {
@@ -170,11 +174,82 @@ export function App() {
       const file = [...(e.clipboardData?.files ?? [])].find((f) => f.type.startsWith('image/'))
       if (!file) return
       e.preventDefault()
-      readImage(file).then(({ src, w, h }) => placeImage(selectedId, src, { x: innerWidth / 2, y: innerHeight / 2, w, h }))
+      const at = toWorld(cameraRef.current, innerWidth / 2, innerHeight / 2)
+      readImage(file).then(({ src, w, h }) => placeImage(selectedId, src, { ...at, w, h }))
     }
     window.addEventListener('paste', onPaste)
     return () => window.removeEventListener('paste', onPaste)
   }, [selectedId, placeImage])
+
+  // ---- camera: pinch / ⌘-scroll zooms, scroll pans, space-drag or middle-drag pans -----
+  useEffect(() => {
+    if (!workspace) return
+    const onWheel = (e: WheelEvent) => {
+      if (!(e.target instanceof Node) || !workspace.contains(e.target)) return
+      e.preventDefault()
+      if (e.ctrlKey || e.metaKey) setCamera((c) => zoomAt(c, Math.exp(-e.deltaY * 0.01), e.clientX, e.clientY))
+      else setCamera((c) => ({ ...c, x: c.x - e.deltaX, y: c.y - e.deltaY }))
+    }
+    let space = false
+    const onKeyDown = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement
+      if (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA') return
+      if (e.key === ' ' && !e.repeat) {
+        e.preventDefault()
+        space = true
+        setPanning(true)
+      }
+      const mod = e.metaKey || e.ctrlKey
+      const mid = { x: innerWidth / 2, y: innerHeight / 2 }
+      if (mod && (e.key === '=' || e.key === '+')) {
+        e.preventDefault()
+        setCamera((c) => zoomAt(c, 1.25, mid.x, mid.y))
+      } else if (mod && e.key === '-') {
+        e.preventDefault()
+        setCamera((c) => zoomAt(c, 0.8, mid.x, mid.y))
+      } else if (mod && e.key === '0') {
+        e.preventDefault()
+        setCamera((c) => zoomAt(c, 1 / c.z, mid.x, mid.y))
+      } else if (e.shiftKey && e.code === 'Digit1') {
+        setCamera(fitCamera(framesRef.current))
+      }
+    }
+    const onKeyUp = (e: KeyboardEvent) => {
+      if (e.key === ' ') {
+        space = false
+        setPanning(false)
+      }
+    }
+    const onDown = (e: PointerEvent) => {
+      if (!(space || e.button === 1)) return
+      e.preventDefault()
+      e.stopPropagation()
+      let last = { x: e.clientX, y: e.clientY }
+      const move = (ev: PointerEvent) => {
+        const dx = ev.clientX - last.x, dy = ev.clientY - last.y
+        last = { x: ev.clientX, y: ev.clientY }
+        setCamera((c) => ({ ...c, x: c.x + dx, y: c.y + dy }))
+      }
+      const up = () => {
+        window.removeEventListener('pointermove', move)
+        window.removeEventListener('pointerup', up)
+      }
+      window.addEventListener('pointermove', move)
+      window.addEventListener('pointerup', up)
+    }
+    window.addEventListener('wheel', onWheel, { passive: false })
+    window.addEventListener('keydown', onKeyDown)
+    window.addEventListener('keyup', onKeyUp)
+    workspace.addEventListener('pointerdown', onDown, true)
+    return () => {
+      window.removeEventListener('wheel', onWheel)
+      window.removeEventListener('keydown', onKeyDown)
+      window.removeEventListener('keyup', onKeyUp)
+      workspace.removeEventListener('pointerdown', onDown, true)
+    }
+  }, [workspace])
+  const framesRef = useRef(frames)
+  framesRef.current = frames
 
   // ---- look actions (the dock) -------------------------------------------
   const set = useCallback(
@@ -190,7 +265,7 @@ export function App() {
       setFrames((fs) =>
         fs.map((f) =>
           f.id === activeId
-            ? { ...f, preset: id, config: f.image ? overImage(presetConfig(id)) : presetConfig(id), name: isDefaultName(f) ? presetLabel(id) : f.name }
+            ? { ...f, preset: id, config: presetConfig(id), name: isDefaultName(f) ? presetLabel(id) : f.name }
             : f,
         ),
       )
@@ -285,9 +360,13 @@ export function App() {
 
   return (
     <Tooltip.Provider delayDuration={300} skipDelayDuration={200}>
-      <div className="workspace" ref={setWorkspace}>
+      <div className="workspace" ref={setWorkspace} data-panning={panning || undefined}>
       <div
         className="canvas"
+        style={{
+          backgroundSize: `${dotStep(camera.z)}px ${dotStep(camera.z)}px`,
+          backgroundPosition: `${camera.x}px ${camera.y}px`,
+        }}
         onPointerDown={() => {
           if (welcomeOpen && !meeting) closeWelcome()
           setSelectedId(null)
@@ -302,6 +381,7 @@ export function App() {
         veiled={!revealed}
         liftReducedMotion={speedTouched}
         onDraw={addFrame}
+        camera={camera}
         onSelect={(id) => {
           if (welcomeOpen && !meeting) closeWelcome()
           select(id)
@@ -326,10 +406,9 @@ export function App() {
         <FramePanel
           key={selected.id}
           frame={selected}
+          config={selected.config ?? DEFAULT}
           onChange={(patch) => updateFrame(selected.id, patch)}
-          onAddPattern={() => setFrameConfig(selected.id, (c) => c)}
-          onRemovePattern={() => updateFrame(selected.id, { config: undefined, preset: undefined })}
-          onShuffle={shuffle}
+          onPreset={pickPreset}
           onDuplicate={() => duplicateFrame(selected.id)}
           onDelete={() => removeFrame(selected.id)}
           onCode={() => setCodeOpen(true)}
@@ -357,6 +436,20 @@ export function App() {
       {!meeting &&
         (welcomeOpen ? <WelcomeCard config={config} onClose={closeWelcome} /> : <AboutButton onClick={() => setWelcomeOpen(true)} mood={mood} reduced={reducedMotion} />)}
 
+      {!meeting && !controlsHidden && (
+        <div className="zoom" role="group" aria-label="Zoom">
+          <button type="button" onClick={() => setCamera((c) => zoomAt(c, 0.8, innerWidth / 2, innerHeight / 2))} aria-label="Zoom out" aria-keyshortcuts="Meta+-">
+            −
+          </button>
+          <button type="button" className="zoom__value" onClick={() => setCamera(fitCamera(frames))} title="Zoom to fit · ⇧1">
+            {Math.round(camera.z * 100)}%
+          </button>
+          <button type="button" onClick={() => setCamera((c) => zoomAt(c, 1.25, innerWidth / 2, innerHeight / 2))} aria-label="Zoom in" aria-keyshortcuts="Meta+=">
+            +
+          </button>
+        </div>
+      )}
+
       <CodeDialog open={codeOpen} onOpenChange={setCodeOpen} config={config} engine={engine} onMood={setMood} />
     </Tooltip.Provider>
   )
@@ -380,12 +473,32 @@ function isDefaultName(f: Frame): boolean {
   return /^Frame \d+$/.test(f.name) || (!!f.preset && f.name === presetLabel(f.preset)) || f.name === 'Lazuli'
 }
 
-// A frame with no look yet starts from the defaults (transparent over an image).
-function blankConfig(f?: Frame): Config {
-  const c = resolveConfig({})
-  return f?.image ? overImage(c) : c
+// A frame with no look of its own (empty, or just an image) uses the defaults.
+const DEFAULT = resolveConfig({})
+
+// Canvas dots: 20px apart at 100%, doubling when zoomed out so they never turn into a haze.
+function dotStep(z: number): number {
+  let step = 20 * z
+  while (step < 10) step *= 2
+  return step
 }
 
-function overImage(c: Config): Config {
-  return resolveConfig({ background: { type: 'transparent' } }, c)
+const clampZoom = (z: number) => Math.min(8, Math.max(0.1, z))
+
+/** Zoom by factor k keeping the screen point (sx, sy) still. */
+function zoomAt(c: Camera, k: number, sx: number, sy: number): Camera {
+  const z = clampZoom(c.z * k)
+  const f = z / c.z
+  return { z, x: sx - (sx - c.x) * f, y: sy - (sy - c.y) * f }
+}
+
+/** Fit every frame in the space between the dock and the frame panel. */
+function fitCamera(frames: Frame[]): Camera {
+  if (!frames.length) return { x: 0, y: 0, z: 1 }
+  const x0 = Math.min(...frames.map((f) => f.x)), y0 = Math.min(...frames.map((f) => f.y))
+  const x1 = Math.max(...frames.map((f) => f.x + f.w)), y1 = Math.max(...frames.map((f) => f.y + f.h))
+  const left = innerWidth > 900 ? 150 : 24, right = innerWidth > 900 ? innerWidth - 320 : innerWidth - 24
+  const top = 72, bottom = innerHeight - 96
+  const z = clampZoom(Math.min(1, (right - left) / (x1 - x0), (bottom - top) / (y1 - y0)))
+  return { z, x: (left + right) / 2 - ((x0 + x1) / 2) * z, y: (top + bottom) / 2 - ((y0 + y1) / 2) * z }
 }

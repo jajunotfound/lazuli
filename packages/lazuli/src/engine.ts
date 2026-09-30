@@ -6,6 +6,11 @@ import { cssBackground } from './uniforms'
 export interface LazuliInstance {
   /** Update any subset of the config (nested v2 sections or v1 flat keys). Invalid values are ignored. */
   set(input: LazuliInput): void
+  /**
+   * Use an image as the source: its light and dark take the palette, and texture, steps and the
+   * cursor apply to it. null goes back to the configured shape.
+   */
+  setImage(image: TexImageSource | null): void
   /** Pick a random seed (new arrangement). Returns the new seed. */
   shuffle(): number
   /** Current resolved config. */
@@ -233,6 +238,8 @@ export function createLazuli(element: HTMLElement, input: LazuliInput = {}): Laz
 
   document.addEventListener('visibilitychange', updateRunning)
 
+  let image: TexImageSource | null = null
+
   // Context loss (GPU reset, too many contexts): wait for restore, then rebuild.
   const onLost = (e: Event) => {
     e.preventDefault()
@@ -242,6 +249,7 @@ export function createLazuli(element: HTMLElement, input: LazuliInput = {}): Laz
   const onRestored = () => {
     renderer = createRenderer(canvas, config)
     if (renderer) {
+      if (image) renderer.setImage(image)
       dirty = true
       updateRunning()
     }
@@ -260,6 +268,12 @@ export function createLazuli(element: HTMLElement, input: LazuliInput = {}): Laz
       if (config.quality !== quality) resize()
       paintFallback()
       renderer?.setConfig(config)
+      dirty = true
+    },
+    setImage(next) {
+      if (destroyed) return
+      image = next
+      renderer?.setImage(next)
       dirty = true
     },
     shuffle() {

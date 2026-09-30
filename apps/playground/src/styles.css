@@ -159,6 +159,19 @@ button {
   transition: none;
 }
 
+.frames__world {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 0 0;
+}
+
+.workspace[data-panning] .canvas,
+.workspace[data-panning] .frame,
+.workspace[data-panning] .frame-draw {
+  cursor: grab;
+}
+
 .frame-draw {
   position: fixed;
   inset: 0;
@@ -186,6 +199,10 @@ button {
   text-overflow: ellipsis;
   cursor: default;
   user-select: none;
+  /* Labels, handles and the size badge stay the same size on screen at any zoom. */
+  transform: scale(var(--inv, 1));
+  transform-origin: 0 100%;
+  max-width: calc(100% / var(--inv, 1));
 }
 
 .frame__body {
@@ -196,17 +213,11 @@ button {
   box-shadow: 0 0 0 1px rgb(var(--ink) / 0.08), 0 1px 2px #0000000a;
 }
 
-.frame__image,
 .frame__pattern {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
-}
-
-.frame__image {
-  object-fit: cover;
-  user-select: none;
 }
 
 .frame[data-selected] .frame__name {
@@ -215,7 +226,7 @@ button {
 
 .frame[data-selected] .frame__body,
 .frame[data-dropping] .frame__body {
-  box-shadow: 0 0 0 1.5px var(--accent), 0 1px 2px #0000000a;
+  box-shadow: 0 0 0 calc(1.5px * var(--inv, 1)) var(--accent), 0 1px 2px #0000000a;
 }
 
 .frame--draft {
@@ -225,23 +236,25 @@ button {
 
 .frame__handle {
   position: absolute;
-  width: 8px;
-  height: 8px;
+  width: calc(8px * var(--inv, 1));
+  height: calc(8px * var(--inv, 1));
+  border-width: calc(1px * var(--inv, 1)) !important;
   border: 1px solid var(--accent);
   background: var(--surface);
   z-index: 1;
 }
 
-.frame__handle--nw { left: -4px; top: -4px; cursor: nwse-resize; }
-.frame__handle--ne { right: -4px; top: -4px; cursor: nesw-resize; }
-.frame__handle--sw { left: -4px; bottom: -4px; cursor: nesw-resize; }
-.frame__handle--se { right: -4px; bottom: -4px; cursor: nwse-resize; }
+.frame__handle--nw { left: calc(-4px * var(--inv, 1)); top: calc(-4px * var(--inv, 1)); cursor: nwse-resize; }
+.frame__handle--ne { right: calc(-4px * var(--inv, 1)); top: calc(-4px * var(--inv, 1)); cursor: nesw-resize; }
+.frame__handle--sw { left: calc(-4px * var(--inv, 1)); bottom: calc(-4px * var(--inv, 1)); cursor: nesw-resize; }
+.frame__handle--se { right: calc(-4px * var(--inv, 1)); bottom: calc(-4px * var(--inv, 1)); cursor: nwse-resize; }
 
 .frame__size {
   position: absolute;
   left: 50%;
-  top: calc(100% + 8px);
-  transform: translateX(-50%);
+  top: calc(100% + 8px * var(--inv, 1));
+  transform: translateX(-50%) scale(var(--inv, 1));
+  transform-origin: 50% 0;
   padding: 2px 6px;
   border-radius: 4px;
   background: var(--accent);
@@ -256,40 +269,36 @@ button {
 
 /* ---- Frame panel (right) ------------------------------------------------ */
 
-.frame-panel {
+.panel.frame-panel {
   position: fixed;
   z-index: var(--z-toolbar);
   top: 24px;
   right: 24px;
-  width: 260px;
+  width: 276px;
   max-height: calc(100dvh - 128px);
   animation: popover-in 140ms var(--ease-out);
   --from: translateX(4px);
 }
 
-.frame-panel__acts,
-.frame-panel__fill-acts {
+.frame-panel__acts {
   display: flex;
   align-items: center;
-  gap: 8px;
-}
-
-.frame-panel__acts {
-  gap: 10px;
-  margin-right: 2px;
+  gap: 12px;
+  margin-right: 4px;
 }
 
 .frame-panel__section {
-  padding: 8px 8px 0;
+  padding: 10px 8px 2px;
   color: var(--ink-50);
   font-size: 12px;
   font-weight: 500;
   line-height: 16px;
 }
 
-.frame-panel__name input,
-.frame-panel__num input {
+.frame-panel input {
+  width: 100%;
   min-width: 0;
+  padding: 0;
   border: 0;
   background: none;
   outline: none;
@@ -298,13 +307,15 @@ button {
   font-size: 14px;
   font-weight: 500;
   letter-spacing: var(--tracking-tight);
+  font-variant-numeric: tabular-nums;
 }
 
 .frame-panel__name input {
-  width: 100%;
+  color: var(--ink-90);
+  font-size: 15px;
 }
 
-.frame-panel__size {
+.frame-panel__pair {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 4px;
@@ -313,39 +324,83 @@ button {
 .frame-panel__num {
   justify-content: flex-start;
   gap: 10px;
+  min-width: 0;
   cursor: text;
 }
 
-.frame-panel__num input {
-  width: 100%;
+.frame-panel__num-label {
+  flex-shrink: 0;
+  color: var(--ink-40);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+/* Segmented like the popovers, sized for five short options. */
+.frame-panel__seg {
+  flex-shrink: 0;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 2px;
+  padding: 4px;
+  border-radius: 12px;
+  background: var(--row);
+}
+
+.frame-panel__seg button {
+  min-width: 0;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 9px;
+  background: none;
+  color: var(--ink-50);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+  letter-spacing: var(--tracking-tight);
   font-variant-numeric: tabular-nums;
 }
 
-.frame-panel__fill {
-  justify-content: flex-start;
-  gap: 10px;
-  padding-left: 8px;
+.frame-panel__seg button:hover {
+  color: var(--ink-80);
 }
 
-.frame-panel__fill img,
-.frame-panel__swatch {
+.frame-panel__seg button[aria-pressed='true'] {
+  background: var(--surface);
+  color: var(--ink-90);
+  box-shadow: 0 1px 2px #00000014, 0 0 0 0.5px #0000000d;
+}
+
+.frame-panel__image {
+  justify-content: flex-start;
+  gap: 8px;
+  padding: 0 8px;
+}
+
+.frame-panel__image img {
   flex-shrink: 0;
-  width: 32px;
+  width: 40px;
   height: 32px;
-  border-radius: 8px;
+  border-radius: 7px;
   object-fit: cover;
   box-shadow: inset 0 0 0 1px var(--swatch-edge);
 }
 
-.frame-panel__fill-acts {
-  margin-left: auto;
+.frame-panel__image-name {
+  flex: 1;
+  min-width: 0;
+  color: var(--ink-80);
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: var(--tracking-tight);
 }
 
 .frame-panel__chip {
-  height: 26px;
-  padding: 0 8px;
+  flex-shrink: 0;
+  height: 28px;
+  padding: 0 9px;
   border: 0;
-  border-radius: 7px;
+  border-radius: 8px;
   background: var(--surface);
   box-shadow: 0 1px 2px #00000014;
   color: var(--ink-80);
@@ -354,10 +409,47 @@ button {
   font-weight: 600;
 }
 
+.frame-panel__add {
+  cursor: pointer;
+  color: var(--ink-80);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: var(--tracking-tight);
+}
+
+.frame-panel__add-hint {
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.frame-panel .presets--3 {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.presets--3 .preset {
+  gap: 4px;
+  padding: 3px 3px 6px;
+}
+
+.presets--3 .preset__thumb {
+  aspect-ratio: 4 / 3;
+}
+
+.presets--3 .preset__thumb img {
+  object-fit: cover;
+}
+
+.presets--3 .preset__label {
+  font-size: 12px;
+}
+
 .frame-panel__code {
   flex-shrink: 0;
+  word-spacing: 2px;
   height: 40px;
-  margin-top: 6px;
+  margin-top: 8px;
   border: 0;
   border-radius: 10px;
   background: var(--accent);
@@ -370,6 +462,47 @@ button {
 
 .frame-panel__code:hover {
   background: #1a3e93;
+}
+
+/* ---- Zoom (bottom left) ------------------------------------------------- */
+
+.zoom {
+  position: fixed;
+  z-index: var(--z-toolbar);
+  left: 43px;
+  bottom: 32px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: var(--shadow-panel);
+}
+
+.zoom button {
+  min-width: 30px;
+  height: 30px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--ink-60);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.zoom button:hover {
+  background: var(--row);
+  color: var(--ink-80);
+}
+
+.zoom__value {
+  min-width: 52px !important;
+  font-size: 12px !important;
+  font-variant-numeric: tabular-nums;
 }
 
 /* ==========================================================================

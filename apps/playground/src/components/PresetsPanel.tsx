@@ -33,6 +33,19 @@ interface PresetsPanelProps {
 }
 
 export function PresetsPanel({ config, preset, onPick }: PresetsPanelProps) {
+  return (
+    <div className="panel panel--presets">
+      <div className="panel__head">
+        <h2 className="panel__title">Presets</h2>
+      </div>
+      <PresetGrid config={config} preset={preset} onPick={onPick} />
+      <p className="panel__hint">Starts over from the preset. Edits after that are kept on top of it.</p>
+    </div>
+  )
+}
+
+/** The preset cards alone (also used in the frame panel). */
+export function PresetGrid({ config, preset, onPick, className = '' }: PresetsPanelProps & { className?: string }) {
   const [, redraw] = useState(0)
   useEffect(() => {
     void renderThumbs(() => redraw((n) => n + 1))
@@ -40,32 +53,26 @@ export function PresetsPanel({ config, preset, onPick }: PresetsPanelProps) {
   const unchanged = preset !== null && JSON.stringify(presetConfig(preset)) === JSON.stringify(config)
 
   return (
-    <div className="panel panel--presets">
-      <div className="panel__head">
-        <h2 className="panel__title">Presets</h2>
-      </div>
-      <div className="presets" role="list">
-        {PRESET_IDS.map((id) => {
-          const src = thumbs.get(id)
-          return (
-            <button
-              key={id}
-              type="button"
-              role="listitem"
-              className="preset"
-              aria-current={id === preset || undefined}
-              data-edited={(id === preset && !unchanged) || undefined}
-              onClick={() => onPick(id)}
-            >
-              <span className="preset__thumb" data-transparent={presetConfig(id).background.type === 'transparent' || undefined}>
-                {src && <img src={src} alt="" />}
-              </span>
-              <span className="preset__label">{PRESETS[id].label}</span>
-            </button>
-          )
-        })}
-      </div>
-      <p className="panel__hint">Starts over from the preset. Edits after that are kept on top of it.</p>
+    <div className={`presets ${className}`} role="list">
+      {PRESET_IDS.map((id) => {
+        const src = thumbs.get(id)
+        return (
+          <button
+            key={id}
+            type="button"
+            role="listitem"
+            className="preset"
+            aria-current={id === preset || undefined}
+            data-edited={(id === preset && !unchanged) || undefined}
+            onClick={() => onPick(id)}
+          >
+            <span className="preset__thumb" data-transparent={presetConfig(id).background.type === 'transparent' || undefined}>
+              {src && <img src={src} alt="" />}
+            </span>
+            <span className="preset__label">{PRESETS[id].label}</span>
+          </button>
+        )
+      })}
     </div>
   )
 }

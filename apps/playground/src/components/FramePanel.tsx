@@ -1,12 +1,11 @@
-import { PRESETS } from 'lazuli-bg'
+import type { PresetId } from 'lazuli-bg'
 import { useRef, useState } from 'react'
-import { ShuffleIcon } from '../icons'
-import type { Frame } from './Frames'
-import { readImage } from './Frames'
-import { Segmented } from './Segmented'
+import type { Config } from '../state'
+import { readImage, type Frame } from './Frames'
+import { PresetGrid } from './PresetsPanel'
 
-// The selected frame's own properties, docked on the right (the dock on the left keeps editing
-// its look). Same panel styles as the popovers.
+// The selected frame's own panel, docked on the right: name, size, source image, look, code.
+// The dock on the left keeps editing the look in detail.
 const RATIOS = [
   { label: 'Free', r: 0 },
   { label: '16:9', r: 16 / 9 },
@@ -18,30 +17,27 @@ type RatioLabel = (typeof RATIOS)[number]['label']
 
 interface FramePanelProps {
   frame: Frame
+  config: Config
   onChange(patch: Partial<Frame>): void
-  onAddPattern(): void
-  onRemovePattern(): void
-  onShuffle(): void
+  onPreset(id: PresetId): void
   onDuplicate(): void
   onDelete(): void
   onCode(): void
 }
 
-export function FramePanel({ frame, onChange, onAddPattern, onRemovePattern, onShuffle, onDuplicate, onDelete, onCode }: FramePanelProps) {
+export function FramePanel({ frame, config, onChange, onPreset, onDuplicate, onDelete, onCode }: FramePanelProps) {
   const file = useRef<HTMLInputElement>(null)
-  const [ratio, setRatio] = useState<RatioLabel>(() => matchRatio(frame))
-  const current = ratio === 'Free' ? 'Free' : matchRatio(frame) === ratio ? ratio : 'Free'
+  // A picked ratio stays locked while the frame still matches it (W/H edits keep it).
+  const [locked, setLocked] = useState<RatioLabel>(() => matchRatio(frame))
+  const ratio = locked !== 'Free' && matchRatio(frame) === locked ? locked : 'Free'
+  const r = RATIOS.find((o) => o.label === ratio)!.r
 
-  const setSize = (w: number, h: number) => {
-    // Resize around the center so the frame stays where you're looking.
-    onChange({ w, h, x: frame.x + (frame.w - w) / 2, y: frame.y + (frame.h - h) / 2 })
-  }
+  const setSize = (w: number, h: number) => onChange({ w, h, x: frame.x + (frame.w - w) / 2, y: frame.y + (frame.h - h) / 2 })
   const pickRatio = (label: RatioLabel) => {
-    setRatio(label)
-    const r = RATIOS.find((o) => o.label === label)!.r
-    if (r) setSize(frame.w, Math.round(frame.w / r))
+    setLocked(label)
+    const k = RATIOS.find((o) => o.label === label)!.r
+    if (k) setSize(frame.w, Math.round(frame.w / k))
   }
-  const lookName = frame.config ? PRESETS[frame.preset ?? 'lazuli'].label : null
 
   return (
     <aside className="panel frame-panel" aria-label="Frame">
@@ -68,51 +64,34 @@ export function FramePanel({ frame, onChange, onAddPattern, onRemovePattern, onS
       </label>
 
       <div className="frame-panel__section">Size</div>
-      <div className="frame-panel__size">
-        <NumberRow label="W" value={frame.w} onChange={(w) => setSize(w, ratio !== 'Free' && current !== 'Free' ? Math.round(w / RATIOS.find((o) => o.label === ratio)!.r) : frame.h)} />
-        <NumberRow label="H" value={frame.h} onChange={(h) => setSize(ratio !== 'Free' && current !== 'Free' ? Math.round(h * RATIOS.find((o) => o.label === ratio)!.r) : frame.w, h)} />
+      <div className="frame-panel__pair">
+        <NumberRow label="W" value={frame.w} onChange={(w) => setSize(w, r ? Math.round(w / r) : frame.h)} />
+        <NumberRow label="H" value={frame.h} onChange={(h) => setSize(r ? Math.round(h * r) : frame.w, h)} />
       </div>
-      <Segmented label="Aspect ratio" options={RATIOS} value={current} onChange={pickRatio} />
+      <div className="frame-panel__seg" role="group" aria-label="Aspect ratio">
+        {RATIOS.map((o) => (
+          <button key={o.label} type="button" aria-pressed={o.label === ratio} onClick={() => pickRatio(o.label)}>
+            {o.label}
+          </button>
+        ))}
+      </div>
 
-      <div className="frame-panel__section">Fill</div>
+      <div className="frame-panel__section">Source</div>
       {frame.image ? (
-        <div className="row frame-panel__fill">
+        <div className="row frame-panel__image">
           <img src={frame.image} alt="" />
-          <span className="row__label">Image</span>
-          <span className="frame-panel__fill-acts">
-            <button type="button" className="frame-panel__chip" onClick={() => file.current?.click()}>
-              Replace
-            </button>
-            <button type="button" className="frame-panel__chip" onClick={() => onChange({ image: undefined })}>
-              Remove
-            </button>
-          </span>
+          <span className="frame-panel__image-name" />
+          <button type="button" className="frame-panel__chip" onClick={() => file.current?.click()}>
+            Replace
+          </button>
+          <button type="button" className="frame-panel__chip" onClick={() => onChange({ image: undefined })}>
+            Remove
+          </button>
         </div>
       ) : (
-        <button type="button" className="row row--button frame-panel__add" onClick={() => file.current?.click()}>
-          <span className="row__label">Image</span>
-          <span className="row__value">Add…</span>
-        </button>
-      )}
-      {lookName ? (
-        <div className="row frame-panel__fill">
-          <span className="frame-panel__swatch" style={{ background: `radial-gradient(circle at 40% 38%, ${frame.config!.color.palette[0]}, ${frame.config!.color.palette[frame.config!.color.palette.length - 1]})` }} />
-          <span className="row__label">{lookName}</span>
-          <span className="frame-panel__fill-acts">
-            <button type="button" className="icon-button" onClick={onShuffle} aria-label="Shuffle" title="Shuffle · R">
-              <ShuffleIcon width={16} height={16} />
-            </button>
-            {frame.image && (
-              <button type="button" className="frame-panel__chip" onClick={onRemovePattern}>
-                Remove
-              </button>
-            )}
-          </span>
-        </div>
-      ) : (
-        <button type="button" className="row row--button frame-panel__add" onClick={onAddPattern}>
-          <span className="row__label">Pattern</span>
-          <span className="row__value">Add…</span>
+        <button type="button" className="row frame-panel__add" onClick={() => file.current?.click()}>
+          <span>Shape</span>
+          <span className="frame-panel__add-hint">Use an image…</span>
         </button>
       )}
       <input
@@ -126,6 +105,9 @@ export function FramePanel({ frame, onChange, onAddPattern, onRemovePattern, onS
           if (f) readImage(f).then(({ src }) => onChange({ image: src }))
         }}
       />
+
+      <div className="frame-panel__section">Look</div>
+      <PresetGrid className="presets--3" config={config} preset={frame.preset ?? (frame.config ? null : 'lazuli')} onPick={onPreset} />
 
       <button type="button" className="frame-panel__code" onClick={onCode}>
         Get code
@@ -143,7 +125,7 @@ function NumberRow({ label, value, onChange }: { label: string; value: number; o
   }
   return (
     <label className="row frame-panel__num">
-      <span className="row__label">{label}</span>
+      <span className="frame-panel__num-label">{label}</span>
       <input
         inputMode="numeric"
         value={draft ?? String(Math.round(value))}

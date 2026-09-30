@@ -23,6 +23,8 @@ export interface Renderer {
   setConfig(config: LazuliConfig): void
   /** Draw one frame at the canvas's current buffer size. Returns false if no program is ready yet. */
   draw(frame: FrameState): boolean
+  /** Use an image as the source instead of the config's shape (null goes back to the shape). */
+  setImage(image: TexImageSource | null): void
   /** True while the wanted variant is still compiling (the previous one keeps drawing). */
   readonly pending: boolean
   destroy(): void
@@ -69,6 +71,9 @@ export function createRenderer(canvas: HTMLCanvasElement | OffscreenCanvas, conf
   let current: Program | null = null
   let wanted: Program | null = null
   let values: UniformValues = {}
+  let config_ = config
+  let texture: WebGLTexture | null = null
+  let imageAspect = 1
 
   const vs = compile(gl, gl.VERTEX_SHADER, VERTEX_SHADER)
 
@@ -127,12 +132,39 @@ export function createRenderer(canvas: HTMLCanvasElement | OffscreenCanvas, conf
   const renderer: Renderer = {
     gl,
     setConfig(c) {
-      values = toUniforms(c)
-      const key = variantKey(c.shape.type, c.texture.type)
-      const p = cache.get(key) ?? build(key, fragmentShader(c.shape.type, c.texture.type))
+      config_ = c
+      values = { ...toUniforms(c), u_img: 0, u_imgAspect: imageAspect, u_imgSoft: (c.blobs.softness / 100) * 3 }
+      const source = texture ? 'image' : c.shape.type
+      const key = variantKey(source, c.texture.type)
+      const p = cache.get(key) ?? build(key, fragmentShader(source, c.texture.type))
       wanted = p
       if (finish(p)) use(p)
       else if (current) upload(current, values)
+    },
+    setImage(image) {
+      if (texture) gl.deleteTexture(texture)
+      texture = null
+      if (image) {
+        // Resampled to a power-of-two square so WebGL1 can mipmap it (softness blurs by mip level);
+        // the real aspect goes to the shader for the cover fit.
+        const w = 'width' in image ? Number(image.width) : 1
+        const h = 'height' in image ? Number(image.height) : 1
+        imageAspect = w / Math.max(1, h)
+        const pot = new OffscreenCanvas(1024, 1024)
+        pot.getContext('2d')!.drawImage(image as CanvasImageSource, 0, 0, 1024, 1024)
+        texture = gl.createTexture()
+        gl.activeTexture(gl.TEXTURE0)
+        gl.bindTexture(gl.TEXTURE_2D, texture)
+        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true)
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, pot)
+        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false)
+        gl.generateMipmap(gl.TEXTURE_2D)
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR)
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
+      }
+      renderer.setConfig(config_)
     },
     draw(frame) {
       if (wanted && wanted !== current && finish(wanted)) use(wanted)
@@ -141,6 +173,10 @@ export function createRenderer(canvas: HTMLCanvasElement | OffscreenCanvas, conf
       const h = gl.drawingBufferHeight
       gl.viewport(0, 0, w, h)
       gl.bindBuffer(gl.ARRAY_BUFFER, buffer)
+      if (texture) {
+        gl.activeTexture(gl.TEXTURE0)
+        gl.bindTexture(gl.TEXTURE_2D, texture)
+      }
       gl.enableVertexAttribArray(0)
       gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0)
       upload(current, {
@@ -158,6 +194,7 @@ export function createRenderer(canvas: HTMLCanvasElement | OffscreenCanvas, conf
       return !!wanted && wanted !== current && !wanted.failed
     },
     destroy() {
+      if (texture) gl.deleteTexture(texture)
       for (const p of cache.values()) gl.deleteProgram(p.program)
       cache.clear()
       gl.deleteShader(vs)
@@ -178,7 +215,8 @@ function set(gl: GL, loc: WebGLUniformLocation, type: number, v: UniformValue) {
     case gl.FLOAT_VEC3: return gl.uniform3fv(loc, a)
     case gl.FLOAT_VEC4: return gl.uniform4fv(loc, a)
     case gl.INT:
-    case gl.BOOL: return gl.uniform1iv(loc, Array.from(a, Math.round))
+    case gl.BOOL:
+    case gl.SAMPLER_2D: return gl.uniform1iv(loc, Array.from(a, Math.round))
   }
 }
 
