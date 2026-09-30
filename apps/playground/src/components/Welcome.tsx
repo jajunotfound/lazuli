@@ -92,7 +92,7 @@ export function AboutButton({ onClick, mood, reduced }: { onClick(): void; mood:
     <Tooltip.Root>
       <Tooltip.Trigger asChild>
         <button type="button" className="about-button" onClick={onClick} aria-label="About Lazuli">
-          <Mascot size={52} mood={mood} reduced={reduced} />
+          <Mascot size={40} mood={mood} reduced={reduced} />
         </button>
       </Tooltip.Trigger>
       <Tooltip.Portal>

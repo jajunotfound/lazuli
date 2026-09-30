@@ -19,7 +19,7 @@ export function Entrance({ target, reduced, onReveal, onDone }: EntranceProps) {
   const words = useRef<HTMLParagraphElement>(null)
   const lz = useRef<MascotHandle>(null)
   const [mood, setMood] = useState<Mood>('idle')
-  const [S] = useState(() => Math.round(Math.min(innerHeight * 0.36, 320)))
+  const [S] = useState(() => Math.round(Math.min(innerHeight * 0.24, 200)))
   const finished = useRef(false)
   const revealed = useRef(false)
 

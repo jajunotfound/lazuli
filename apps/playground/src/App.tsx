@@ -366,7 +366,8 @@ export function App() {
 function firstBox() {
   const vw = innerWidth, vh = innerHeight
   const left = vw > 900 ? 130 : 24, right = vw > 900 ? vw - 300 : vw - 24
-  const w = Math.round(Math.max(240, Math.min(right - left - 40, (vh - 200) * (16 / 9), 1120)))
+  // About 60% of the free space: room around it to draw more frames.
+  const w = Math.round(Math.max(240, Math.min((right - left) * 0.62, (vh - 240) * (16 / 9) * 0.75, 820)))
   const h = Math.round((w * 9) / 16)
   return { x: Math.round(left + (right - left - w) / 2), y: Math.round((vh - h) / 2), w, h }
 }
