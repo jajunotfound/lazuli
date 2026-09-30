@@ -52,6 +52,33 @@ Design rules introduced (apply them in code):
 Assets used by the frames (real engine renders, thumbnails, checkerboards) are in
 `~/lazuli-review/paper-assets/` on this Mac.
 
+## User's edits to the v2 frames (reviewed in depth, 2026-09-30)
+
+Everything else matches what was built; these are the user's changes and they win:
+- **13 Presets panel:** padding 6 → **12px**, fixed 240px width removed (hugs content, 254px);
+  **"Edited · Revert" removed** from the title row; **footer hint removed**. Lazuli card is `flex: 1`.
+- **16 Waves Count row:** the 5 absolutely placed step dots became an **auto-layout group of 4 dots**
+  (left 98, gap 25) that ends at x 189, so **dots never sit under the value**.
+- **Hints removed everywhere:** 20 None ("Transparent: …"), 21 Motion ("Loop repeats …"),
+  21 Cursor ("Move over the canvas …") and Cursor off. The UI carries no helper lines now.
+- v1 frames, toolbar, menus, 14/15/17/18/19/22/23 and the phone frames are unchanged.
+- Open question for the user: apply the dot rule and "no hints" to the other stepped rows / v1
+  hints too (frame 14 Count, Rings Sources, Color Steps, Paper Detail still have dots under the value).
+
+## v2.1: the Lazuli mascot
+
+- Paper artboard **"lazuli"**: 669px circle, `linear-gradient(180deg, oklab(44.2% -0.027 -0.167),
+  oklab(55.2% -0.027 -0.167))`, inset shadow `23px -23px 47px #00000033`, blur 10px; two white
+  45×82 pill eyes, gap 23, blur 2px, top at 30.8% of the body.
+- Motion prototype: `design/lazuli-motion.html`, published at
+  https://claude.ai/artifact/JUy1s3wqrthyqAKbGHmDws (private). 8 states (Idle, Look, Happy,
+  Curious, Thinking, Sleepy, Surprised, Melt) each tied to a product moment, with a timing table;
+  4 entrances (Drop-in-then-melt for first visit, Peek, From-a-dot for returning/reduced motion,
+  Wake-it-up into the welcome card). All sizes are relative to the body, so it scales to any size.
+- Auth: deferred by the user.
+- Frames direction (proposed, not decided): presets open as frames on a canvas; each frame has its
+  own config, aspect ratio and export; an image can be a frame's source. See the chat summary.
+
 ## Next: review the design, then implement it
 
 1. User reviews frames 13–23 and Phone 03–05; decides **docked panel (23) vs toolbar + popovers**.
