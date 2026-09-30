@@ -1,7 +1,8 @@
 import * as Tooltip from '@radix-ui/react-tooltip'
 import { createLazuli, layoutFromSeed, type LazuliInstance } from 'lazuli-bg'
 import { useEffect, useRef, type CSSProperties } from 'react'
-import { CloseIcon, InfoIcon } from '../icons'
+import { CloseIcon } from '../icons'
+import { Mascot, type Mood } from './Mascot'
 import type { Config } from '../state'
 
 export const GITHUB_URL = 'https://github.com/jajunotfound/lazuli'
@@ -85,12 +86,13 @@ function Preview({ config }: { config: Config }) {
   )
 }
 
-export function AboutButton({ onClick }: { onClick(): void }) {
+// Lazuli lives in the corner: it is the About button, and it reacts to what you do.
+export function AboutButton({ onClick, mood, reduced }: { onClick(): void; mood: Mood; reduced: boolean }) {
   return (
     <Tooltip.Root>
       <Tooltip.Trigger asChild>
         <button type="button" className="about-button" onClick={onClick} aria-label="About Lazuli">
-          <InfoIcon width={16} height={16} />
+          <Mascot size={52} mood={mood} reduced={reduced} />
         </button>
       </Tooltip.Trigger>
       <Tooltip.Portal>

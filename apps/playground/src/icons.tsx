@@ -27,6 +27,13 @@ export const ShuffleIcon = (p: IconProps) => (
   </Svg>
 )
 
+// Select tool: the pointer arrow.
+export const SelectIcon = (p: IconProps) => (
+  <Svg viewBox="0 0 16 16" {...p}>
+    <path {...stroke} d="M3.5 2.5L12.5 7.3 8.4 8.4 6.6 12.5Z" />
+  </Svg>
+)
+
 // Frame tool: Figma's "#" frame mark, drawn to match the 16-unit stroke icons above.
 export const FrameIcon = (p: IconProps) => (
   <Svg viewBox="0 0 16 16" {...p}>

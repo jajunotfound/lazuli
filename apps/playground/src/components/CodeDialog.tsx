@@ -1,3 +1,4 @@
+import type { Mood } from './Mascot'
 import * as Dialog from '@radix-ui/react-dialog'
 import type { LazuliInstance } from 'lazuli-bg'
 import { record, snapshot } from 'lazuli-bg/capture'
@@ -26,9 +27,11 @@ interface CodeDialogProps {
   onOpenChange(open: boolean): void
   config: Config
   engine: RefObject<LazuliInstance | null>
+  /** Lazuli reacts: happy on copy/download, thinking while a video renders, oops on errors. */
+  onMood?(mood: Mood | null, ms?: number): void
 }
 
-export function CodeDialog({ open, onOpenChange, config, engine }: CodeDialogProps) {
+export function CodeDialog({ open, onOpenChange, config, engine, onMood }: CodeDialogProps) {
   const [tab, setTab] = useState<Tab>('HTML file')
   const [copied, setCopied] = useState(false)
   const codeRef = useRef<HTMLPreElement>(null)
@@ -50,7 +53,10 @@ export function CodeDialog({ open, onOpenChange, config, engine }: CodeDialogPro
 
   const copy = async () => {
     if (!code) return
-    if (await copyText(code.full)) setCopied(true)
+    if (await copyText(code.full)) {
+      setCopied(true)
+      onMood?.('happy', 1800)
+    }
     else if (codeRef.current) selectContents(codeRef.current) // let the user press ⌘C / Ctrl+C
   }
 
@@ -82,9 +88,9 @@ export function CodeDialog({ open, onOpenChange, config, engine }: CodeDialogPro
               </button>
             </>
           ) : tab === 'Image' ? (
-            <ImageExport engine={engine} config={config} />
+            <ImageExport engine={engine} config={config} onMood={onMood} />
           ) : (
-            <VideoExport engine={engine} config={config} />
+            <VideoExport engine={engine} config={config} onMood={onMood} />
           )}
         </Dialog.Content>
       </Dialog.Portal>
@@ -92,7 +98,7 @@ export function CodeDialog({ open, onOpenChange, config, engine }: CodeDialogPro
   )
 }
 
-function ImageExport({ engine, config }: { engine: RefObject<LazuliInstance | null>; config: Config }) {
+function ImageExport({ engine, config, onMood }: { engine: RefObject<LazuliInstance | null>; config: Config; onMood?: CodeDialogProps['onMood'] }) {
   const [scale, setScale] = useState<Scale>('2×')
   const [preview, setPreview] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -132,7 +138,9 @@ function ImageExport({ engine, config }: { engine: RefObject<LazuliInstance | nu
       const a = Object.assign(document.createElement('a'), { href: url, download: `lazuli-${w}x${h}.png` })
       a.click()
       setTimeout(() => URL.revokeObjectURL(url), 1000)
+      onMood?.('happy', 1800)
     } catch (err) {
+      onMood?.('oops', 3400)
       setError(err instanceof Error ? err.message.replace(/^\[lazuli\] /, '') : 'The image could not be rendered.')
     } finally {
       setBusy(false)
@@ -165,7 +173,7 @@ const SECONDS = [{ label: '3 s' }, { label: '6 s' }, { label: '10 s' }] as const
 const LOOPS = [{ label: '1 loop' }, { label: '2 loops' }, { label: '3 loops' }] as const
 const VIDEO_SCALES = [{ label: '1×' }, { label: '2×' }] as const
 
-function VideoExport({ engine, config }: { engine: RefObject<LazuliInstance | null>; config: Config }) {
+function VideoExport({ engine, config, onMood }: { engine: RefObject<LazuliInstance | null>; config: Config; onMood?: CodeDialogProps['onMood'] }) {
   const [format, setFormat] = useState<(typeof FORMATS)[number]['label']>('MP4')
   const [rate, setRate] = useState<(typeof RATES)[number]['label']>('30 fps')
   const [length, setLength] = useState<string>(config.motion.loop > 0 ? '1 loop' : '6 s')
@@ -194,6 +202,7 @@ function VideoExport({ engine, config }: { engine: RefObject<LazuliInstance | nu
     abort.current = new AbortController()
     setError(null)
     setProgress(0)
+    onMood?.('thinking')
     try {
       const blob = await record(e, {
         width: w,
@@ -209,8 +218,11 @@ function VideoExport({ engine, config }: { engine: RefObject<LazuliInstance | nu
       const ext = format === 'MP4' ? 'mp4' : 'webm'
       Object.assign(document.createElement('a'), { href: url, download: `lazuli-${w}x${h}.${ext}` }).click()
       setTimeout(() => URL.revokeObjectURL(url), 1000)
+      onMood?.('happy', 1800)
     } catch (err) {
+      onMood?.(null)
       if (!(err instanceof DOMException && err.name === 'AbortError')) {
+        onMood?.('oops', 3400)
         setError(err instanceof Error ? err.message.replace(/^\[lazuli\] /, '') : 'The video could not be rendered.')
       }
     } finally {

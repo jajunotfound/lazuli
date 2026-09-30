@@ -131,10 +131,14 @@ button {
    Stage (full-screen engine)
    ========================================================================== */
 
-.stage {
+/* The page is a design canvas (dotted ground); the shader lives in frames. */
+.canvas {
   position: fixed;
   inset: 0;
   touch-action: none;
+  background-color: #f7f8fa;
+  background-image: radial-gradient(#d9dce2 1px, transparent 1px);
+  background-size: 20px 20px;
 }
 
 /* ==========================================================================
@@ -145,6 +149,14 @@ button {
   position: fixed;
   inset: 0;
   pointer-events: none;
+  transition: opacity 1300ms var(--ease-out), transform 1300ms var(--ease-out);
+}
+
+/* Before the entrance reveals them: the frame grows out of where Lazuli sank. */
+.frames[data-veiled] {
+  opacity: 0;
+  transform: scale(0.94);
+  transition: none;
 }
 
 .frame-draw {
@@ -240,6 +252,296 @@ button {
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
   pointer-events: none;
+}
+
+/* ---- Frame panel (right) ------------------------------------------------ */
+
+.frame-panel {
+  position: fixed;
+  z-index: var(--z-toolbar);
+  top: 24px;
+  right: 24px;
+  width: 260px;
+  max-height: calc(100dvh - 128px);
+  animation: popover-in 140ms var(--ease-out);
+  --from: translateX(4px);
+}
+
+.frame-panel__acts,
+.frame-panel__fill-acts {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.frame-panel__acts {
+  gap: 10px;
+  margin-right: 2px;
+}
+
+.frame-panel__section {
+  padding: 8px 8px 0;
+  color: var(--ink-50);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
+}
+
+.frame-panel__name input,
+.frame-panel__num input {
+  min-width: 0;
+  border: 0;
+  background: none;
+  outline: none;
+  color: var(--ink-80);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: var(--tracking-tight);
+}
+
+.frame-panel__name input {
+  width: 100%;
+}
+
+.frame-panel__size {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+}
+
+.frame-panel__num {
+  justify-content: flex-start;
+  gap: 10px;
+  cursor: text;
+}
+
+.frame-panel__num input {
+  width: 100%;
+  font-variant-numeric: tabular-nums;
+}
+
+.frame-panel__fill {
+  justify-content: flex-start;
+  gap: 10px;
+  padding-left: 8px;
+}
+
+.frame-panel__fill img,
+.frame-panel__swatch {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  object-fit: cover;
+  box-shadow: inset 0 0 0 1px var(--swatch-edge);
+}
+
+.frame-panel__fill-acts {
+  margin-left: auto;
+}
+
+.frame-panel__chip {
+  height: 26px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 7px;
+  background: var(--surface);
+  box-shadow: 0 1px 2px #00000014;
+  color: var(--ink-80);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.frame-panel__code {
+  flex-shrink: 0;
+  height: 40px;
+  margin-top: 6px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: var(--tracking-tight);
+}
+
+.frame-panel__code:hover {
+  background: #1a3e93;
+}
+
+/* ==========================================================================
+   Lazuli, the mascot (Paper artboard "lazuli"; sizes are fractions of --s)
+   ========================================================================== */
+
+.lz {
+  --s: 280px;
+  position: relative;
+  width: var(--s);
+  height: var(--s);
+  pointer-events: none;
+}
+
+.lz__shadow {
+  position: absolute;
+  left: 18%;
+  right: 18%;
+  bottom: -7%;
+  height: 9%;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgb(31 72 168 / 0.22), transparent);
+  filter: blur(calc(var(--s) * 0.02));
+}
+
+.lz__body {
+  position: absolute;
+  inset: 0;
+  transform-origin: 50% 100%;
+  will-change: transform, opacity;
+}
+
+.lz__fill {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: linear-gradient(180deg, oklab(44.2% -0.027 -0.167), oklab(55.2% -0.027 -0.167));
+  box-shadow: inset calc(var(--s) * 0.0344) calc(var(--s) * -0.0344) calc(var(--s) * 0.0703) #00000033;
+  filter: blur(calc(var(--s) * 0.015));
+}
+
+/* Zero-size anchor between the eyes; each eye is placed and shaped per frame. */
+.lz__eyes {
+  position: absolute;
+  left: 50%;
+  top: 36.93%;
+  width: 0;
+  height: 0;
+  filter: blur(calc(var(--s) * 0.003));
+}
+
+.lz__eye {
+  position: absolute;
+  left: calc(var(--s) * -0.03365);
+  top: calc(var(--s) * -0.0613);
+  width: calc(var(--s) * 0.0673);
+  height: calc(var(--s) * 0.1226);
+  mask-composite: intersect;
+}
+
+.lz__eye::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background: #fff;
+}
+
+.lz__z,
+.lz__think {
+  position: absolute;
+  pointer-events: none;
+}
+
+.lz__z {
+  right: 6%;
+  top: 2%;
+}
+
+.lz__z i {
+  position: absolute;
+  color: var(--accent);
+  font: 600 calc(var(--s) * 0.16) / 1 var(--font-sans);
+  font-style: normal;
+  opacity: 0;
+}
+
+.lz[data-mood='sleepy'] .lz__z i {
+  animation: lz-z 3.2s ease-in-out infinite;
+}
+.lz[data-mood='sleepy'] .lz__z i:nth-child(2) {
+  animation-delay: 1.05s;
+}
+.lz[data-mood='sleepy'] .lz__z i:nth-child(3) {
+  animation-delay: 2.1s;
+}
+
+@keyframes lz-z {
+  0% { opacity: 0; transform: translate(0, 0) scale(0.6); }
+  20% { opacity: 0.9; }
+  100% { opacity: 0; transform: translate(calc(var(--s) * 0.12), calc(var(--s) * -0.3)) scale(1.1); }
+}
+
+.lz__think {
+  right: -4%;
+  top: -10%;
+  width: 30%;
+  height: 30%;
+}
+
+.lz__think i {
+  position: absolute;
+  border-radius: 999px;
+  background: #4c78d8;
+  opacity: 0;
+}
+.lz__think i:nth-child(1) { width: 14%; height: 14%; left: 0; bottom: 0; }
+.lz__think i:nth-child(2) { width: 20%; height: 20%; left: 28%; bottom: 30%; }
+.lz__think i:nth-child(3) { width: 28%; height: 28%; left: 62%; bottom: 66%; }
+
+.lz[data-mood='thinking'] .lz__think i {
+  animation: lz-think 1.8s ease-in-out infinite;
+}
+.lz[data-mood='thinking'] .lz__think i:nth-child(2) {
+  animation-delay: 0.25s;
+}
+.lz[data-mood='thinking'] .lz__think i:nth-child(3) {
+  animation-delay: 0.5s;
+}
+
+@keyframes lz-think {
+  0%, 100% { opacity: 0.15; transform: scale(0.85); }
+  40% { opacity: 0.85; transform: scale(1); }
+}
+
+/* ---- Entrance: "meet lazuli" ------------------------------------------- */
+
+.entrance {
+  position: fixed;
+  z-index: var(--z-welcome);
+  inset: 0;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.entrance__words {
+  position: absolute;
+  left: 50%;
+  top: 42%;
+  margin: 0;
+  transform: translate(-50%, -50%);
+  color: var(--ink-90);
+  font-size: clamp(56px, 10vw, 136px);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.06em;
+  white-space: nowrap;
+}
+
+.entrance__words span {
+  display: inline-block;
+  opacity: 0;
+}
+
+.entrance__name {
+  color: var(--accent);
+}
+
+.entrance__actor {
+  position: absolute;
+  left: 50%;
+  top: 50%;
 }
 
 /* ==========================================================================
@@ -1156,16 +1458,15 @@ button {
   z-index: var(--z-welcome);
   right: 32px;
   bottom: 32px;
-  width: 40px;
-  height: 40px;
+  width: 52px;
+  height: 52px;
   display: grid;
   place-items: center;
   padding: 0;
-  border: 1px solid var(--border);
+  border: 0;
   border-radius: 999px;
-  background: var(--surface);
-  color: var(--ink-60);
-  box-shadow: var(--shadow-card);
+  background: none;
+  cursor: pointer;
 }
 
 .about-button:hover {

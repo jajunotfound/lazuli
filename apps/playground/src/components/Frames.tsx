@@ -29,6 +29,10 @@ interface FramesProps {
   selected: string | null
   /** Frame tool on: the next drag (or click) on the canvas draws a frame. */
   drawing: boolean
+  /** Hidden until the entrance reveals them. */
+  veiled?: boolean
+  /** The playground lifts the reduced-motion cap once the user picks a speed. */
+  liftReducedMotion?: boolean
   onDraw(box: Box): void
   onSelect(id: string | null): void
   onChange(id: string, patch: Partial<Frame>): void
@@ -37,7 +41,7 @@ interface FramesProps {
   registerEngine(id: string, engine: LazuliInstance | null): void
 }
 
-export function Frames({ frames, selected, drawing, onDraw, onSelect, onChange, onImage, registerEngine }: FramesProps) {
+export function Frames({ frames, selected, drawing, veiled, liftReducedMotion = false, onDraw, onSelect, onChange, onImage, registerEngine }: FramesProps) {
   const [draft, setDraft] = useState<Box | null>(null)
   const [dropTarget, setDropTarget] = useState<string | null | undefined>(undefined)
 
@@ -97,13 +101,14 @@ export function Frames({ frames, selected, drawing, onDraw, onSelect, onChange, 
   return (
     <>
       {drawing && <div className="frame-draw" onPointerDown={startDraw} aria-hidden="true" />}
-      <div className="frames" data-drop={dropTarget === null || undefined}>
+      <div className="frames" data-drop={dropTarget === null || undefined} data-veiled={veiled || undefined}>
         {frames.map((f) => (
           <FrameView
             key={f.id}
             frame={f}
             selected={f.id === selected}
             dropping={dropTarget === f.id}
+            lift={liftReducedMotion}
             onSelect={() => onSelect(f.id)}
             onChange={(patch) => onChange(f.id, patch)}
             registerEngine={registerEngine}
@@ -119,6 +124,7 @@ function FrameView({
   frame,
   selected,
   dropping,
+  lift,
   onSelect,
   onChange,
   registerEngine,
@@ -126,6 +132,7 @@ function FrameView({
   frame: Frame
   selected: boolean
   dropping: boolean
+  lift: boolean
   onSelect(): void
   onChange(patch: Partial<Frame>): void
   registerEngine(id: string, engine: LazuliInstance | null): void
@@ -137,7 +144,7 @@ function FrameView({
   // One engine per frame with a pattern; created when the frame gets a config.
   useEffect(() => {
     if (!host || !hasPattern) return
-    engine.current = createLazuli(host, frame.config)
+    engine.current = createLazuli(host, live(frame.config!, lift))
     registerEngine(frame.id, engine.current)
     return () => {
       engine.current?.destroy()
@@ -148,8 +155,8 @@ function FrameView({
   }, [host, hasPattern, frame.id, registerEngine])
 
   useEffect(() => {
-    if (frame.config) engine.current?.set(frame.config)
-  }, [frame.config])
+    if (frame.config) engine.current?.set(live(frame.config, lift))
+  }, [frame.config, lift])
 
   // Drag the frame by its body or its name; resize from the corners.
   const drag = (e: ReactPointerEvent, corner?: Corner) => {
@@ -215,4 +222,8 @@ export function readImage(file: File): Promise<{ src: string; w: number; h: numb
     }
     reader.readAsDataURL(file)
   })
+}
+
+function live(c: Config, lift: boolean): Config {
+  return lift ? { ...c, motion: { ...c.motion, reducedMotion: 'ignore' } } : c
 }

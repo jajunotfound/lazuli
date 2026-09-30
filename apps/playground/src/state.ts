@@ -135,3 +135,23 @@ export function markWelcomeSeen() {
     // Storage blocked (private mode, sandbox): the card just shows again next time.
   }
 }
+
+// First visit plays the "meet lazuli" entrance; ?meet replays it.
+const MET_KEY = 'lazuli:met'
+
+export function shouldMeet(): boolean {
+  if (new URLSearchParams(location.search).has('meet')) return true
+  try {
+    return localStorage.getItem(MET_KEY) !== '1'
+  } catch {
+    return false
+  }
+}
+
+export function markMet() {
+  try {
+    localStorage.setItem(MET_KEY, '1')
+  } catch {
+    // Private mode: the entrance plays again next time, which is fine.
+  }
+}
