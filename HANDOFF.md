@@ -75,9 +75,24 @@ Everything else matches what was built; these are the user's changes and they wi
   Curious, Thinking, Sleepy, Surprised, Melt) each tied to a product moment, with a timing table;
   4 entrances (Drop-in-then-melt for first visit, Peek, From-a-dot for returning/reduced motion,
   Wake-it-up into the welcome card). All sizes are relative to the body, so it scales to any size.
+- **Round 2 (user feedback applied):**
+  - **Peek + "meet lazuli"** is the first-visit entrance ("meet" black, "lazuli" #1F48A8). Lazuli
+    peeks, looks left/right/up at its name, grins, climbs up over the words.
+  - **Dissolve runs backwards**: eyes close, Lazuli moves to the deep blob's spot, shrinks 18% and
+    blurs out; the default blob grows out of that point (deep blob first, then the wide one and the
+    drop). No more scale-up toward the viewer.
+  - **Eyes rebuilt**: per-eye position/scale/tilt, gaze reaches the rim (±21% × ±16% of S) with
+    sideways foreshortening; straight lids are a clip-path, slanted lids and crescent arcs a mask.
+  - States: Look reaches the edges; Thinking = glances between upper corners with a concentration
+    squint; Happy = crescents; new **Oops** (worried, for failed exports / no WebGL). 9 states.
+- **Frames prototype**: `design/lazuli-frames.html`, published at
+  https://claude.ai/artifact/4MfQiFxF5PHEj42zzmm2jG (private). Canvas of frames (name + export
+  size above each), presets open as frames beside the selected one, aspect 16:9 / 1:1 / 4:5 /
+  9:16, docked panel edits the selection, only the selected frame is "Live". **Image frames**: an
+  uploaded or dropped image, gradient-mapped through a preset's palette (SVG filter stand-in for
+  the engine's image-as-field pass) with Steps, Softness, Grain, Mix; Get code shows a proposed
+  `source=` attribute. Paper was disconnected, so this isn't in Paper yet.
 - Auth: deferred by the user.
-- Frames direction (proposed, not decided): presets open as frames on a canvas; each frame has its
-  own config, aspect ratio and export; an image can be a frame's source. See the chat summary.
 
 ## Next: review the design, then implement it
 
