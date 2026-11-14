@@ -16,7 +16,10 @@ Read `docs/plans/layer-builder.md` first; it is the plan of record. The user dec
   `node tools/regress/compare.mjs` (pixel parity vs `tools/regress/ref`, the pre-stack engine) and
   `node tools/regress/stacks.mjs` (multi-shape stacks compile and draw). `pnpm test` in
   packages/lazuli.
-- Next: Milestone 3 (many shapes: combine modes). See the plan's Findings first.
+- Milestone 3 done: combine modes (compile.ts `shapeGroups`, `COMBINE`), Blobs split into
+  `blobsField` + `blobsShade`, engine `setStack()` / `stack`. Bench: `pnpm dev:engine` (or vite on
+  5399) then `GPU=1 node tools/visual-fit/shoot.mjs 'http://localhost:5399/bench.html?timing&w=1920&h=1080' …`.
+- Next: Milestone 4 (layers panel).
 
 ---
 

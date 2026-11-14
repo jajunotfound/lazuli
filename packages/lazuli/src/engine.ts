@@ -1,11 +1,19 @@
 import { resolveConfig, type LazuliInput } from './config'
 import { createRenderer, type Renderer } from './renderer'
 import type { LazuliConfig } from './schema'
+import { configToStack, stackToConfig, type Stack } from './stack'
 import { cssBackground } from './uniforms'
 
 export interface LazuliInstance {
   /** Update any subset of the config (nested v2 sections or v1 flat keys). Invalid values are ignored. */
   set(input: LazuliInput): void
+  /**
+   * Draw a layer stack (several shapes, textures, warps). The config then follows the stack
+   * (its front shape and texture); a later set() goes back to a one-shape config.
+   */
+  setStack(stack: Stack): void
+  /** The stack being drawn: the one from setStack, or the config as a one-shape stack. */
+  readonly stack: Readonly<Stack>
   /** Pick a random seed (new arrangement). Returns the new seed. */
   shuffle(): number
   /** Current resolved config. */
@@ -59,6 +67,7 @@ export function createLazuli(element: HTMLElement, input: LazuliInput = {}): Laz
   paintFallback()
 
   // ---- GL -----------------------------------------------------------------
+  let stack: Stack | null = null
   let renderer: Renderer | null = createRenderer(canvas, config)
   const hasGL = renderer !== null
   if (!hasGL) {
@@ -243,6 +252,7 @@ export function createLazuli(element: HTMLElement, input: LazuliInput = {}): Laz
   const onRestored = () => {
     renderer = createRenderer(canvas, config)
     if (renderer) {
+      if (stack) renderer.setStack(stack)
       dirty = true
       updateRunning()
     }
@@ -257,15 +267,30 @@ export function createLazuli(element: HTMLElement, input: LazuliInput = {}): Laz
     set(next) {
       if (destroyed) return
       const quality = config.quality
+      stack = null
       config = resolveConfig(next, config)
       if (config.quality !== quality) resize()
       paintFallback()
       renderer?.setConfig(config)
       dirty = true
     },
+    setStack(next) {
+      if (destroyed) return
+      const quality = config.quality
+      stack = structuredClone(next)
+      config = stackToConfig(stack)
+      if (config.quality !== quality) resize()
+      paintFallback()
+      renderer?.setStack(stack)
+      dirty = true
+    },
+    get stack() {
+      return stack ?? configToStack(config)
+    },
     shuffle() {
       const seed = randomSeed()
-      this.set({ seed })
+      if (stack) this.setStack({ ...stack, shapes: stack.shapes.map((x, i) => ({ ...x, seed: seed + i * 7919 })) })
+      else this.set({ seed })
       return seed
     },
     get config() {

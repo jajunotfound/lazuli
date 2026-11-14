@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { compileStack, stackFragment, stackUniforms } from '../src/compile'
+import { compileStack, shapeGroups, stackFragment, stackUniforms } from '../src/compile'
 import { fromFlat, presetConfig, resolveConfig, toFlat } from '../src/config'
 import { PRESET_IDS } from '../src/presets'
 import { applyOp, configToStack, decodeStack, encodeStack, stackKey, stackToConfig, type Stack, type StackOp } from '../src/stack'
@@ -213,4 +213,37 @@ test('operations never change their input', () => {
   ok(s, { op: 'add', layer: 'shape', type: 'waves' })
   ok(s, { op: 'hide', id: 'shape-1', visible: false })
   assert.equal(JSON.stringify(s), before)
+})
+
+// ---- combine modes (milestone 3) ------------------------------------------------
+
+test('Blobs that merge melt into the Blobs below them', () => {
+  const sh = (type: string, combine = 'merge') => ({ type, combine }) as Pick<import('../src/stack').ShapeLayer, 'type' | 'combine'>
+  assert.deepEqual(shapeGroups([sh('blobs'), sh('blobs'), sh('blobs'), sh('waves')]), [[0, 1, 2], [3]])
+  assert.deepEqual(shapeGroups([sh('blobs', 'add'), sh('blobs')]), [[0], [1]])
+  assert.deepEqual(shapeGroups([sh('waves'), sh('blobs'), sh('blobs', 'cut'), sh('blobs')]), [[0], [1, 2], [3]])
+  assert.deepEqual(shapeGroups([sh('blobs')]), [[0]])
+})
+
+test('merging Blobs share one shading pass', () => {
+  const s = ok(base(), { op: 'add', layer: 'shape', type: 'blobs' })
+  const f = stackFragment(s)
+  assert.ok(f.includes('group_0'))
+  assert.ok(f.includes('blobsField_0(p, t, k, c)') && f.includes('blobsField_1(p, t, k, c)'))
+  const apart = structuredClone(s)
+  apart.shapes[0].combine = 'add'
+  assert.ok(!stackFragment(apart).includes('group_0'))
+})
+
+test('combine modes change the program; the backmost shape’s does not', () => {
+  const s = ok(base(), { op: 'add', layer: 'shape', type: 'waves' })
+  const keys = (['merge', 'add', 'cut', 'intersect'] as const).map((m) => {
+    const x = structuredClone(s)
+    x.shapes[0].combine = m
+    return stackKey(x)
+  })
+  assert.equal(new Set(keys).size, 4)
+  const back = structuredClone(s)
+  back.shapes[1].combine = 'cut'
+  assert.equal(stackKey(back), stackKey(s))
 })

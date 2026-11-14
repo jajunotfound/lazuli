@@ -8,7 +8,7 @@
 
 import { assembleShader, NEEDS_COMMON, SHAPE_CHUNKS, SHAPE_COMMON } from './shader'
 import type { ShapeType } from './schema'
-import { stackKey, stackToConfig, type ShapeLayer, type Stack } from './stack'
+import { stackKey, stackToConfig, type CombineMode, type ShapeLayer, type Stack } from './stack'
 import { globalUniforms, shapeUniforms, type UniformValues } from './uniforms'
 
 /** The chunk with comments and everything inside braces removed: only top-level text is left. */
@@ -60,20 +60,71 @@ export function stackFragment(s: Readonly<Stack>): string {
   if (shapes.some((x) => NEEDS_COMMON[x.type])) parts.push(SHAPE_COMMON)
   shapes.forEach((x, i) => parts.push(renamedChunk(x.type, i)))
 
-  // Back to front: the last shape in the list is the furthest back.
-  let body: string
-  if (shapes.length === 0) body = '  return vec4(0.0);'
-  else if (shapes.length === 1) body = '  return shapeColor_0(p, t);'
-  else {
-    const lines = [`  vec4 P = shapeColor_${shapes.length - 1}(p, t);`, '  vec4 L;']
-    for (let i = shapes.length - 2; i >= 0; i--) lines.push(`  L = shapeColor_${i}(p, t); P = L + P * (1.0 - L.a);`)
-    lines.push('  return P;')
-    body = lines.join('\n')
-  }
-  parts.push(`vec4 shapeColor(vec2 p, float t) {\n${body}\n}`)
+  parts.push(composeShapes(shapes))
 
   const tex = s.textures.find((x) => x.visible)?.settings.type ?? 'none'
   return assembleShader(parts.join('\n'), tex)
+}
+
+/**
+ * Visible shapes (front first, numbered by position) grouped for drawing: a Blobs layer set to
+ * Merge melts into the Blobs layer right below it, so a run of them is one group whose fields
+ * add up before one shading pass (the front layer's softness and merge). Every other layer is
+ * a group of one.
+ */
+export function shapeGroups(shapes: readonly Pick<ShapeLayer, 'type' | 'combine'>[]): number[][] {
+  const groups: number[][] = []
+  for (let i = 0; i < shapes.length; i++) {
+    const prev = groups[groups.length - 1]
+    const above = shapes[i - 1]
+    if (prev && above?.type === 'blobs' && above.combine === 'merge' && shapes[i].type === 'blobs') prev.push(i)
+    else groups.push([i])
+  }
+  return groups
+}
+
+/**
+ * How a group lands on what's below it, by the combine mode of its front layer. P is the
+ * premultiplied color below, L the group's.
+ *   merge      normal stacking (Blobs that merge have already melted into one group)
+ *   add        colors add up, so overlaps glow
+ *   cut        the shape punches a hole in everything below
+ *   intersect  only the parts below that lie inside the shape stay
+ */
+const COMBINE: Record<CombineMode, string> = {
+  merge: 'P = L + P * (1.0 - L.a);',
+  add: 'P = min(P + L, vec4(1.0));',
+  cut: 'P *= 1.0 - L.a;',
+  intersect: 'P *= L.a;',
+}
+
+function composeShapes(shapes: readonly ShapeLayer[]): string {
+  const groups = shapeGroups(shapes)
+  const out: string[] = []
+  const color = (g: number[]) => (g.length === 1 ? `shapeColor_${g[0]}(p, t)` : `group_${g[0]}(p, t)`)
+
+  for (const g of groups) {
+    if (g.length < 2) continue
+    const lines = ['  float sum = 0.0, peak = 0.0, k;', '  vec3 cyc = vec3(0.0), c;']
+    for (const i of g) lines.push(`  sum += blobsField_${i}(p, t, k, c); peak = max(peak, k); cyc += c;`)
+    lines.push(`  return blobsShade_${g[0]}(sum, peak, cyc);`)
+    out.push(`vec4 group_${g[0]}(vec2 p, float t) {\n${lines.join('\n')}\n}`)
+  }
+
+  let body: string
+  if (groups.length === 0) body = '  return vec4(0.0);'
+  else if (groups.length === 1) body = `  return ${color(groups[0])};`
+  else {
+    // Back to front: the last group is the furthest back.
+    const lines = [`  vec4 P = ${color(groups[groups.length - 1])};`, '  vec4 L;']
+    for (let k = groups.length - 2; k >= 0; k--) lines.push(`  L = ${color(groups[k])}; ${COMBINE[shapes[groups[k][0]].combine]}`)
+    // Screening textures (halftone, dither) re-shade what the last shade() saw: hand them the
+    // composite as one flat color instead of the front shape alone.
+    lines.push('  g_cov = P.a; g_flat = P.rgb / max(P.a, 1e-4); g_isFlat = 1.0;', '  return P;')
+    body = lines.join('\n')
+  }
+  out.push(`vec4 shapeColor(vec2 p, float t) {\n${body}\n}`)
+  return out.join('\n')
 }
 
 /** The config one shape layer would be on its own (for its uniforms). */

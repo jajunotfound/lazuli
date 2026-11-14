@@ -4,6 +4,7 @@
 // Not part of the published build.
 import { resolveConfig, type LazuliInput } from '../config'
 import { createRenderer, type FrameState } from '../renderer'
+import { applyOp, configToStack, type Stack } from '../stack'
 
 const frame = (time: number, dpr: number): FrameState => ({ time, mouse: [0.5, 0.5], vel: [0, 0], active: 0, dpr })
 
@@ -60,6 +61,28 @@ const TIMED: [string, LazuliInput][] = [
   ['dots + halftone', { shape: 'dots', texture: { type: 'halftone' } }],
 ]
 
+/** Stacks for the layer builder's budget: 4 shapes, warps and grain under 8 ms at 1920×1080. */
+function stackOf(types: Stack['shapes'][number]['type'][], extra: (s: Stack) => Stack = (s) => s): Stack {
+  let s = configToStack(resolveConfig({ shape: types[types.length - 1] }))
+  for (let i = types.length - 2; i >= 0; i--) {
+    const r = applyOp(s, { op: 'add', layer: 'shape', type: types[i] })
+    if (r.ok) s = r.stack
+  }
+  return extra(s)
+}
+const withWarps = (s: Stack): Stack => {
+  for (const id of [s.shapes[0].id, s.shapes[1].id]) {
+    const r = applyOp(s, { op: 'add', layer: 'warp', type: 'swirl', parent: id })
+    if (r.ok) s = r.stack
+  }
+  return s
+}
+const TIMED_STACKS: [string, Stack][] = [
+  ['stack: 4 blobs merged + grain', stackOf(['blobs', 'blobs', 'blobs', 'blobs'])],
+  ['stack: blobs, waves, rings, plate + grain', stackOf(['blobs', 'waves', 'rings', 'nodal'])],
+  ['stack: 4 shapes + 2 warps + grain', stackOf(['blobs', 'waves', 'rings', 'nodal'], withWarps)],
+]
+
 function timing(w: number, h: number, frames = 40) {
   const canvas = Object.assign(document.createElement('canvas'), { width: w, height: h })
   const r = createRenderer(canvas, resolveConfig({}), { sync: true })!
@@ -76,6 +99,17 @@ function timing(w: number, h: number, frames = 40) {
     }
     return { name, ms: +((performance.now() - t0) / frames).toFixed(2) }
   })
+  for (const [name, stack] of TIMED_STACKS) {
+    r.setStack(stack)
+    for (let i = 0; i < 5; i++) r.draw(frame(i * 0.1, 2))
+    r.gl.readPixels(0, 0, 1, 1, r.gl.RGBA, r.gl.UNSIGNED_BYTE, px)
+    const t0 = performance.now()
+    for (let i = 0; i < frames; i++) {
+      r.draw(frame(i * 0.016, 2))
+      r.gl.readPixels(0, 0, 1, 1, r.gl.RGBA, r.gl.UNSIGNED_BYTE, px)
+    }
+    rows.push({ name, ms: +((performance.now() - t0) / frames).toFixed(2) })
+  }
   const info = r.gl.getExtension('WEBGL_debug_renderer_info')
   const gpu = info ? String(r.gl.getParameter(info.UNMASKED_RENDERER_WEBGL)) : 'unknown'
   r.destroy()

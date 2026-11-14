@@ -138,11 +138,13 @@ export function stackToConfig(s: Readonly<Stack>): LazuliConfig {
 // ---- structure key ------------------------------------------------------------
 
 /**
- * What decides the shader program: which shapes and textures are drawn, in order. Values
+ * What decides the shader program: which shapes and textures are drawn, in order, and how the
+ * shapes combine. Values
  * (sliders, colors, seeds) never change it, so editing them only re-uploads uniforms.
  */
 export function stackKey(s: Readonly<Stack>): string {
-  const shapes = s.shapes.filter((x) => x.visible).map((x) => x.type)
+  // The backmost shape's combine mode has nothing below it, so it doesn't count.
+  const shapes = s.shapes.filter((x) => x.visible).map((x, i, all) => (i < all.length - 1 ? `${x.type}:${x.combine}` : x.type))
   const tex = s.textures.find((x) => x.visible)?.settings.type ?? 'none'
   return `${shapes.join(',')}|${tex}`
 }

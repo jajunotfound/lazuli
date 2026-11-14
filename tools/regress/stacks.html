@@ -75,6 +75,39 @@
       return true
     })
 
+    // Combine modes: a Rings layer in front of the default Blobs.
+    const covered = (p) => {
+      let n = 0
+      for (let i = 0; i < p.length; i += 4) if (p[i] < 240 || p[i + 1] < 240 || p[i + 2] < 240) n++
+      return n
+    }
+    const pair = (mode, front = 'rings') => {
+      const s = add(base('blobs'), front)
+      s.shapes[0].combine = mode
+      return s
+    }
+    const shot = (s) => snapshot({}, opts(s)).then(pixels)
+    const [back, over, cut, inter, plus] = await Promise.all([shot(base('blobs')), shot(pair('merge')), shot(pair('cut')), shot(pair('intersect')), shot(pair('add'))])
+    await run('combine:cut removes', async () => covered(cut) < covered(back) || `cut ${covered(cut)} ≥ blobs alone ${covered(back)}`)
+    await run('combine:intersect keeps less', async () => covered(inter) < covered(back) || `intersect ${covered(inter)} ≥ blobs alone ${covered(back)}`)
+    // Cut and Intersect only take away: where the Blobs alone show background, both stay background.
+    await run('combine:cut/intersect add nothing', async () => {
+      for (let i = 0; i < back.length; i += 4) {
+        if (back[i] < 250 || back[i + 1] < 250 || back[i + 2] < 250) continue
+        for (const [name, p] of [['cut', cut], ['intersect', inter]]) if (p[i] < 248 || p[i + 1] < 248 || p[i + 2] < 248) return `${name} drew outside the shapes below`
+      }
+      return true
+    })
+    await run('combine:add differs from merge', async () => differs(plus, over) || 'add looks like merge')
+    await run('combine:liquid merge', async () => {
+      const melt = add(base('blobs'), 'blobs')
+      melt.shapes[0].seed = 99
+      const apart = structuredClone(melt)
+      apart.shapes[0].combine = 'add'
+      const [a, b] = await Promise.all([shot(melt), shot(apart)])
+      return differs(a, b) || 'merged blobs look like stacked blobs'
+    })
+
     return out
   })()
 </script>

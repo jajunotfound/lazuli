@@ -155,7 +155,9 @@ Milestone 2 showed that most shapes aren't one field: Milestone 3 has to pick ho
    renders the same. Demo: presets look unchanged on the new engine. Criteria 2, 3, 4, 5. **Done 2026-11-14:** 56 of
    56 renders pixel-identical (`tools/regress/compare.mjs`), 36 tests pass.
 3. **Many shapes.** Combine modes, per-layer seeds and uniforms. Demo: two blobs merged with rings
-   cut out. Criterion 6.
+   cut out. Criterion 6. **Done 2026-11-14:** Merge melts Blobs into the Blobs below (fields add
+   up); Add, Cut, Intersect composite by alpha for every shape. 4 shapes + grain: 5.9 ms at
+   1920×1080 on the M1.
 4. **Layers panel.** List (add, delete, reorder, hide, duplicate) + inspector. Demo: build a stack
    by hand. Criterion 8.
 5. **Warps.** Swirl, Noise, Ripple; Cursor moves into the stack. Demo: swirl on one shape only.

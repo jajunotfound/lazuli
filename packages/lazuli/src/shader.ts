@@ -148,15 +148,18 @@ const float FALLOFF = 1.8;   // >1 flattens each blob's top and steepens its edg
 const float CORE_LO = 0.525; // field where the core color starts
 const float CORE_HI = 1.54;  // field where it's fully core
 
-vec4 shapeColor(vec2 p, float t) {
+// The summed field of every blob at p, plus the strongest single blob (peak) and each blob's
+// palette stop weighted by its field (cyc, for the 'cycle' mapping). Blob layers that Merge add
+// these up across layers before shading, so they melt into one liquid form.
+float blobsField(vec2 p, float t, out float peak, out vec3 cyc) {
   float aspect = u_res.x / u_res.y;
   // slow organic wobble on the edges
   vec2 wob = drift(vec2(0.4), t);
   p += u_wobble * vec2(noise(p * 3.0 + wob), noise(p * 3.0 - wob + 7.0)) - u_wobble * 0.5;
 
   float field = 0.0;
-  float peak = 0.0;
-  vec3 cyc = vec3(0.0);
+  peak = 0.0;
+  cyc = vec3(0.0);
   for (int i = 0; i < 6; i++) {
     if (float(i) >= u_count) break;
     vec4 b = u_blob[i];
@@ -174,10 +177,13 @@ vec4 shapeColor(vec2 p, float t) {
     peak = max(peak, f);
     cyc += f * palAt(float(i));
   }
+  return field;
+}
 
+// Color a blob field (this layer's softness and merge).
+vec4 blobsShade(float sum, float peak, vec3 cyc) {
   // Merge 1 sums the fields (liquid), 0 takes the strongest blob (overlapping, unfused).
-  float sum = field;
-  field = mix(peak, field, u_merge);
+  float field = mix(peak, sum, u_merge);
   // Softness widens the edge band; past the point where it would tint the ground,
   // only the outer side keeps growing, so high values read as haze.
   float lo = max(0.5 - u_soft * 0.45, 0.0);
@@ -190,6 +196,13 @@ vec4 shapeColor(vec2 p, float t) {
     return shadeFlat(1.0 - (1.0 - e) * (1.0 - c), cyc / max(sum, 1e-4));
   }
   return shade(e, tone);
+}
+
+vec4 shapeColor(vec2 p, float t) {
+  float peak;
+  vec3 cyc;
+  float sum = blobsField(p, t, peak, cyc);
+  return blobsShade(sum, peak, cyc);
 }
 `
 
