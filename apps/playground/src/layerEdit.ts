@@ -73,7 +73,7 @@ export function layerPaths(layer: Layer | 'scene', view: Config): ParamPath[] {
   else if (layer.kind === 'texture') paths = bySection('texture.')
   else if (layer.kind === 'color') paths = bySection('color.')
   else if (layer.kind === 'background') paths = bySection('background.')
-  else if (layer.type === 'cursor') paths = bySection('cursor.')
+  else if (layer.kind === 'warp' && layer.type === 'cursor') paths = bySection('cursor.')
   else paths = []
   // Direction shows for the scene whenever any shape moves along it.
   return paths.filter((p) => p === 'motion.direction' || isActive(PARAMS.find((d) => d.path === p)!, view))
