@@ -291,6 +291,112 @@ button {
   color: var(--ink-40);
 }
 
+/* ---- Inline slider ------------------------------------------------------ */
+/* Thumb center = 9px + p·(W − 18px), matching Radix's in-bounds thumb offset. */
+
+.inline-slider {
+  position: relative;
+  flex-shrink: 0;
+  display: block;
+  height: 48px;
+  border-radius: 12px;
+  background: var(--row);
+  overflow: hidden;
+  touch-action: none;
+  user-select: none;
+  cursor: ew-resize;
+}
+
+.inline-slider:has(.inline-slider__thumb:focus-visible) {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.inline-slider__track {
+  position: absolute;
+  inset: 0;
+}
+
+.inline-slider__fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: calc(18px + var(--p) * (100% - 18px));
+  border-radius: 12px;
+  background: var(--row-strong);
+}
+
+.inline-slider span:has(> .inline-slider__thumb) {
+  top: 0;
+}
+
+.inline-slider__thumb {
+  position: relative;
+  display: block;
+  width: 18px;
+  height: 48px;
+  outline: none;
+}
+
+.inline-slider__thumb::after {
+  content: '';
+  position: absolute;
+  left: 8px;
+  top: 14px;
+  width: 2px;
+  height: 20px;
+  border-radius: 999px;
+  background: var(--handle);
+  transition: background-color 120ms ease;
+}
+
+.inline-slider__dot {
+  position: absolute;
+  top: 38px;
+  left: calc(9px + var(--d) * (100% - 18px) - 2px);
+  width: 4px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--dot);
+  pointer-events: none;
+}
+
+.inline-slider__label,
+.inline-slider__value {
+  position: absolute;
+  top: 15px;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 18px;
+  letter-spacing: var(--tracking-tight);
+  word-spacing: 2px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.inline-slider__label {
+  left: 14px;
+  color: var(--ink-50);
+  transition: color 120ms ease;
+}
+
+.inline-slider__value {
+  right: 14px;
+  color: var(--ink-70);
+  font-variant-numeric: tabular-nums;
+}
+
+.inline-slider:hover .inline-slider__thumb::after,
+.inline-slider[data-dragging] .inline-slider__thumb::after {
+  background: var(--handle-active);
+}
+
+.inline-slider[data-dragging] .inline-slider__label {
+  color: var(--ink-85);
+}
+
+
 /* ---- Code workspace: a flush editor pane on the left, the preview on the right -------- */
 
 :root {
@@ -1879,7 +1985,7 @@ button {
 .inspector__body {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
   padding: 8px 12px 12px;
   overflow-y: auto;
   scrollbar-width: thin;
@@ -1894,18 +2000,65 @@ button {
 
 /* ---- Fields: label | control, 32px rows (the Figma-style inspector) ------- */
 
+/* Every field is a row like the sliders: 48px, tinted, label inside on the left. */
 .field {
   display: grid;
   grid-template-columns: 76px 1fr;
   align-items: center;
   gap: 8px;
-  min-height: 32px;
+  min-height: 48px;
+  padding: 0 8px 0 16px;
+  border-radius: 12px;
+  background: var(--row);
+}
+
+.select-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 48px;
+  padding: 0 16px;
+  border-radius: 12px;
+  background: var(--row);
+  cursor: pointer;
+}
+
+.select-row:hover {
+  background: var(--row-strong);
+}
+
+.select-row:focus-within {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+
+.select-row__label {
+  color: var(--ink-60);
+  font-size: 14px;
+}
+
+.select-row__value {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ink-90);
+  font-size: 14px;
+}
+
+/* The native menu, invisible over the row: keyboard and screen readers get a real select. */
+.select-row select {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  opacity: 0;
+  cursor: pointer;
 }
 
 .field__label {
   overflow: hidden;
   color: var(--ink-60);
-  font-size: 12px;
+  font-size: 14px;
   line-height: 16px;
   text-overflow: ellipsis;
   white-space: nowrap;

@@ -1,5 +1,4 @@
 import * as Popover from '@radix-ui/react-popover'
-import * as Slider from '@radix-ui/react-slider'
 import * as Toggle from '@radix-ui/react-toggle'
 import { findLayer, getPath, PARAMS, type CombineMode, type Layer, type LazuliInput, type ParamPath, type Stack, type StackOp } from 'lazuli-bg'
 import { useEffect, useId, useState, type ReactNode } from 'react'
@@ -8,6 +7,7 @@ import { CloseIcon } from '../icons'
 import { layerPaths, layerView, SCENE_ID } from '../layerEdit'
 import { patchFor, round, type Config } from '../state'
 import { ColorPicker } from './ColorPicker'
+import { InlineSlider } from './InlineSlider'
 import { Segmented } from './Segmented'
 
 interface InspectorProps {
@@ -167,7 +167,7 @@ function Field({ path, view, set }: { path: ParamPath; view: Config; set(p: Lazu
     case 'number': {
       const step = hint.step ?? (d.int ? 1 : d.max - d.min <= 10 ? 0.05 : 1)
       const fmt = hint.format ?? ((x: number) => String(step < 1 ? round(x) : Math.round(x)))
-      return <NumberField label={label} value={value as number} min={d.min} max={d.max} step={step} sqrt={hint.sqrt} format={fmt} onChange={change} />
+      return <NumberField label={label} value={value as number} min={d.min} max={d.max} step={step} sqrt={hint.sqrt} stepped={hint.stepped && d.max - d.min <= 8} format={fmt} onChange={change} />
     }
     case 'enum': {
       const labels = hint.options ?? Object.fromEntries(d.options.map((o) => [o, o[0].toUpperCase() + o.slice(1)]))
@@ -221,81 +221,51 @@ interface NumberFieldProps {
   max: number
   step: number
   sqrt?: boolean
+  /** Dots at each step (small integer ranges). */
+  stepped?: boolean
   format(v: number): string
   onChange(v: number): void
 }
 
-/** A thin slider and a typed value. Square-root ranges (speed) give finer control near zero. */
-export function NumberField({ label, value, min, max, step, sqrt, format, onChange }: NumberFieldProps) {
-  const toPos = (v: number) => (sqrt ? Math.sqrt((v - min) / (max - min)) * 100 : v)
-  const fromPos = (p: number) => (sqrt ? round(min + (max - min) * (p / 100) ** 2) : p)
-  return (
-    <Row label={label}>
-      <Slider.Root
-        className="mini-slider"
-        value={[toPos(value)]}
-        min={sqrt ? 0 : min}
-        max={sqrt ? 100 : max}
-        step={sqrt ? 0.5 : step}
-        onValueChange={([p]) => onChange(fromPos(p))}
-      >
-        <Slider.Track className="mini-slider__track">
-          <Slider.Range className="mini-slider__range" />
-        </Slider.Track>
-        <Slider.Thumb className="mini-slider__thumb" aria-label={label} aria-valuetext={format(value)} />
-      </Slider.Root>
-      <NumberInput label={label} value={value} min={min} max={max} format={format} onChange={onChange} />
-    </Row>
-  )
-}
-
-function NumberInput({ label, value, min, max, format, onChange }: { label: string; value: number; min: number; max: number; format(v: number): string; onChange(v: number): void }) {
-  const [editing, setEditing] = useState<string | null>(null)
-  const commit = () => {
-    const n = parseFloat(editing ?? '')
-    if (Number.isFinite(n)) onChange(Math.min(max, Math.max(min, n)))
-    setEditing(null)
+/** The whole row is the slider (Lazuli's own): a fill grows from the left, label inside, value on the right. */
+export function NumberField({ label, value, min, max, step, sqrt, stepped, format, onChange }: NumberFieldProps) {
+  if (sqrt) {
+    // Square-root scale: finer control near zero (speed).
+    return (
+      <InlineSlider
+        label={label}
+        value={Math.sqrt((value - min) / (max - min)) * 100}
+        min={0}
+        max={100}
+        step={0.5}
+        format={() => format(value)}
+        onChange={(p) => onChange(round(min + (max - min) * (p / 100) ** 2))}
+      />
+    )
   }
-  return (
-    <input
-      className="field__input field__input--num"
-      aria-label={`${label} value`}
-      inputMode="decimal"
-      value={editing ?? format(value)}
-      onFocus={(e) => {
-        setEditing(String(round(value)))
-        requestAnimationFrame(() => e.target.select())
-      }}
-      onChange={(e) => setEditing(e.target.value)}
-      onBlur={commit}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter') (e.target as HTMLInputElement).blur()
-        if (e.key === 'Escape') {
-          setEditing(null)
-          ;(e.target as HTMLInputElement).blur()
-        }
-      }}
-    />
-  )
+  return <InlineSlider label={label} value={value} min={min} max={max} step={step} stepped={stepped} format={format} onChange={onChange} />
 }
 
+/** A row like the sliders: label on the left, the current option and a chevron on the right; the native menu opens on click. */
 function SelectField({ label, value, options, onChange }: { label: string; value: string; options: { value: string; label: string }[]; onChange(v: string): void }) {
-  const id = useId()
+  const current = options.find((o) => o.value === value)?.label ?? value
   return (
-    <Row label={label} id={id}>
-      <div className="field__select">
-        <select aria-labelledby={id} value={value} onChange={(e) => onChange(e.target.value)}>
-          {options.map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.label}
-            </option>
-          ))}
-        </select>
+    <label className="select-row">
+      <span className="select-row__label">{label}</span>
+      <span className="select-row__value">
+        {current}
         <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true">
           <path d="M2.5 4l2.5 2.5L7.5 4" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
-      </div>
-    </Row>
+      </span>
+      <select aria-label={label} value={value} onChange={(e) => onChange(e.target.value)}>
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+    </label>
   )
 }
 
