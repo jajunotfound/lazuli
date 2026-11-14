@@ -1,9 +1,12 @@
 // Starting looks. Each is a patch over the defaults (and default seed), applied before any
-// explicit values, so `preset="silk"` plus an attribute changes just that one thing.
-// Provisional: tuned by eye until the v2 Paper design; once published, a preset must never
-// change, or every embed using it changes with it. Exports always write the full values.
+// explicit values, so `preset="silk"` plus an attribute changes just that one thing. `layers`
+// are stack operations on top (warps, more shapes) that show what the layer builder does; see
+// presetStack().
+// Frozen 2026-11-14 (test/presets.test.ts): a published preset must never change, or every
+// embed using it changes with it. Add a new preset instead. Exports write the full values.
 
 import type { ConfigPatch } from './config'
+import type { StackOp } from './stack'
 
 export const PRESETS = {
   lazuli: { label: 'Lazuli', config: {} },
@@ -16,6 +19,10 @@ export const PRESETS = {
       background: { type: 'gradient', gradient: ['#fff7fb', '#efe9ff'], angle: 160 },
       texture: { type: 'grain', intensity: 30 },
     },
+    layers: [
+      { op: 'add', layer: 'warp', type: 'noise', parent: 'shape-1' },
+      { op: 'tune', id: 'warp-1', strength: 16, size: 90 },
+    ],
   },
   ripple: {
     label: 'Ripple',
@@ -25,6 +32,10 @@ export const PRESETS = {
       color: { palette: ['#7fd1c7', '#127a82'], fade: 45 },
       background: { color: '#f3fbfa' },
     },
+    layers: [
+      { op: 'add', layer: 'warp', type: 'ripple', parent: 'shape-1' },
+      { op: 'tune', id: 'warp-1', strength: 22, size: 75 },
+    ],
   },
   screen: {
     label: 'Screen',
@@ -44,6 +55,10 @@ export const PRESETS = {
       background: { color: '#fffaf0' },
       texture: { type: 'none' },
     },
+    layers: [
+      { op: 'add', layer: 'warp', type: 'swirl', parent: 'shape-1' },
+      { op: 'tune', id: 'warp-1', strength: 22, size: 85 },
+    ],
   },
   paper: {
     label: 'Paper',
@@ -53,6 +68,11 @@ export const PRESETS = {
       background: { color: '#f4efe4' },
       texture: { type: 'paper', intensity: 70 },
     },
+    // Fine noise on the edges, like torn paper.
+    layers: [
+      { op: 'add', layer: 'warp', type: 'noise', parent: 'shape-1' },
+      { op: 'tune', id: 'warp-1', strength: 14, size: 15 },
+    ],
   },
   night: {
     label: 'Night',
@@ -62,6 +82,11 @@ export const PRESETS = {
       background: { type: 'gradient', gradient: ['#060816', '#141a3a'], angle: 160 },
       texture: { type: 'grain', intensity: 45 },
     },
+    // A slow swirl, like a galaxy.
+    layers: [
+      { op: 'add', layer: 'warp', type: 'swirl', parent: 'shape-1' },
+      { op: 'tune', id: 'warp-1', strength: 30, size: 70 },
+    ],
   },
   plate: {
     label: 'Plate',
@@ -81,7 +106,21 @@ export const PRESETS = {
       texture: { type: 'none' },
     },
   },
-} as const satisfies Record<string, { label: string; config: ConfigPatch }>
+  orbit: {
+    label: 'Orbit',
+    config: {
+      blobs: { count: 4, size: 115, softness: 40 },
+      color: { palette: ['#ffb38a', '#e8577a', '#6b2fa8'], fade: 25 },
+      background: { color: '#fff4ec' },
+      texture: { type: 'grain', intensity: 30 },
+    },
+    // Rings cut through the blobs, like a planet's.
+    layers: [
+      { op: 'add', layer: 'shape', type: 'rings' },
+      { op: 'combine', id: 'shape-2', combine: 'cut' },
+    ],
+  },
+} as const satisfies Record<string, { label: string; config: ConfigPatch; layers?: readonly StackOp[] }>
 
 export type PresetId = keyof typeof PRESETS
 

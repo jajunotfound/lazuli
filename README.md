@@ -7,7 +7,7 @@ playground, then export the code.
 
 ![Lazuli demo](./docs/demo.gif) <!-- TODO: record a demo GIF -->
 
-- **Small:** about 19 kB gzipped for the script-tag build, zero dependencies, raw WebGL (WebGL2
+- **Small:** about 23 kB gzipped for the script-tag build, zero dependencies, raw WebGL (WebGL2
   with a WebGL1 fallback). Each shape and texture compiles to its own small shader, only when used.
 - **Drop-in:** a `<lazuli-bg>` web component, a JS API, or a single script tag.
 - **Layered:** the pattern has its own palette, opacity and blend mode over a solid, gradient or

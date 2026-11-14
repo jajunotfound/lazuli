@@ -1,7 +1,6 @@
-import { PRESET_IDS, PRESETS, presetConfig, type PresetId } from 'lazuli-bg'
+import { PRESET_IDS, PRESETS, presetConfig, presetStack, type PresetId, type Stack } from 'lazuli-bg'
 import { snapshot } from 'lazuli-bg/capture'
 import { useEffect, useState } from 'react'
-import type { Config } from '../state'
 
 const THUMB_W = 200
 const THUMB_H = 130
@@ -15,7 +14,7 @@ function renderThumbs(onEach: () => void): Promise<void> {
       if (thumbs.has(id)) continue
       try {
         // Stand in for a ~1280px-wide scene, so CSS-pixel sizes (dots, grain) scale down with it.
-        const blob = await snapshot(presetConfig(id), { width: THUMB_W, height: THUMB_H, pixelRatio: THUMB_W / 1280 })
+        const blob = await snapshot({}, { width: THUMB_W, height: THUMB_H, pixelRatio: THUMB_W / 1280, stack: presetStack(id) })
         thumbs.set(id, URL.createObjectURL(blob))
       } catch {
         // No WebGL: the card shows its name only.
@@ -27,30 +26,30 @@ function renderThumbs(onEach: () => void): Promise<void> {
 }
 
 interface PresetsPanelProps {
-  config: Config
+  stack: Stack
   preset: PresetId | null
   onPick(id: PresetId): void
 }
 
-export function PresetsPanel({ config, preset, onPick }: PresetsPanelProps) {
+export function PresetsPanel({ stack, preset, onPick }: PresetsPanelProps) {
   return (
     <div className="panel panel--presets">
       <div className="panel__head">
         <h2 className="panel__title">Presets</h2>
       </div>
-      <PresetGrid config={config} preset={preset} onPick={onPick} />
+      <PresetGrid stack={stack} preset={preset} onPick={onPick} />
       <p className="panel__hint">Starts over from the preset. Edits after that are kept on top of it.</p>
     </div>
   )
 }
 
 /** The preset cards alone (also used in the frame panel). */
-export function PresetGrid({ config, preset, onPick, className = '' }: PresetsPanelProps & { className?: string }) {
+export function PresetGrid({ stack, preset, onPick, className = '' }: PresetsPanelProps & { className?: string }) {
   const [, redraw] = useState(0)
   useEffect(() => {
     void renderThumbs(() => redraw((n) => n + 1))
   }, [])
-  const unchanged = preset !== null && JSON.stringify(presetConfig(preset)) === JSON.stringify(config)
+  const unchanged = preset !== null && JSON.stringify(presetStack(preset)) === JSON.stringify(stack)
 
   return (
     <div className={`presets ${className}`} role="list">

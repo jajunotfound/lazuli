@@ -1,5 +1,5 @@
 import * as Tooltip from '@radix-ui/react-tooltip'
-import { applyOp, configToStack, createLazuli, findLayer, presetConfig, stackToConfig, type LazuliInput, type LazuliInstance, type PresetId, type Stack, type StackOp } from 'lazuli-bg'
+import { applyOp, createLazuli, findLayer, presetStack, stackToConfig, type LazuliInput, type LazuliInstance, type PresetId, type Stack, type StackOp } from 'lazuli-bg'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { CodeDialog } from './components/CodeDialog'
 import { Entrance } from './components/Entrance'
@@ -155,7 +155,7 @@ export function App() {
 
   const pickPreset = useCallback(
     (id: PresetId) => {
-      const next = configToStack(presetConfig(id))
+      const next = presetStack(id)
       setPreset(id)
       commit(next)
       setSelected(next.shapes[0].id)
@@ -239,7 +239,7 @@ export function App() {
           <div className="panel__head">
             <h2 className="panel__title">Start from a preset</h2>
           </div>
-          <PresetGrid config={config} preset={preset} onPick={pickPreset} />
+          <PresetGrid stack={stack} preset={preset} onPick={pickPreset} />
         </div>
       ) },
       { kind: 'panel', id: 'layers', label: 'Layers', icon: LayersIcon, keepOpenOnCanvas: true, content: <Layers stack={stack} selected={selected} onSelect={setSelected} onOp={onOp} canDo={canDo} /> },

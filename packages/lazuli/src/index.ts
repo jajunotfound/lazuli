@@ -70,3 +70,4 @@ export {
 } from './stack'
 export { compileStack, type CompiledStack } from './compile'
 export { exportShader, exportShadertoy, exportHtml } from './export'
+export { presetStack, presetHasLayers } from './presetStack'

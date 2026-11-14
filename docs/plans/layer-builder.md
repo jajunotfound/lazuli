@@ -1,6 +1,6 @@
 # Lazuli layer builder
 
-Status: plan, 2026-11-14. Supersedes `docs/SCOPE.md` (the trimmed background maker) and the image
+Status: all seven milestones done, 2026-11-14. Supersedes `docs/SCOPE.md` (the trimmed background maker) and the image
 and video export work. Nothing here is built yet.
 
 ## Problem
@@ -145,7 +145,7 @@ Milestone 2 showed that most shapes aren't one field: Milestone 3 has to pick ho
 - **What Milestone 2 leaves for later:** shapes stack with plain over-compositing; only the front
   texture draws; warps on a shape aren't compiled yet; a multi-shape stack reaches `<lazuli-bg>`
   as one encoded `stack` attribute in Milestone 6.
-- **Size:** the script-tag build grew from 16 to 19 kB gzipped (the stack and compiler).
+- **Size:** the script-tag build grew from 16 to 23 kB gzipped (stack, compiler, export).
 
 ## Milestones
 
@@ -170,7 +170,17 @@ Milestone 2 showed that most shapes aren't one field: Milestone 3 has to pick ho
    Shadertoy and standalone HTML match `snapshot()` within 2/255 (`node tools/regress/stacks.mjs
    export`); `<lazuli-bg stack>`. Exception: halftone/dither may flip up to 0.1% of values at cell
    edges, because written-in constants round a hair differently from uniforms.
-7. **Presets as stacks.** Rebuild the nine presets; freeze them.
+7. **Presets as stacks.** Rebuild the nine presets; freeze them. **Done 2026-11-14:** presets are a config
+   plus layer operations (`presetStack`); Silk, Ripple, Stripe, Paper, Night got warps; new Orbit
+   (rings cut through blobs). Frozen by `test/presets.test.ts`.
+
+## After the milestones
+
+- **The dock stays.** Milestone 4 first replaced the dock with a plain layers sidebar; the user
+  called the dock "the beauty of lazuli", so it came back: Presets and Layers open beside it, the
+  section tools jump to their layer in the right inspector.
+- **Open:** Groups (a Color map per group); liquid Merge for shapes other than Blobs; a `set` op so
+  presets can tune an added shape; design pass in Paper for the inspector and layer list.
 
 ## Risks
 

@@ -1,6 +1,7 @@
 import { fromFlat, LEGACY_KEYS, resolveConfig, type LazuliInput } from './config'
 import { createLazuli, type LazuliInstance } from './engine'
 import { isPreset } from './presets'
+import { presetHasLayers, presetStack } from './presetStack'
 import { decodeStack } from './stack'
 import { DEFAULT_CONFIG, getPath, PARAMS } from './schema'
 
@@ -58,7 +59,12 @@ export class LazuliElement extends Base {
   /** `stack="…"` (from Lazuli's export) draws a layer stack and wins over the other attributes. */
   #applyStack(): boolean {
     const v = this.getAttribute('stack')
-    const stack = v ? decodeStack(v) : null
+    let stack = v ? decodeStack(v) : null
+    // A layered preset on its own (`preset="orbit"`, nothing else) draws its whole stack.
+    const preset = this.getAttribute('preset')
+    if (!stack && isPreset(preset) && presetHasLayers(preset) && !ATTRS.some((a) => a !== 'preset' && a !== 'stack' && this.hasAttribute(a))) {
+      stack = presetStack(preset)
+    }
     if (stack) this.#instance?.setStack(stack)
     return !!stack
   }
@@ -78,6 +84,7 @@ export class LazuliElement extends Base {
     if (this.getAttribute('stack') && decodeStack(this.getAttribute('stack')!)) return
     if (name === 'config' || name === 'preset') {
       this.#instance.set(resolveConfig(this.#readAttributes()))
+      this.#applyStack()
       return
     }
     if (value !== null) {

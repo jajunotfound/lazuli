@@ -28,7 +28,11 @@ Read `docs/plans/layer-builder.md` first; it is the plan of record. The user dec
   Shape/Color/Texture/Background/Motion jump to their layer in the right inspector.
 - Milestone 6 done: `src/export.ts` (exportShader / exportShadertoy / exportHtml), element `stack`
   attribute, Get code tabs HTML · Web component · JavaScript · GLSL · Shadertoy.
-- Next: Milestone 7 (presets as stacks).
+- Milestone 7 done: presets = config + `layers` ops (`src/presetStack.ts`), frozen by
+  `test/presets.test.ts` + `presets.frozen.json`; new preset Orbit. `<lazuli-bg preset="orbit">`
+  alone draws the full stack.
+- All seven milestones of docs/plans/layer-builder.md are done. Next: user review; open items in
+  the plan's "After the milestones".
 
 ---
 
