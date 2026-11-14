@@ -6,6 +6,7 @@
 // Milestone 2: shapes stack with plain "over" compositing, and only the front visible texture
 // is drawn. Combine modes and warps come in later milestones (docs/plans/layer-builder.md).
 
+import { MAX_TEXT_SEGMENTS, textLayout, textStroke } from './font'
 import { assembleShader, NEEDS_COMMON, SHAPE_CHUNKS, SHAPE_COMMON } from './shader'
 import type { ShapeType } from './schema'
 import { stackKey, stackToConfig, type CombineMode, type DrawnLayer, type ShapeEntry, type ShapeLayer, type Stack, type WarpLayer } from './stack'
@@ -233,6 +234,23 @@ function drawnFunction(l: DrawnLayer, i: number): string {
   if (l.geom.kind === 'rect') {
     return `${head}\nuniform vec4 u_geo_${i}; uniform vec2 u_rect_${i};\nfloat drawn_${i}(vec2 p, float t) {\n  ${center}\n  return sdRoundRect(drawnTurn(u_rect_${i}.y) * (q - u_geo_${i}.xy), u_geo_${i}.zw, u_rect_${i}.x);\n}`
   }
+  if (l.geom.kind === 'text') {
+    // Words: the distance to the font's segments (cap-height units), thickened by the weight.
+    return `${head}
+uniform vec4 u_geo_${i}; uniform float u_ang_${i}; uniform vec4 u_seg_${i}[${MAX_TEXT_SEGMENTS}]; uniform float u_nseg_${i};
+float drawn_${i}(vec2 p, float t) {
+  ${center}
+  vec2 r = drawnTurn(u_ang_${i}) * (q - u_geo_${i}.xy) / u_geo_${i}.z;
+  float d = 1e9;
+  for (int m = 0; m < ${MAX_TEXT_SEGMENTS}; m++) {
+    if (float(m) >= u_nseg_${i}) break;
+    vec4 s = u_seg_${i}[m];
+    vec2 e = s.zw - s.xy, w = r - s.xy;
+    d = min(d, length(w - e * clamp(dot(w, e) / max(dot(e, e), 1e-9), 0.0, 1.0)));
+  }
+  return (d - u_geo_${i}.w) * u_geo_${i}.z;
+}`
+  }
   if (l.geom.kind === 'noise') {
     // Clouds: inside where the noise rises above the threshold; it drifts with time.
     return `${head}\nuniform vec2 u_geo_${i};\nfloat drawn_${i}(vec2 p, float t) {\n  ${center}\n  float v = fbm(q * u_geo_${i}.x + drift(vec2(0.12, 0.08), t), 4.0);\n  return (mix(0.72, 0.28, u_geo_${i}.y) - v) * 0.25;\n}`
@@ -268,6 +286,14 @@ function drawnValues(l: DrawnLayer, i: number, out: UniformValues) {
   } else if (g.kind === 'rect') {
     out[`u_geo_${i}`] = [g.x, g.y, g.w, g.h]
     out[`u_rect_${i}`] = [g.radius, g.angle]
+  } else if (g.kind === 'text') {
+    const { segments } = textLayout(g.text)
+    const flat = new Float32Array(MAX_TEXT_SEGMENTS * 4)
+    segments.forEach((sg, k) => flat.set(sg, k * 4))
+    out[`u_geo_${i}`] = [g.x, g.y, g.size, textStroke(g.weight)]
+    out[`u_ang_${i}`] = g.angle
+    out[`u_seg_${i}`] = flat
+    out[`u_nseg_${i}`] = segments.length
   } else if (g.kind === 'noise') {
     out[`u_geo_${i}`] = [g.scale, g.level]
   } else if (g.kind === 'cells') {

@@ -1,7 +1,7 @@
 // Drawn geometry on screen. Field units: the frame is 1 high, origin at its center, y up
 // (the same space the shader draws drawn layers in).
 
-import type { Geometry } from 'lazuli-bg'
+import { textLayout, type Geometry } from 'lazuli-bg'
 
 export interface Box {
   left: number
@@ -21,6 +21,17 @@ export const toScreen = (b: Box, x: number, y: number): [number, number] => [b.w
 /** Noise and cells fill the whole frame: nothing to drag or outline. */
 export const isField = (g: Geometry): g is Extract<Geometry, { kind: 'noise' | 'cells' }> => g.kind === 'noise' || g.kind === 'cells'
 
+type Boxed = Extract<Geometry, { kind: 'ellipse' | 'rect' | 'text' }>
+const boxed = (g: Geometry): g is Boxed => g.kind === 'ellipse' || g.kind === 'rect' || g.kind === 'text'
+
+/** Half width and height of the shape's own box (text: its line, plus the stroke). */
+export function halfSize(g: Boxed): [number, number] {
+  if (g.kind === 'ellipse') return [g.rx, g.ry]
+  if (g.kind === 'rect') return [g.w, g.h]
+  const pad = (0.04 + g.weight * 0.14) * g.size
+  return [(textLayout(g.text).width / 2) * g.size + pad, g.size / 2 + pad]
+}
+
 export function center(g: Geometry): [number, number] {
   if (isField(g)) return [0, 0]
   if (g.kind !== 'path') return [g.x, g.y]
@@ -31,7 +42,7 @@ export function center(g: Geometry): [number, number] {
 /** A point in the shape's own frame (unrotated, relative to its center). */
 export function local(g: Geometry, x: number, y: number): [number, number] {
   const [cx, cy] = center(g)
-  const a = g.kind === 'ellipse' || g.kind === 'rect' ? -g.angle : 0
+  const a = boxed(g) ? -g.angle : 0
   const dx = x - cx, dy = y - cy
   return [dx * Math.cos(a) - dy * Math.sin(a), dx * Math.sin(a) + dy * Math.cos(a)]
 }
@@ -43,9 +54,10 @@ export function hit(g: Geometry, x: number, y: number, slack = 0.01): boolean {
     const [lx, ly] = local(g, x, y)
     return (lx / (g.rx + slack)) ** 2 + (ly / (g.ry + slack)) ** 2 <= 1
   }
-  if (g.kind === 'rect') {
+  if (g.kind === 'rect' || g.kind === 'text') {
     const [lx, ly] = local(g, x, y)
-    return Math.abs(lx) <= g.w + slack && Math.abs(ly) <= g.h + slack
+    const [hx, hy] = halfSize(g)
+    return Math.abs(lx) <= hx + slack && Math.abs(ly) <= hy + slack
   }
   let inside = false
   const p = g.points
@@ -64,6 +76,12 @@ export function moved(g: Geometry, dx: number, dy: number): Geometry {
 
 /** Ellipse or rect resized so a corner handle sits at the field point (center stays put). */
 export function resized(g: Geometry, x: number, y: number, square = false): Geometry {
+  if (g.kind === 'text') {
+    // Text keeps its proportions: the size follows whichever side the handle pulls further.
+    const [lx, ly] = local(g, x, y).map(Math.abs)
+    const [hx, hy] = halfSize(g)
+    return { ...g, size: Math.min(2, Math.max(0.02, g.size * Math.max(lx / hx, ly / hy))) }
+  }
   if (g.kind !== 'ellipse' && g.kind !== 'rect') return g
   let [lx, ly] = local(g, x, y).map((v) => Math.max(0.01, Math.abs(v)))
   if (square) lx = ly = Math.max(lx, ly)
@@ -72,9 +90,8 @@ export function resized(g: Geometry, x: number, y: number, square = false): Geom
 
 /** The four corners of an ellipse's or rect's box, in field units (rotated). */
 export function corners(g: Geometry): [number, number][] {
-  if (g.kind !== 'ellipse' && g.kind !== 'rect') return []
-  const hx = g.kind === 'ellipse' ? g.rx : g.w
-  const hy = g.kind === 'ellipse' ? g.ry : g.h
+  if (!boxed(g)) return []
+  const [hx, hy] = halfSize(g)
   const c = Math.cos(g.angle), s = Math.sin(g.angle)
   return [[-hx, hy], [hx, hy], [hx, -hy], [-hx, -hy]].map(([u, v]) => [g.x + u * c - v * s, g.y + u * s + v * c])
 }

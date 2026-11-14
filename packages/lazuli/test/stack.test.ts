@@ -354,3 +354,22 @@ test('keyframe easing: smooth by default, linear, hold', async () => {
   assert.equal(x(keys('hold'), 0.45), 0)
   assert.equal(x(keys('hold'), 0.5), 1)
 })
+
+test('text: layout, cleaning and compiling', async () => {
+  const { textLayout, MAX_TEXT_SEGMENTS } = await import('../src/font')
+  const { cleanGeometry } = await import('../src/stack')
+  const hi = textLayout('Hi!')
+  assert.equal(hi.segments.length, 3 + 1 + 2)
+  // Centered: the line spans -width/2 to width/2 and cap height -0.5 to 0.5.
+  const xs = hi.segments.flatMap(([a, , c]) => [a, c]), ys = hi.segments.flatMap(([, b, , d]) => [b, d])
+  assert.ok(Math.abs(Math.min(...xs) + hi.width / 2) < 1e-9 && Math.abs(Math.max(...xs) - hi.width / 2) < 1e-9)
+  assert.equal(Math.min(...ys), -0.5)
+  assert.equal(Math.max(...ys), 0.5)
+  assert.ok(textLayout('OOOOOOOOOOOO').segments.length <= MAX_TEXT_SEGMENTS)
+  assert.deepEqual(cleanGeometry({ kind: 'text', text: 'hey ~you', x: 0, y: 0, size: 9, weight: 2, angle: 0 }), { kind: 'text', text: 'HEY YOU', x: 0, y: 0, size: 2, weight: 1, angle: 0 })
+  const r = applyOp(configToStack(resolveConfig({})), { op: 'add', layer: 'drawn', geom: { kind: 'text', text: 'HI', x: 0, y: 0, size: 0.2, weight: 0.5, angle: 0 } })
+  assert.ok(r.ok)
+  const fs = stackFragment(r.stack)
+  assert.match(fs, /uniform vec4 u_seg_0\[64\]/)
+  assert.equal(stackUniforms(r.stack).u_nseg_0, 4)
+})

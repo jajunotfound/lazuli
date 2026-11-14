@@ -1,6 +1,6 @@
 import * as Popover from '@radix-ui/react-popover'
 import * as Toggle from '@radix-ui/react-toggle'
-import { findLayer, getPath, PARAMS, type CombineMode, type Layer, type LazuliInput, type ParamPath, type Stack, type StackOp } from 'lazuli-bg'
+import { findLayer, getPath, MAX_TEXT_LENGTH, PARAMS, textChars, type CombineMode, type Layer, type LazuliInput, type ParamPath, type Stack, type StackOp } from 'lazuli-bg'
 import { useEffect, useId, useState, type ReactNode } from 'react'
 import { HINTS } from '../controls'
 import { CloseIcon } from '../icons'
@@ -93,7 +93,13 @@ export function Inspector({ stack, selected, onPatch, onOp, canDo, embedded }: I
                 <NumberField label="Gap" value={Math.round(drawn.geom.gap * 100)} min={0} max={100} step={1} format={(v) => String(Math.round(v))} onChange={(v) => drawn.geom.kind === 'cells' && onOp({ op: 'reshape', id: selected, geom: { ...drawn.geom, gap: v / 100 } }, `gap:${selected}`)} />
               </>
             )}
-            {(drawn.geom.kind === 'ellipse' || drawn.geom.kind === 'rect') && (
+            {drawn.geom.kind === 'text' && (
+              <>
+                <TextRow label="Text" value={drawn.geom.text} onCommit={(v) => drawn.geom.kind === 'text' && onOp({ op: 'reshape', id: selected, geom: { ...drawn.geom, text: v } })} />
+                <NumberField label="Weight" value={Math.round(drawn.geom.weight * 100)} min={0} max={100} step={1} format={(v) => String(Math.round(v))} onChange={(v) => drawn.geom.kind === 'text' && onOp({ op: 'reshape', id: selected, geom: { ...drawn.geom, weight: v / 100 } }, `weight:${selected}`)} />
+              </>
+            )}
+            {(drawn.geom.kind === 'ellipse' || drawn.geom.kind === 'rect' || drawn.geom.kind === 'text') && (
               <NumberField
                 label="Rotation"
                 value={Math.round((drawn.geom.angle * 180) / Math.PI)}
@@ -101,7 +107,7 @@ export function Inspector({ stack, selected, onPatch, onOp, canDo, embedded }: I
                 max={180}
                 step={1}
                 format={(v) => `${Math.round(v)}°`}
-                onChange={(v) => (drawn.geom.kind === 'ellipse' || drawn.geom.kind === 'rect') && onOp({ op: 'reshape', id: selected, geom: { ...drawn.geom, angle: (v * Math.PI) / 180 } }, `turn:${selected}`)}
+                onChange={(v) => (drawn.geom.kind === 'ellipse' || drawn.geom.kind === 'rect' || drawn.geom.kind === 'text') && onOp({ op: 'reshape', id: selected, geom: { ...drawn.geom, angle: (v * Math.PI) / 180 } }, `turn:${selected}`)}
               />
             )}
             {drawn.geom.kind === 'rect' && (
@@ -272,6 +278,36 @@ export function NumberField({ label, value, min, max, step, sqrt, format, onChan
 }
 
 /** A row like the sliders: label on the left, the current option and a chevron on the right; the native menu opens on click. */
+/** A label | text input row; commits on Enter or blur. Letters the font can't draw are dropped. */
+function TextRow({ label, value, onCommit }: { label: string; value: string; onCommit(v: string): void }) {
+  const [text, setText] = useState(value)
+  useEffect(() => setText(value), [value])
+  const commit = () => {
+    const t = textChars(text).trim().slice(0, MAX_TEXT_LENGTH)
+    if (t && t !== value) onCommit(t)
+    else setText(value)
+  }
+  return (
+    <label className="select-row text-row">
+      <span className="select-row__label">{label}</span>
+      <input
+        value={text}
+        maxLength={MAX_TEXT_LENGTH}
+        spellCheck={false}
+        onChange={(e) => setText(e.target.value.toUpperCase())}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') (e.target as HTMLInputElement).blur()
+          if (e.key === 'Escape') {
+            setText(value)
+            ;(e.target as HTMLInputElement).blur()
+          }
+        }}
+      />
+    </label>
+  )
+}
+
 function SelectField({ label, value, options, onChange }: { label: string; value: string; options: { value: string; label: string }[]; onChange(v: string): void }) {
   const current = options.find((o) => o.value === value)?.label ?? value
   return (

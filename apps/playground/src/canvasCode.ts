@@ -3,7 +3,7 @@
 // and `applyCode` folds it into the stack. Only Lazuli's own shape language is understood:
 // ellipse, box and polygon, joined by melt, cut or intersect, then palette and background.
 
-import { cleanGeometry, type CombineMode, type DrawnLayer, type Geometry, type Stack, type WarpLayer, type WarpType } from 'lazuli-bg'
+import { cleanGeometry, textChars, type CombineMode, type DrawnLayer, type Geometry, type Stack, type WarpLayer, type WarpType } from 'lazuli-bg'
 
 const n = (v: number) => String(Number(v.toFixed(3)))
 const vec2 = (a: number, b: number) => `vec2(${n(a)}, ${n(b)})`
@@ -19,11 +19,12 @@ export function shapeCode(l: DrawnLayer): string {
   if (g.kind === 'rect') return `box(${p}, ${vec2(g.x, g.y)}, ${vec2(g.w, g.h)}, ${n(g.radius)}${g.angle ? `, ${n(g.angle)}` : ''})`
   if (g.kind === 'noise') return `noise(${p}, ${n(g.scale)}, ${n(g.level)})`
   if (g.kind === 'cells') return `cells(${p}, ${n(g.scale)}, ${n(g.gap)})`
+  if (g.kind === 'text') return `text(${p}, "${g.text}", ${vec2(g.x, g.y)}, ${n(g.size)}, ${n(g.weight)}${g.angle ? `, ${n(g.angle)}` : ''})`
   return `polygon(${p}, ${g.points.map(([x, y]) => vec2(x, y)).join(', ')})`
 }
 
 const WARPS: WarpType[] = ['swirl', 'noise', 'ripple', 'kaleido', 'repeat', 'twist', 'cursor']
-const NAMES: Record<Geometry['kind'], string> = { ellipse: 'Ellipse', rect: 'Rectangle', path: 'Path', noise: 'Noise', cells: 'Cells' }
+const NAMES: Record<Geometry['kind'], string> = { ellipse: 'Ellipse', rect: 'Rectangle', path: 'Path', noise: 'Noise', cells: 'Cells', text: 'Text' }
 
 const drawnBackToFront = (s: Stack) => s.shapes.filter((x): x is DrawnLayer => x.kind === 'drawn').reverse()
 
@@ -85,13 +86,24 @@ export interface ParsedCode {
 }
 
 /** Split `a, f(b, c), d` at top-level commas. */
+/** Where a line's // comment starts (outside "quoted text"), or -1. */
+function commentAt(line: string): number {
+  let quoted = false
+  for (let i = 0; i < line.length - 1; i++) {
+    if (line[i] === '"') quoted = !quoted
+    else if (!quoted && line[i] === '/' && line[i + 1] === '/') return i
+  }
+  return -1
+}
+
 function splitArgs(s: string): string[] {
   const out: string[] = []
-  let depth = 0, cur = ''
+  let depth = 0, cur = '', quoted = false
   for (const ch of s) {
-    if (ch === '(') depth++
-    if (ch === ')') depth--
-    if (ch === ',' && depth === 0) {
+    if (ch === '"') quoted = !quoted
+    if (!quoted && ch === '(') depth++
+    if (!quoted && ch === ')') depth--
+    if (ch === ',' && depth === 0 && !quoted) {
       out.push(cur.trim())
       cur = ''
     } else cur += ch
@@ -120,8 +132,8 @@ function v2(s: string): [number, number] | null {
 
 /** A shape expression → geometry, or an error message. */
 function readShape(expr: string): { geom: Geometry; source: string; warps: WarpType[] } | string {
-  const m = /\b(ellipse|box|polygon|noise|cells)\s*\(/.exec(expr)
-  if (!m) return 'Try ellipse(), box(), polygon(), noise() or cells()'
+  const m = /\b(ellipse|box|polygon|noise|cells|text)\s*\(/.exec(expr)
+  if (!m) return 'Try ellipse(), box(), polygon(), text(), noise() or cells()'
   const open = m.index + m[0].length - 1
   const body = inside(expr, open)
   if (body === null) return 'Missing a closing parenthesis'
@@ -142,6 +154,13 @@ function readShape(expr: string): { geom: Geometry; source: string; warps: WarpT
     const [a, b] = [num(args[0] ?? ''), num(args[1] ?? '')]
     if (a === null || b === null) return `${m[1]}(p, scale, ${m[1] === 'noise' ? 'fill' : 'gap'})`
     return done(cleanGeometry(m[1] === 'noise' ? { kind: 'noise', scale: a, level: b } : { kind: 'cells', scale: a, gap: b }), 'That scale is out of range')
+  }
+  if (m[1] === 'text') {
+    const words = /^"([^"]*)"$/.exec(args[0] ?? '')?.[1]
+    const [c, size, weight, a] = [v2(args[1] ?? ''), num(args[2] ?? ''), num(args[3] ?? ''), args[4] === undefined ? 0 : num(args[4])]
+    if (words === undefined || !c || size === null || weight === null || a === null) return 'text(p, "WORDS", vec2(x, y), size, weight, turn?)'
+    if (!textChars(words).trim()) return 'Letters, numbers and . , ! ? \' : - + / = only'
+    return done(cleanGeometry({ kind: 'text', text: words, x: c[0], y: c[1], size, weight, angle: a }), 'That text is too big or too far out')
   }
   if (m[1] === 'ellipse') {
     const [c, r, a] = [v2(args[0] ?? ''), v2(args[1] ?? ''), args[2] === undefined ? 0 : num(args[2])]
@@ -168,8 +187,9 @@ export function readCode(text: string): { code: ParsedCode } | { error: CodeErro
   const lines = text.split('\n')
   for (let i = 0; i < lines.length; i++) {
     const raw = lines[i]
-    const comment = /\/\/\s*(.*)$/.exec(raw)?.[1] ?? ''
-    const line = raw.replace(/\/\/.*$/, '').trim()
+    const cut = commentAt(raw)
+    const comment = cut < 0 ? '' : raw.slice(cut + 2).trim()
+    const line = (cut < 0 ? raw : raw.slice(0, cut)).trim()
     const fail = (message: string) => ({ error: { line: i + 1, message } })
     if (!line || /^(float field|vec4 color)\s*\(vec2 p\)\s*\{$/.test(line) || line === '}' || line === 'return d;') continue
     if (/^float d = 1e9;$/.test(line)) continue

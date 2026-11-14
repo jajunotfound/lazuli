@@ -6,6 +6,7 @@
 // Today's flat config (schema.ts) is still the public API: configToStack / stackToConfig
 // convert between the two, and every config is a one-shape stack.
 
+import { MAX_TEXT_LENGTH, textChars } from './font'
 import { cloneConfig, DEFAULT_CONFIG, type CursorMode, type LazuliConfig, type ShapeType, type TextureType } from './schema'
 
 export type ShapeSettings = Pick<LazuliConfig, 'blobs' | 'waves' | 'bands' | 'rings' | 'dots' | 'nodal'>
@@ -63,6 +64,8 @@ export type Geometry =
   | { kind: 'noise'; scale: number; level: number }
   /** Organic tiles: scale = cells per frame height, gap 0–1 between them. */
   | { kind: 'cells'; scale: number; gap: number }
+  /** Words in Lazuli's stroke font (font.ts): size = cap height, weight 0–1 = stroke thickness. */
+  | { kind: 'text'; text: string; x: number; y: number; size: number; weight: number; angle: number }
 
 /** A shape you drew. Drawn layers next to each other join into one field (see compile.ts). */
 export interface DrawnLayer extends LayerBase {
@@ -329,8 +332,8 @@ export function applyOp(input: Readonly<Stack>, op: StackOp): StackResult {
         if (s.shapes.filter((x) => x.kind === 'drawn').length >= MAX_DRAWN) return fail('drawn_limit')
         const geom = cleanGeometry(op.geom)
         if (!geom) return fail('bad_geometry')
-        const names = { ellipse: 'Ellipse', rect: 'Rectangle', path: 'Path', noise: 'Noise', cells: 'Cells' }
-        const layer: DrawnLayer = { id: nextId(s, 'drawn'), kind: 'drawn', name: names[geom.kind], visible: true, geom, melt: 0.5, combine: 'merge', soft: 0.3, warps: [] }
+        const names = { ellipse: 'Ellipse', rect: 'Rectangle', path: 'Path', noise: 'Noise', cells: 'Cells', text: 'Text' }
+        const layer: DrawnLayer = { id: nextId(s, 'drawn'), kind: 'drawn', name: names[geom.kind], visible: true, geom, melt: 0.5, combine: 'merge', soft: geom.kind === 'text' ? 0.08 : 0.3, warps: [] }
         return insertAt(s.shapes, layer, op.index) ? { ok: true, stack: s } : fail('bad_index')
       }
       if (op.layer === 'shape') {
@@ -518,6 +521,13 @@ export function cleanGeometry(g: Geometry): Geometry | null {
   if (g.kind === 'cells') {
     const v = [n(g.scale, 1, 30), n(g.gap, 0, 1)]
     return v.some((x) => x === null) ? null : { kind: 'cells', scale: v[0]!, gap: v[1]! }
+  }
+  if (g.kind === 'text') {
+    if (typeof g.text !== 'string') return null
+    const text = textChars(g.text).slice(0, MAX_TEXT_LENGTH)
+    const v = [n(g.x, -4, 4), n(g.y, -4, 4), n(g.size, 0.02, 2), n(g.weight, 0, 1), n(g.angle ?? 0, -10, 10)]
+    if (v.some((x) => x === null)) return null
+    return { kind: 'text', text, x: v[0]!, y: v[1]!, size: v[2]!, weight: v[3]!, angle: v[4]! }
   }
   if (g.kind === 'path') {
     if (!Array.isArray(g.points) || g.points.length < 3 || g.points.length > MAX_PATH_POINTS) return null

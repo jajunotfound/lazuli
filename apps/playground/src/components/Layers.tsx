@@ -145,6 +145,7 @@ export function Layers({ stack, selected, onSelect, onOp, canDo, header }: Layer
                 <AddGroup title="Draw">
                   <AddItem label="Ellipse" op={{ op: 'add', layer: 'drawn', geom: { kind: 'ellipse', x: 0, y: 0, rx: 0.16, ry: 0.16, angle: 0 } }} canDo={canDo} onOp={onOp} close={() => setAddOpen(false)} />
                   <AddItem label="Rectangle" op={{ op: 'add', layer: 'drawn', geom: { kind: 'rect', x: 0, y: 0, w: 0.18, h: 0.12, radius: 0.02, angle: 0 } }} canDo={canDo} onOp={onOp} close={() => setAddOpen(false)} />
+                  <AddItem label="Text" op={{ op: 'add', layer: 'drawn', geom: { kind: 'text', text: 'HELLO', x: 0, y: 0, size: 0.2, weight: 0.4, angle: 0 } }} canDo={canDo} onOp={onOp} close={() => setAddOpen(false)} />
                   <AddItem label="Noise" op={{ op: 'add', layer: 'drawn', geom: { kind: 'noise', scale: 3, level: 0.5 } }} canDo={canDo} onOp={onOp} close={() => setAddOpen(false)} />
                   <AddItem label="Cells" op={{ op: 'add', layer: 'drawn', geom: { kind: 'cells', scale: 5, gap: 0.2 } }} canDo={canDo} onOp={onOp} close={() => setAddOpen(false)} />
                 </AddGroup>
@@ -254,6 +255,7 @@ function LayerIcon({ kind }: { kind: string }) {
     path: <path d="M8 2.5l5 4-2 6.5H5L3 6.5l5-4Z" />,
     noise: <path d="M2.5 9c1.5-3 3.5-3 5 0s3.5 3 6 0M2.5 5.5c1.5-2 3.5-2 5 0s3.5 2 6 0" />,
     cells: <path d="M2.5 2.5h5v5h-5zM8.5 2.5h5v5h-5zM2.5 8.5h5v5h-5zM8.5 8.5h5v5h-5z" />,
+    text: <path d="M3.5 4h9M8 4v8.5" />,
   }
   return (
     <svg className="layer__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">

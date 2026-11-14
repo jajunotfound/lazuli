@@ -2488,3 +2488,20 @@ button {
     transition-duration: 1ms !important;
   }
 }
+
+.text-row {
+  gap: 16px;
+  cursor: text;
+}
+
+.text-row input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: none;
+  color: var(--ink-90);
+  font: inherit;
+  font-size: 14px;
+  text-align: right;
+  outline: none;
+}

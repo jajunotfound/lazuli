@@ -14,6 +14,9 @@ const mix = (a: number, b: number, k: number) => a + (b - a) * k
 function mixGeom(a: Geometry, b: Geometry, k: number): Geometry {
   if (a.kind === 'ellipse' && b.kind === 'ellipse') return { kind: 'ellipse', x: mix(a.x, b.x, k), y: mix(a.y, b.y, k), rx: mix(a.rx, b.rx, k), ry: mix(a.ry, b.ry, k), angle: mix(a.angle, b.angle, k) }
   if (a.kind === 'rect' && b.kind === 'rect') return { kind: 'rect', x: mix(a.x, b.x, k), y: mix(a.y, b.y, k), w: mix(a.w, b.w, k), h: mix(a.h, b.h, k), radius: mix(a.radius, b.radius, k), angle: mix(a.angle, b.angle, k) }
+  if (a.kind === 'text' && b.kind === 'text' && a.text === b.text) {
+    return { kind: 'text', text: a.text, x: mix(a.x, b.x, k), y: mix(a.y, b.y, k), size: mix(a.size, b.size, k), weight: mix(a.weight, b.weight, k), angle: mix(a.angle, b.angle, k) }
+  }
   if (a.kind === 'path' && b.kind === 'path' && a.points.length === b.points.length) {
     return { kind: 'path', points: a.points.map(([x, y], i) => [mix(x, b.points[i][0], k), mix(y, b.points[i][1], k)]) }
   }

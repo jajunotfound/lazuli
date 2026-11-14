@@ -35,9 +35,16 @@ function literal(type: string, v: ArrayLike<number> | number, offset = 0): strin
  * arrays (GLSL ES 1.00 has no constant arrays) become globals filled in at the top of main().
  */
 export function exportShader(stack: Readonly<Stack>): string {
-  // Keyframed layers start where the loop starts; keyedCode() moves them each frame.
   const values = stackUniforms(animateStack(stack, 0))
   const keyed = keyedCode(stack)
+  // Point and segment lists stop at their count: slots past it are never read (and keyframes
+  // assign any slot that changes over the loop).
+  const used = (name: string, count: number) => {
+    const m = /^u_(pts|seg)_(\d+)$/.exec(name)
+    if (!m) return count
+    const n = Number(values[m[1] === 'pts' ? `u_npts_${m[2]}` : `u_nseg_${m[2]}`] ?? count)
+    return Math.min(count, m[1] === 'pts' ? Math.ceil((n + 1) / 2) : n)
+  }
   const init: string[] = []
   // One name per declaration first: `uniform float a, b;` becomes two declarations.
   const split = stackFragment(stack).replace(/uniform\s+(\w+)\s+([\w\s,\[\]]+?)\s*;/g, (m, type: string, names: string) =>
@@ -51,7 +58,7 @@ export function exportShader(stack: Readonly<Stack>): string {
       return `${type} ${name};`
     }
     if (count) {
-      for (let i = 0; i < Number(count); i++) init.push(`  ${name}[${i}] = ${literal(type, (v as ArrayLike<number>) ?? [], i * SIZE[type])};`)
+      for (let i = 0; i < used(name, Number(count)); i++) init.push(`  ${name}[${i}] = ${literal(type, (v as ArrayLike<number>) ?? [], i * SIZE[type])};`)
       return `${type} ${name}[${count}];`
     }
     return `const ${type} ${name} = ${literal(type, (v as ArrayLike<number> | number) ?? 0)};`

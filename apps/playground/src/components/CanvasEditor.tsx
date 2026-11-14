@@ -1,6 +1,6 @@
 import type { DrawnLayer, Geometry, Stack, StackOp } from 'lazuli-bg'
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
-import { center, corners, fromDrag, hit, isField, moved, resized, toField, toScreen, type Box } from '../geom'
+import { center, corners, fromDrag, halfSize, hit, isField, moved, resized, toField, toScreen, type Box } from '../geom'
 
 export type DrawTool = 'move' | 'pen' | 'ellipse' | 'rect'
 
@@ -164,6 +164,10 @@ export function CanvasEditor({ stack, moving = [], selected, tool, onSelect, set
     const [cx, cy] = px(g.x, g.y)
     const rot = `rotate(${(-g.angle * 180) / Math.PI} ${cx} ${cy})`
     if (g.kind === 'ellipse') return <ellipse className={cls} cx={cx} cy={cy} rx={g.rx * box.height} ry={g.ry * box.height} transform={rot} />
+    if (g.kind === 'text') {
+      const [hx, hy] = halfSize(g)
+      return <rect className={cls} x={cx - hx * box.height} y={cy - hy * box.height} width={hx * 2 * box.height} height={hy * 2 * box.height} transform={rot} />
+    }
     return <rect className={cls} x={cx - g.w * box.height} y={cy - g.h * box.height} width={g.w * 2 * box.height} height={g.h * 2 * box.height} rx={g.radius * box.height} transform={rot} />
   }
 
