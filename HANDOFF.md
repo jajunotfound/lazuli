@@ -6,7 +6,9 @@ Read `docs/plans/layer-builder.md` first; it is the plan of record. The user dec
 - Build model: **layer stack** (chosen over a node graph and fixed recipe slots).
 - **Image and video export go.** Export is code only.
 - The trimmed-panel work is parked, unfinished, on local branch `wip-trim-panel` (62984d9).
-- Next: the user reviews the plan (open questions Q1, Q2), then Milestone 1 (Strip).
+- Decided: Cursor is a Warp layer; one Color map per stack, Groups later. Plan doc also lives as a
+  Claude Doc: https://claude.ai/artifact/R4xjCRqqkEja5aeBGtw9WC (keep both in sync).
+- Next: Milestone 1 (Strip).
 
 ---
 

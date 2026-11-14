@@ -34,7 +34,7 @@ own.
 
 - Image and video export, and the image-as-source layer (removed).
 - The frames canvas: one shader, one preview.
-- A node graph, custom GLSL layers, physics patterns, auth, npm publish, deploy.
+- Groups (each with its own Color map; planned next), a node graph, custom GLSL layers, physics patterns, auth, npm publish, deploy.
 
 ## What exists already
 
@@ -125,11 +125,13 @@ Rejected:
   covers people who want to keep editing in the page.
 - **A5** The panel keeps Lazuli's light palette and takes only the reference's structure.
 
-## Open questions
+## Decisions
 
-- **Q1 (Eli):** is the stack-wide Cursor a Warp layer (proposed), or a separate Interaction setting?
-- **Q2 (Eli):** does the Color map stay one per stack (proposed), or can each Shape have its own
-  palette? Per-shape palettes break the "fields combine, then color" model and double the work.
+- **Cursor is a Warp layer** (2026-11-14). It sits in the stack like any warp: as a child of one
+  Shape it moves only that shape; at the top it moves everything.
+- **One Color map per stack** (2026-11-14). All shapes melt into one form and take one palette.
+  **Groups** come later: each group gets its own Color map, shapes melt inside a group and groups
+  stack. Nothing in this pass blocks them.
 
 ## Milestones
 
