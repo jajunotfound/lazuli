@@ -51,6 +51,30 @@ export interface FieldWarp extends LayerBase {
 
 export type WarpLayer = CursorWarp | FieldWarp
 
+/**
+ * What a drawn layer is, in height units around the frame's center, y up (the frame is 1 high).
+ * Ellipse and rect take half sizes; a path is a closed polygon (pen curves arrive as points).
+ */
+export type Geometry =
+  | { kind: 'ellipse'; x: number; y: number; rx: number; ry: number; angle: number }
+  | { kind: 'rect'; x: number; y: number; w: number; h: number; radius: number; angle: number }
+  | { kind: 'path'; points: [number, number][] }
+
+/** A shape you drew. Drawn layers next to each other join into one field (see compile.ts). */
+export interface DrawnLayer extends LayerBase {
+  kind: 'drawn'
+  geom: Geometry
+  /** 0–1: how softly it joins the drawn layer below (0 = a hard edge). */
+  melt: number
+  /** How it joins what's below: merge, add, cut, intersect. */
+  combine: CombineMode
+  /** 0–1: edge softness of the field it starts. */
+  soft: number
+  warps: WarpLayer[]
+}
+
+export type ShapeEntry = ShapeLayer | DrawnLayer
+
 export interface TextureLayer extends LayerBase {
   kind: 'texture'
   settings: LazuliConfig['texture'] & { type: Exclude<TextureType, 'none'> }
@@ -66,7 +90,7 @@ export interface BackgroundLayer extends LayerBase {
   settings: LazuliConfig['background']
 }
 
-export type Layer = ShapeLayer | WarpLayer | TextureLayer | ColorLayer | BackgroundLayer
+export type Layer = ShapeLayer | DrawnLayer | WarpLayer | TextureLayer | ColorLayer | BackgroundLayer
 
 export interface Stack {
   /** Front first. At most MAX_TEXTURES, at most one screen texture (halftone, dither). */
@@ -74,14 +98,16 @@ export interface Stack {
   color: ColorLayer
   /** The stack-wide pointer warp: moves every shape. */
   cursor: CursorWarp | null
-  /** Front first. 1 to MAX_SHAPES. */
-  shapes: ShapeLayer[]
+  /** Front first: generated shapes (at most MAX_SHAPES) and drawn ones (at most MAX_DRAWN). */
+  shapes: ShapeEntry[]
   background: BackgroundLayer
   motion: LazuliConfig['motion']
   quality: LazuliConfig['quality']
 }
 
 export const MAX_SHAPES = 4
+export const MAX_DRAWN = 8
+export const MAX_PATH_POINTS = 32
 export const MAX_TEXTURES = 3
 export const MAX_WARPS_PER_SHAPE = 2
 export const SCREEN_TEXTURES: readonly TextureType[] = ['halftone', 'dither']
@@ -120,10 +146,14 @@ export function configToStack(c: Readonly<LazuliConfig>): Stack {
  */
 export function stackToConfig(s: Readonly<Stack>): LazuliConfig {
   const c = cloneConfig(DEFAULT_CONFIG)
-  const shape = s.shapes.find((x) => x.visible) ?? s.shapes[0]
-  for (const k of SHAPE_KEYS) (c as unknown as Record<string, unknown>)[k] = clone(shape.settings[k])
-  c.shape = { type: shape.type }
-  c.seed = shape.seed
+  // The front visible generated shape; a stack of drawn shapes only keeps the default settings.
+  const generated = s.shapes.filter((x): x is ShapeLayer => x.kind === 'shape')
+  const shape = generated.find((x) => x.visible) ?? generated[0]
+  if (shape) {
+    for (const k of SHAPE_KEYS) (c as unknown as Record<string, unknown>)[k] = clone(shape.settings[k])
+    c.shape = { type: shape.type }
+    c.seed = shape.seed
+  }
   const tex = s.textures.find((x) => x.visible)
   c.texture = tex ? clone(tex.settings) : { ...c.texture, type: 'none' }
   c.color = clone(s.color.settings)
@@ -148,7 +178,8 @@ export function stackKey(s: Readonly<Stack>): string {
     .filter((x) => x.visible)
     .map((x, i, all) => {
       const warps = x.warps.filter((w) => w.visible).map((w) => w.type)
-      return `${x.type}${i < all.length - 1 ? `:${x.combine}` : ''}${warps.length ? `[${warps.join('+')}]` : ''}`
+      const name = x.kind === 'drawn' ? `drawn-${x.geom.kind}` : x.type
+      return `${name}${i < all.length - 1 ? `:${x.combine}` : ''}${warps.length ? `[${warps.join('+')}]` : ''}`
     })
   const tex = s.textures.find((x) => x.visible)?.settings.type ?? 'none'
   return `${shapes.join(',')}|${tex}`
@@ -158,6 +189,7 @@ export function stackKey(s: Readonly<Stack>): string {
 
 export type StackOp =
   | { op: 'add'; layer: 'shape'; type: ShapeType; index?: number }
+  | { op: 'add'; layer: 'drawn'; geom: Geometry; index?: number }
   | { op: 'add'; layer: 'texture'; type: Exclude<TextureType, 'none'>; index?: number }
   | { op: 'add'; layer: 'warp'; type: Exclude<WarpType, 'cursor'>; parent: string; index?: number }
   | { op: 'add'; layer: 'cursor'; parent?: string }
@@ -168,6 +200,7 @@ export type StackOp =
   | { op: 'combine'; id: string; combine: CombineMode }
   | { op: 'rename'; id: string; name: string }
   | { op: 'tune'; id: string; strength?: number; size?: number }
+  | { op: 'reshape'; id: string; geom?: Geometry; melt?: number; soft?: number }
 
 export type StackError =
   | 'not_found'
@@ -184,6 +217,8 @@ export type StackError =
   | 'cannot_duplicate'
   | 'wrong_kind'
   | 'bad_name'
+  | 'drawn_limit'
+  | 'bad_geometry'
 
 export type StackResult = { ok: true; stack: Stack } | { ok: false; error: StackError }
 
@@ -263,9 +298,17 @@ export function applyOp(input: Readonly<Stack>, op: StackOp): StackResult {
   const s = clone(input) as Stack
   switch (op.op) {
     case 'add': {
+      if (op.layer === 'drawn') {
+        if (s.shapes.filter((x) => x.kind === 'drawn').length >= MAX_DRAWN) return fail('drawn_limit')
+        const geom = cleanGeometry(op.geom)
+        if (!geom) return fail('bad_geometry')
+        const names = { ellipse: 'Ellipse', rect: 'Rectangle', path: 'Path' }
+        const layer: DrawnLayer = { id: nextId(s, 'drawn'), kind: 'drawn', name: names[geom.kind], visible: true, geom, melt: 0.5, combine: 'merge', soft: 0.3, warps: [] }
+        return insertAt(s.shapes, layer, op.index) ? { ok: true, stack: s } : fail('bad_index')
+      }
       if (op.layer === 'shape') {
-        if (s.shapes.length >= MAX_SHAPES) return fail('shape_limit')
-        const base = s.shapes[0]
+        if (s.shapes.filter((x) => x.kind === 'shape').length >= MAX_SHAPES) return fail('shape_limit')
+        const base = s.shapes.find((x): x is ShapeLayer => x.kind === 'shape')
         const settings = Object.fromEntries(SHAPE_KEYS.map((k) => [k, clone(DEFAULT_CONFIG[k])])) as ShapeSettings
         const id = nextId(s, 'shape')
         const layer: ShapeLayer = { id, kind: 'shape', type: op.type, name: LABELS[op.type], visible: true, seed: base ? base.seed + s.shapes.length * 7919 : DEFAULT_CONFIG.seed, combine: 'merge', settings, warps: [] }
@@ -338,9 +381,10 @@ export function applyOp(input: Readonly<Stack>, op: StackOp): StackResult {
       if (!found) return fail('not_found')
       const p = found.place
       if (p.list === 'shapes') {
-        if (s.shapes.length >= MAX_SHAPES) return fail('shape_limit')
         const src = s.shapes[p.index]
-        const copy: ShapeLayer = { ...clone(src), id: nextId(s, 'shape'), name: `${src.name} copy` }
+        const count = s.shapes.filter((x) => x.kind === src.kind).length
+        if (src.kind === 'shape' ? count >= MAX_SHAPES : count >= MAX_DRAWN) return fail(src.kind === 'shape' ? 'shape_limit' : 'drawn_limit')
+        const copy: ShapeEntry = { ...clone(src), id: nextId(s, src.kind === 'shape' ? 'shape' : 'drawn'), name: `${src.name} copy` }
         const taken = allIds(s)
         taken.add(copy.id)
         // One cursor per stack: the copy doesn't take it.
@@ -368,7 +412,7 @@ export function applyOp(input: Readonly<Stack>, op: StackOp): StackResult {
     case 'combine': {
       const found = findLayer(s, op.id)
       if (!found) return fail('not_found')
-      if (found.layer.kind !== 'shape') return fail('wrong_kind')
+      if (found.layer.kind !== 'shape' && found.layer.kind !== 'drawn') return fail('wrong_kind')
       found.layer.combine = op.combine
       return { ok: true, stack: s }
     }
@@ -384,6 +428,22 @@ export function applyOp(input: Readonly<Stack>, op: StackOp): StackResult {
       return { ok: true, stack: s }
     }
 
+    case 'reshape': {
+      const found = findLayer(s, op.id)
+      if (!found) return fail('not_found')
+      const l = found.layer
+      if (l.kind !== 'drawn') return fail('wrong_kind')
+      if (op.geom) {
+        const geom = cleanGeometry(op.geom)
+        if (!geom) return fail('bad_geometry')
+        l.geom = geom
+      }
+      const unit = (v: number) => Math.min(1, Math.max(0, v))
+      if (op.melt !== undefined && Number.isFinite(op.melt)) l.melt = unit(op.melt)
+      if (op.soft !== undefined && Number.isFinite(op.soft)) l.soft = unit(op.soft)
+      return { ok: true, stack: s }
+    }
+
     case 'rename': {
       const found = findLayer(s, op.id)
       if (!found) return fail('not_found')
@@ -393,6 +453,28 @@ export function applyOp(input: Readonly<Stack>, op: StackOp): StackResult {
       return { ok: true, stack: s }
     }
   }
+}
+
+/** A copy of the geometry with finite, in-range numbers, or null if it can't be drawn. */
+export function cleanGeometry(g: Geometry): Geometry | null {
+  const n = (v: unknown, lo: number, hi: number) => (typeof v === 'number' && Number.isFinite(v) ? Math.min(hi, Math.max(lo, v)) : null)
+  if (g.kind === 'ellipse') {
+    const v = [n(g.x, -4, 4), n(g.y, -4, 4), n(g.rx, 0.002, 4), n(g.ry, 0.002, 4), n(g.angle ?? 0, -10, 10)]
+    if (v.some((x) => x === null)) return null
+    return { kind: 'ellipse', x: v[0]!, y: v[1]!, rx: v[2]!, ry: v[3]!, angle: v[4]! }
+  }
+  if (g.kind === 'rect') {
+    const v = [n(g.x, -4, 4), n(g.y, -4, 4), n(g.w, 0.002, 4), n(g.h, 0.002, 4), n(g.radius ?? 0, 0, 4), n(g.angle ?? 0, -10, 10)]
+    if (v.some((x) => x === null)) return null
+    return { kind: 'rect', x: v[0]!, y: v[1]!, w: v[2]!, h: v[3]!, radius: Math.min(v[4]!, v[2]!, v[3]!), angle: v[5]! }
+  }
+  if (g.kind === 'path') {
+    if (!Array.isArray(g.points) || g.points.length < 3 || g.points.length > MAX_PATH_POINTS) return null
+    const pts = g.points.map(([x, y]) => [n(x, -4, 4), n(y, -4, 4)])
+    if (pts.some(([x, y]) => x === null || y === null)) return null
+    return { kind: 'path', points: pts as [number, number][] }
+  }
+  return null
 }
 
 // ---- URL / attribute encoding --------------------------------------------------

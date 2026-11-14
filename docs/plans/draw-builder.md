@@ -1,0 +1,63 @@
+# Lazuli: draw, then shape the field
+
+Status: building, 2026-11-14. Follows `layer-builder.md` (the layer stack, its compiler and export
+are the base). Direction chosen on the options page (https://claude.ai/artifact/RbtHBZsYipJXT1hi3g1emW):
+option 3 by default, with a code view beside the canvas.
+
+## Problem
+
+The layer stack only remixes shapes someone else wrote (blobs, waves, rings). People can't make
+their own forms. Lazuli should let you draw any shape and shape its field (soften, melt, ring,
+warp, light it), and give you the code.
+
+## Scope
+
+In: drawn layers (ellipse, rectangle, pen path, later text); continuous melt and soft cut /
+intersect between drawn layers; a framed canvas with drawing tools in the dock; field sources that
+aren't shapes (noise, cells, gradient); more ways to bend space; color and light; a loop timeline;
+the side code editor with scrubbable numbers and Code layers; examples rebuilt with the tool.
+
+Out (for now): simulations (fluid, reaction-diffusion), 3D, collaboration.
+
+## Model
+
+A **drawn layer** sits in the stack's shape list beside today's generated shapes:
+
+| Field | Meaning |
+| --- | --- |
+| `geom` | `ellipse` (center, radii), `rect` (center, half size, corner radius), `path` (closed polygon, up to 32 points; pen curves are sampled into points) |
+| `melt` | 0–1: how softly it joins the drawn layer below (0 = hard edge) |
+| `combine` | merge, add, cut, intersect (cut and intersect are smooth when melt > 0) |
+| `soft` | 0–1: edge softness of the group it starts |
+| `warps` | the same warps as other shapes |
+
+Consecutive drawn layers that merge, cut or intersect form one **field group**: their distances
+combine with smooth min / max, then the group is shaded once through the palette (depth → tone),
+so melted shapes color as one liquid form. A group lands on the layers below like any other group.
+
+## Success criteria
+
+1. Existing looks don't change: `tools/regress/compare.mjs` stays at 0/255.
+2. Drawn layers compile and draw on WebGL1 and WebGL2 (`tools/regress/stacks.mjs` checks).
+3. Melt is continuous: melt 0 equals a hard union; raising it fills the gap between two shapes
+   (pixel check).
+4. Cut with melt removes a soft bite; intersect keeps only the overlap (pixel checks).
+5. A path layer renders any closed polygon (a star and a concave L), inside/outside correct.
+6. Export (GLSL, Shadertoy, HTML) of a drawn stack matches the engine within 2/255.
+7. [human] Drawing on the canvas feels like making something (milestone 2 onward).
+
+## Milestones
+
+1. **Draw engine:** drawn layers, field groups, melt / soft cut / intersect, export. Tests + GPU checks.
+   **Done 2026-11-14:** criteria 1–6 pass (parity 0/255; 4 drawn GPU checks; drawn export matches).
+2. **Canvas:** framed canvas (16:9 · Square · Phone · Fill), dock tools Move / Pen / Ellipse /
+   Rectangle, selection handles, melt handle between shapes.
+3. **Fields and bending:** text, noise, cells, gradient sources; repeat, kaleidoscope, twist.
+4. **Color and light:** on-canvas gradient, contours, glow, light as height.
+5. **Motion:** loop timeline with keyframes.
+6. **Code view:** side editor (Code | Properties) with scrubbable numbers; Code layers.
+7. **Examples:** today's looks rebuilt as files made with the tool; presets become examples.
+
+## Type
+
+Manrope, even pixel sizes only (14 body, 12 small, 10 tiny).

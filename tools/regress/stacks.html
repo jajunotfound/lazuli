@@ -151,6 +151,63 @@
       return true
     })
 
+    // ---- drawn layers: sample known points (height units, center origin, y up) ----
+    const drawnOnly = (...geoms) => {
+      let s = configToStack(resolveConfig({ texture: { type: 'none' } }))
+      for (const geom of geoms.reverse()) {
+        const r = applyOp(s, { op: 'add', layer: 'drawn', geom })
+        if (!r.ok) throw new Error(r.error)
+        s = r.stack
+      }
+      const r = applyOp(s, { op: 'delete', id: 'shape-1' })
+      if (!r.ok) throw new Error(r.error)
+      s = r.stack
+      s.shapes.forEach((x) => (x.soft = 0))
+      return s
+    }
+    const at = (p, x, y) => {
+      const px = Math.round(W / 2 + x * H), py = Math.round(H / 2 - y * H)
+      const i = (py * W + px) * 4
+      return p[i] < 235 || p[i + 1] < 235 || p[i + 2] < 235 // true = colored, false = background
+    }
+    const E = (x, y, r) => ({ kind: 'ellipse', x, y, rx: r, ry: r, angle: 0 })
+    await run('drawn:ellipse in and out', async () => {
+      const p = await shot(drawnOnly(E(0.2, 0.1, 0.12)))
+      return (at(p, 0.2, 0.1) && !at(p, -0.4, -0.3) && !at(p, 0.2, 0.25)) || 'wrong inside/outside'
+    })
+    await run('drawn:melt fills the gap', async () => {
+      const hard = drawnOnly(E(-0.13, 0, 0.1), E(0.13, 0, 0.1))
+      hard.shapes.forEach((x) => (x.melt = 0))
+      const soft = structuredClone(hard)
+      soft.shapes.forEach((x) => (x.melt = 1))
+      const [a, b] = await Promise.all([shot(hard), shot(soft)])
+      // The gap between the two circles, just above the line joining them.
+      return (!at(a, 0, 0.06) && at(b, 0, 0.06)) || `hard ${at(a, 0, 0.06)}, melted ${at(b, 0, 0.06)}`
+    })
+    await run('drawn:cut bites, intersect keeps the overlap', async () => {
+      const big = E(0, 0, 0.2), bite = E(0.18, 0, 0.12)
+      const cut = drawnOnly(bite, big), inter = drawnOnly(bite, big)
+      cut.shapes[0].combine = 'cut'
+      inter.shapes[0].combine = 'intersect'
+      cut.shapes.forEach((x) => (x.melt = 0))
+      inter.shapes.forEach((x) => (x.melt = 0))
+      const [c, i] = await Promise.all([shot(cut), shot(inter)])
+      const okCut = at(c, -0.1, 0) && !at(c, 0.15, 0)
+      const okInter = at(i, 0.15, 0) && !at(i, -0.1, 0) && !at(i, 0.27, 0)
+      return (okCut && okInter) || `cut ${okCut}, intersect ${okInter}`
+    })
+    await run('drawn:star and concave L paths', async () => {
+      const star = Array.from({ length: 10 }, (_, k) => {
+        const a = Math.PI / 2 + (k * Math.PI) / 5, r = k % 2 ? 0.08 : 0.2
+        return [-0.35 + r * Math.cos(a), r * Math.sin(a)]
+      })
+      const L = [[0.15, 0.2], [0.25, 0.2], [0.25, -0.1], [0.45, -0.1], [0.45, -0.2], [0.15, -0.2]]
+      const p = await shot(drawnOnly({ kind: 'path', points: star }, { kind: 'path', points: L }))
+      const starOk = at(p, -0.35, 0) && at(p, -0.35, 0.17) && !at(p, -0.35 + 0.15 * Math.cos(Math.PI / 2 + Math.PI / 5), 0.15 * Math.sin(Math.PI / 2 + Math.PI / 5))
+      const lOk = at(p, 0.2, 0.1) && at(p, 0.4, -0.15) && !at(p, 0.38, 0.1)
+      return (starOk && lOk) || `star ${starOk}, L ${lOk}`
+    })
+
     return out
   })()
 </script>

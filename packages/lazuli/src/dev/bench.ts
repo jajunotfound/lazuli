@@ -4,6 +4,7 @@
 // Not part of the published build.
 import { resolveConfig, type LazuliInput } from '../config'
 import { createRenderer, type FrameState } from '../renderer'
+import type { ShapeType } from '../schema'
 import { applyOp, configToStack, type Stack } from '../stack'
 
 const frame = (time: number, dpr: number): FrameState => ({ time, mouse: [0.5, 0.5], vel: [0, 0], active: 0, dpr })
@@ -62,7 +63,7 @@ const TIMED: [string, LazuliInput][] = [
 ]
 
 /** Stacks for the layer builder's budget: 4 shapes, warps and grain under 8 ms at 1920×1080. */
-function stackOf(types: Stack['shapes'][number]['type'][], extra: (s: Stack) => Stack = (s) => s): Stack {
+function stackOf(types: ShapeType[], extra: (s: Stack) => Stack = (s) => s): Stack {
   let s = configToStack(resolveConfig({ shape: types[types.length - 1] }))
   for (let i = types.length - 2; i >= 0; i--) {
     const r = applyOp(s, { op: 'add', layer: 'shape', type: types[i] })

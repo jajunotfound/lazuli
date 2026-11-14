@@ -36,7 +36,11 @@ function literal(type: string, v: ArrayLike<number> | number, offset = 0): strin
 export function exportShader(stack: Readonly<Stack>): string {
   const values = stackUniforms(stack)
   const init: string[] = []
-  let src = stackFragment(stack).replace(/uniform\s+(\w+)\s+(\w+)\s*(?:\[(\d+)\])?\s*;/g, (m, type: string, name: string, count?: string) => {
+  // One name per declaration first: `uniform float a, b;` becomes two declarations.
+  const split = stackFragment(stack).replace(/uniform\s+(\w+)\s+([\w\s,\[\]]+?)\s*;/g, (m, type: string, names: string) =>
+    names.includes(',') ? names.split(',').map((n) => `uniform ${type} ${n.trim()};`).join(' ') : m,
+  )
+  let src = split.replace(/uniform\s+(\w+)\s+(\w+)\s*(?:\[(\d+)\])?\s*;/g, (m, type: string, name: string, count?: string) => {
     if (LIVE.has(name)) return m
     const v = values[name] as UniformValue | undefined
     if (count) {

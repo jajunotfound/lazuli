@@ -289,7 +289,7 @@ export function createLazuli(element: HTMLElement, input: LazuliInput = {}): Laz
     },
     shuffle() {
       const seed = randomSeed()
-      if (stack) this.setStack({ ...stack, shapes: stack.shapes.map((x, i) => ({ ...x, seed: seed + i * 7919 })) })
+      if (stack) this.setStack({ ...stack, shapes: stack.shapes.map((x, i) => (x.kind === 'shape' ? { ...x, seed: seed + i * 7919 } : x)) })
       else this.set({ seed })
       return seed
     },

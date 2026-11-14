@@ -296,3 +296,47 @@ test('a cursor on one shape: one cursor per stack, and only that shape follows t
   assert.ok((u.u_warp_1_0 as number[])[0] > 0, 'the shape’s own push')
   assert.equal(stackToConfig(s).cursor.follow, 50, 'the engine still follows the pointer')
 })
+
+// ---- drawn layers (draw builder, milestone 1) -----------------------------------
+
+const ellipse = (x: number, y: number, r = 0.15) => ({ kind: 'ellipse' as const, x, y, rx: r, ry: r, angle: 0 })
+
+test('drawn layers: add, reshape, limits, geometry checks', () => {
+  let s = ok(base(), { op: 'add', layer: 'drawn', geom: ellipse(0, 0) })
+  assert.equal(s.shapes[0].kind, 'drawn')
+  assert.equal(s.shapes[0].name, 'Ellipse')
+  s = ok(s, { op: 'reshape', id: 'drawn-1', melt: 2, soft: -1, geom: { kind: 'rect', x: 0.1, y: 0, w: 0.2, h: 0.1, radius: 0.5, angle: 0 } })
+  const d = s.shapes[0] as import('../src/stack').DrawnLayer
+  assert.deepEqual([d.melt, d.soft], [1, 0])
+  assert.equal(d.geom.kind === 'rect' && d.geom.radius, 0.1, 'corner radius clamps to the half size')
+  assert.equal(err(s, { op: 'reshape', id: 'shape-1', melt: 0.2 }), 'wrong_kind')
+  assert.equal(err(s, { op: 'add', layer: 'drawn', geom: { kind: 'path', points: [[0, 0], [1, 1]] } }), 'bad_geometry')
+  assert.equal(err(s, { op: 'add', layer: 'drawn', geom: { kind: 'ellipse', x: NaN, y: 0, rx: 0.1, ry: 0.1, angle: 0 } }), 'bad_geometry')
+  for (let i = 0; i < 7; i++) s = ok(s, { op: 'add', layer: 'drawn', geom: ellipse(i / 10, 0) })
+  assert.equal(err(s, { op: 'add', layer: 'drawn', geom: ellipse(0, 0) }), 'drawn_limit')
+  assert.equal(err(s, { op: 'duplicate', id: 'drawn-1' }), 'drawn_limit')
+  // Generated shapes keep their own limit, separate from drawn ones.
+  assert.equal(ok(s, { op: 'add', layer: 'shape', type: 'waves' }).shapes.filter((x) => x.kind === 'shape').length, 2)
+})
+
+test('drawn layers next to each other form one field; add starts a new group', () => {
+  const d = (combine: string) => ({ kind: 'drawn', combine }) as never
+  assert.deepEqual(shapeGroups([d('merge'), d('cut'), d('intersect'), d('merge')]), [[0, 1, 2, 3]])
+  assert.deepEqual(shapeGroups([d('add'), d('merge')]), [[0], [1]])
+  assert.deepEqual(shapeGroups([d('merge'), { type: 'blobs', combine: 'merge' }, { type: 'blobs', combine: 'merge' }]), [[0], [1, 2]])
+})
+
+test('a drawn field compiles to one shading pass with each layer’s join', () => {
+  let s = ok(base(), { op: 'add', layer: 'drawn', geom: ellipse(-0.2, 0) })
+  s = ok(s, { op: 'add', layer: 'drawn', geom: { kind: 'path', points: [[0, 0.2], [0.2, -0.2], [-0.2, -0.2]] } })
+  s = ok(s, { op: 'combine', id: 'drawn-2', combine: 'cut' })
+  s = ok(s, { op: 'delete', id: 'shape-1' })
+  const { fragment, uniforms, key } = compileStack(s)
+  assert.equal(key, 'drawn-path:cut,drawn-ellipse|grain')
+  assert.ok(fragment.includes('float d = drawn_1(p);'))
+  assert.ok(fragment.includes('d = dCut(d, drawn_0(p), u_melt_0);'))
+  assert.equal((fragment.match(/drawnShade\(/g) ?? []).length, 2, 'one call site plus its definition')
+  assert.equal(uniforms.u_npts_0, 3)
+  assert.deepEqual([...(uniforms.u_pts_0 as Float32Array).slice(0, 8)].map((v) => +v.toFixed(3)), [0, 0.2, 0.2, -0.2, -0.2, -0.2, 0, 0.2])
+  assert.equal(stackToConfig(s).shape.type, 'blobs', 'a drawn-only stack keeps the default settings for the rest')
+})

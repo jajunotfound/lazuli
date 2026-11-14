@@ -21,6 +21,13 @@
     'waves+halftone': still({ shape: 'waves', texture: { type: 'halftone' } }),
     'transparent': still({ background: { type: 'transparent' }, texture: { type: 'none' } }),
     'gradient bg': still({ background: { type: 'gradient', kind: 'radial', gradient: ['#ffffff', '#cfe0ff'] } }),
+    'drawn field': ops(still({ texture: { type: 'grain' } }), [
+      { op: 'add', layer: 'drawn', geom: { kind: 'path', points: [[0.1, 0.25], [0.35, -0.2], [-0.15, -0.2]] } },
+      { op: 'add', layer: 'drawn', geom: { kind: 'rect', x: 0.1, y: 0, w: 0.18, h: 0.08, radius: 0.03, angle: 0.4 } },
+      { op: 'combine', id: 'drawn-2', combine: 'cut' },
+      { op: 'add', layer: 'drawn', geom: { kind: 'ellipse', x: -0.25, y: 0.05, rx: 0.16, ry: 0.11, angle: 0.3 } },
+      { op: 'delete', id: 'shape-1' },
+    ]),
     'layers+warps': ops(still({ texture: { type: 'none' } }), [
       { op: 'add', layer: 'shape', type: 'rings' },
       { op: 'combine', id: 'shape-2', combine: 'cut' },
