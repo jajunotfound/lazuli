@@ -1514,8 +1514,8 @@ button {
   margin: 0;
   padding-right: 8px;
   color: var(--ink-80);
-  font-size: 16px;
-  line-height: 24px;
+  font-size: 12px;
+  line-height: 18px;
   letter-spacing: var(--tracking-tight);
 }
 
