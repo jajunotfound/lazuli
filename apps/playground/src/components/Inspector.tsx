@@ -171,6 +171,11 @@ function Field({ path, view, set }: { path: ParamPath; view: Config; set(p: Lazu
 
   switch (d.kind) {
     case 'number': {
+      // Steps picks from a few choices (Smooth or 2–8 bands): a menu, not a slider.
+      if (path === 'color.steps') {
+        const options = [{ value: '0', label: 'Smooth' }, ...[2, 3, 4, 5, 6, 7, 8].map((n) => ({ value: String(n), label: `${n} bands` }))]
+        return <SelectField label={label} value={String(value)} options={options} onChange={(v) => change(Number(v))} />
+      }
       const step = hint.step ?? (d.int ? 1 : d.max - d.min <= 10 ? 0.05 : 1)
       const fmt = hint.format ?? ((x: number) => String(step < 1 ? round(x) : Math.round(x)))
       return <NumberField label={label} value={value as number} min={d.min} max={d.max} step={step} sqrt={hint.sqrt} stepped={hint.stepped && d.max - d.min <= 8} format={fmt} onChange={change} />
@@ -234,7 +239,7 @@ interface NumberFieldProps {
 }
 
 /** The whole row is the slider (Lazuli's own): a fill grows from the left, label inside, value on the right. */
-export function NumberField({ label, value, min, max, step, sqrt, stepped, format, onChange }: NumberFieldProps) {
+export function NumberField({ label, value, min, max, step, sqrt, format, onChange }: NumberFieldProps) {
   if (sqrt) {
     // Square-root scale: finer control near zero (speed).
     return (
@@ -249,7 +254,7 @@ export function NumberField({ label, value, min, max, step, sqrt, stepped, forma
       />
     )
   }
-  return <InlineSlider label={label} value={value} min={min} max={max} step={step} stepped={stepped} format={format} onChange={onChange} />
+  return <InlineSlider label={label} value={value} min={min} max={max} step={step} format={format} onChange={onChange} />
 }
 
 /** A row like the sliders: label on the left, the current option and a chevron on the right; the native menu opens on click. */

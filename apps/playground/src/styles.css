@@ -298,8 +298,8 @@ button {
   position: relative;
   flex-shrink: 0;
   display: block;
-  height: 48px;
-  border-radius: 12px;
+  height: 40px;
+  border-radius: 10px;
   background: var(--row);
   overflow: hidden;
   touch-action: none;
@@ -323,7 +323,7 @@ button {
   bottom: 0;
   left: 0;
   width: calc(18px + var(--p) * (100% - 18px));
-  border-radius: 12px;
+  border-radius: 10px;
   background: var(--row-strong);
 }
 
@@ -335,7 +335,7 @@ button {
   position: relative;
   display: block;
   width: 18px;
-  height: 48px;
+  height: 40px;
   outline: none;
 }
 
@@ -343,29 +343,19 @@ button {
   content: '';
   position: absolute;
   left: 8px;
-  top: 14px;
+  top: 12px;
   width: 2px;
-  height: 20px;
+  height: 16px;
   border-radius: 999px;
   background: var(--handle);
   transition: background-color 120ms ease;
 }
 
-.inline-slider__dot {
-  position: absolute;
-  top: 38px;
-  left: calc(9px + var(--d) * (100% - 18px) - 2px);
-  width: 4px;
-  height: 4px;
-  border-radius: 999px;
-  background: var(--dot);
-  pointer-events: none;
-}
 
 .inline-slider__label,
 .inline-slider__value {
   position: absolute;
-  top: 15px;
+  top: 11px;
   font-size: 14px;
   font-weight: 500;
   line-height: 18px;
@@ -1122,7 +1112,7 @@ button {
   min-width: 160px;
   padding: 4px;
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: 10px;
   background: var(--surface);
   box-shadow: var(--shadow-dialog);
 }
@@ -1175,7 +1165,7 @@ button {
   gap: 6px;
   padding: 4px 4px 8px;
   border: 1px solid transparent;
-  border-radius: 12px;
+  border-radius: 10px;
   background: var(--row);
   text-align: left;
   transition: background-color 120ms ease;
@@ -1262,6 +1252,12 @@ button {
 
 .segmented--tabs {
   align-self: flex-start;
+}
+
+/* The handle hides while the fill's edge is under the label (it would cut through the words),
+   and comes back while you drag or focus the slider. */
+.inline-slider[data-under]:not([data-dragging]):not(:has(.inline-slider__thumb:focus-visible)) .inline-slider__thumb::after {
+  opacity: 0;
 }
 
 /* ---- Switch (Pull in) --------------------------------------------------- */
@@ -2055,9 +2051,9 @@ button {
   grid-template-columns: 76px 1fr;
   align-items: center;
   gap: 8px;
-  min-height: 48px;
-  padding: 0 8px 0 16px;
-  border-radius: 12px;
+  min-height: 40px;
+  padding: 0 6px 0 16px;
+  border-radius: 10px;
   background: var(--row);
 }
 
@@ -2066,9 +2062,9 @@ button {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  min-height: 48px;
+  min-height: 40px;
   padding: 0 16px;
-  border-radius: 12px;
+  border-radius: 10px;
   background: var(--row);
   cursor: pointer;
 }
