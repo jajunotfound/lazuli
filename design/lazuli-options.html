@@ -34,7 +34,7 @@
 }
 * { box-sizing: border-box; }
 body {
-  margin: 0; background: var(--ground); color: var(--ink); font: 13px/1.5 var(--font-sans);
+  margin: 0; background: var(--ground); color: var(--ink); font: 14px/1.5 var(--font-sans);
   padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
 }
 .page { max-width: 1120px; margin: 0 auto; padding-block: 32px 48px; display: flex; flex-direction: column; gap: 20px; }
@@ -52,7 +52,7 @@ h1 { margin: 0; font-size: 22px; line-height: 1.2; letter-spacing: -0.02em; text
 .tab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .tab__num { font-size: 10px; color: var(--ink-3); font-weight: 600; letter-spacing: 0.04em; }
 .tab__name { font-weight: 600; }
-.tab__now { font-size: 10.5px; color: var(--accent); font-weight: 600; }
+.tab__now { font-size: 10px; color: var(--accent); font-weight: 600; }
 
 .facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
 .fact { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; min-width: 0; }
@@ -81,18 +81,18 @@ h1 { margin: 0; font-size: 22px; line-height: 1.2; letter-spacing: -0.02em; text
 .stage { position: relative; display: grid; place-items: center; padding: 28px; min-width: 0; }
 .frame { position: relative; width: 100%; max-width: 560px; aspect-ratio: 16 / 10; border-radius: 6px; overflow: hidden; box-shadow: 0 0 0 1px var(--line); background: #fff; }
 .frame canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
-.frame__size { position: absolute; left: 0; top: -20px; font-size: 11px; color: var(--ink-3); }
+.frame__size { position: absolute; left: 0; top: -20px; font-size: 12px; color: var(--ink-3); }
 .panel { background: var(--surface); border-left: 1px solid var(--line); padding: 14px; display: flex; flex-direction: column; gap: 10px; overflow: auto; }
-.panel h3 { margin: 0; font-size: 12.5px; }
-.panel .sub { font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3); margin-top: 6px; }
-.field { display: grid; grid-template-columns: 68px 1fr 40px; align-items: center; gap: 8px; font-size: 11.5px; color: var(--ink-2); }
+.panel h3 { margin: 0; font-size: 12px; }
+.panel .sub { font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3); margin-top: 6px; }
+.field { display: grid; grid-template-columns: 68px 1fr 40px; align-items: center; gap: 8px; font-size: 12px; color: var(--ink-2); }
 .field input[type=range] { width: 100%; accent-color: var(--accent); }
 .field output { font-variant-numeric: tabular-nums; text-align: right; color: var(--ink); }
 .select { display: flex; justify-content: space-between; align-items: center; height: 28px; padding: 0 8px; border-radius: 6px; background: var(--row); color: var(--ink); font-size: 12px; }
 .chips { display: flex; flex-wrap: wrap; gap: 4px; }
-.chip { padding: 2px 8px; border-radius: 999px; background: var(--row); font-size: 11px; color: var(--ink-2); }
+.chip { padding: 2px 8px; border-radius: 999px; background: var(--row); font-size: 12px; color: var(--ink-2); }
 .chip.on { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
-.note { font-size: 11.5px; color: var(--ink-2); background: var(--row); border-radius: 8px; padding: 8px 10px; }
+.note { font-size: 12px; color: var(--ink-2); background: var(--row); border-radius: 8px; padding: 8px 10px; }
 .gradbar { height: 14px; border-radius: 4px; box-shadow: inset 0 0 0 1px var(--line); position: relative; }
 .gradbar i { position: absolute; top: -3px; width: 10px; height: 20px; border-radius: 3px; border: 2px solid #fff; box-shadow: 0 0 0 1px #0003; transform: translateX(-50%); }
 
@@ -106,8 +106,8 @@ h1 { margin: 0; font-size: 22px; line-height: 1.2; letter-spacing: -0.02em; text
 .overlay { position: absolute; inset: 0; width: 100%; height: 100%; }
 .drag { cursor: grab; }
 .drag:active { cursor: grabbing; }
-.hint { position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%); font-size: 11px; padding: 3px 10px; border-radius: 999px; background: #000a; color: #fff; pointer-events: none; white-space: nowrap; }
-.timeline { position: absolute; left: 28px; right: 28px; bottom: 10px; height: 44px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; display: flex; align-items: center; gap: 10px; padding: 0 12px; font-size: 11px; color: var(--ink-3); }
+.hint { position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%); font-size: 12px; padding: 3px 10px; border-radius: 999px; background: #000a; color: #fff; pointer-events: none; white-space: nowrap; }
+.timeline { position: absolute; left: 28px; right: 28px; bottom: 10px; height: 44px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; display: flex; align-items: center; gap: 10px; padding: 0 12px; font-size: 12px; color: var(--ink-3); }
 .track { position: relative; flex: 1; height: 2px; background: var(--line); }
 .track b { position: absolute; top: -5px; width: 10px; height: 10px; background: var(--accent); transform: translateX(-50%) rotate(45deg); border-radius: 2px; }
 .track .head { position: absolute; top: -12px; width: 2px; height: 26px; background: var(--ink); }
@@ -142,18 +142,18 @@ h1 { margin: 0; font-size: 22px; line-height: 1.2; letter-spacing: -0.02em; text
 #drawApp .stage--up { padding-top: 56px; }
 .side { flex-direction: column; min-width: 0; background: var(--code-bg); border-right: 1px solid var(--line); }
 .side__head { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; border-bottom: 1px solid var(--line); background: var(--surface); }
-.side__file { font: 11px var(--font-mono); color: var(--ink-3); }
+.side__file { font: 12px var(--font-mono); color: var(--ink-3); }
 .side__body { flex: 1; overflow: auto; min-height: 0; }
 .side__props { padding: 14px; display: flex; flex-direction: column; gap: 10px; background: var(--surface); height: 100%; }
-.side__foot { padding: 8px 12px; border-top: 1px solid var(--line); font-size: 11px; color: var(--ink-3); background: var(--surface); }
-.editor { padding: 10px 0; font: 11.5px/1.8 var(--font-mono); color: var(--ink); }
+.side__foot { padding: 8px 12px; border-top: 1px solid var(--line); font-size: 12px; color: var(--ink-3); background: var(--surface); }
+.editor { padding: 10px 0; font: 12px/1.8 var(--font-mono); color: var(--ink); }
 .editor div { padding: 0 12px 0 0; white-space: pre; }
 .editor div:hover { background: var(--syn-line); }
 .editor .ln { display: inline-block; width: 34px; padding-right: 12px; text-align: right; color: var(--ink-3); user-select: none; }
 .editor .kw { color: var(--syn-key); } .editor .fn { color: var(--syn-fn); } .editor .cm { color: var(--syn-com); } .editor .st { color: var(--syn-str); }
 .editor .num { color: var(--accent); border-bottom: 1px dotted var(--accent); }
 .editor .num[data-key] { cursor: ew-resize; background: var(--accent-soft); border-radius: 3px; border-bottom: 0; padding: 0 2px; }
-.editor .add { display: inline-block; margin: 10px 0 0 46px; padding: 3px 10px; border: 1px dashed var(--ink-3); border-radius: 6px; color: var(--ink-2); font-family: var(--font-sans); font-size: 11.5px; }
+.editor .add { display: inline-block; margin: 10px 0 0 46px; padding: 3px 10px; border: 1px dashed var(--ink-3); border-radius: 6px; color: var(--ink-2); font-family: var(--font-sans); font-size: 12px; }
 
 /* beyond circles gallery */
 .gallery { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
@@ -163,9 +163,9 @@ h1 { margin: 0; font-size: 22px; line-height: 1.2; letter-spacing: -0.02em; text
 .card canvas { display: block; width: 100%; aspect-ratio: 16 / 10; }
 .card__body { padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 6px; }
 .card__title { font-weight: 600; }
-.card__how { font-size: 11.5px; color: var(--ink-2); }
+.card__how { font-size: 12px; color: var(--ink-2); }
 .blocks { display: flex; flex-wrap: wrap; gap: 4px; }
-.block { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+.block { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
 .k-draw { background: #fde7d9; color: #8a3b12; } .k-field { background: #e2f3ef; color: #0d5c63; }
 .k-bend { background: #ece5fb; color: #4b2a96; } .k-combine { background: #e6ecf9; color: #1f48a8; } .k-light { background: #fbf1d4; color: #7a5600; }
 .legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; color: var(--ink-2); align-items: center; }
@@ -239,8 +239,8 @@ h1 { margin: 0; font-size: 22px; line-height: 1.2; letter-spacing: -0.02em; text
             <g font-family="Manrope, system-ui" font-size="12">
               <g><rect x="18" y="112" width="120" height="56" rx="8" fill="var(--surface)" stroke="var(--line)"/><text x="30" y="134" font-weight="600" fill="var(--ink)">Position</text><text x="30" y="152" fill="var(--ink-2)">x, y</text><circle cx="138" cy="140" r="4" fill="var(--wire)"/></g>
               <g><rect x="18" y="372" width="120" height="56" rx="8" fill="var(--surface)" stroke="var(--line)"/><text x="30" y="394" font-weight="600" fill="var(--ink)">Time</text><text x="30" y="412" fill="var(--ink-2)">seconds</text><circle cx="138" cy="400" r="4" fill="var(--wire)"/></g>
-              <g><rect x="200" y="100" width="138" height="62" rx="8" fill="var(--surface)" stroke="var(--line)"/><text x="212" y="122" font-weight="600" fill="var(--ink)">Circle</text><text x="212" y="140" fill="var(--ink-2)">radius 0.22</text><text x="212" y="154" fill="var(--ink-3)" font-size="10.5">distance out</text><circle cx="338" cy="130" r="4" fill="var(--wire)"/></g>
-              <g><rect x="200" y="230" width="138" height="62" rx="8" fill="var(--surface)" stroke="var(--line)"/><text x="212" y="252" font-weight="600" fill="var(--ink)">Circle</text><text x="212" y="270" fill="var(--ink-2)">radius 0.16</text><text x="212" y="284" fill="var(--ink-3)" font-size="10.5">moves with time</text><circle cx="338" cy="260" r="4" fill="var(--wire)"/></g>
+              <g><rect x="200" y="100" width="138" height="62" rx="8" fill="var(--surface)" stroke="var(--line)"/><text x="212" y="122" font-weight="600" fill="var(--ink)">Circle</text><text x="212" y="140" fill="var(--ink-2)">radius 0.22</text><text x="212" y="154" fill="var(--ink-3)" font-size="10">distance out</text><circle cx="338" cy="130" r="4" fill="var(--wire)"/></g>
+              <g><rect x="200" y="230" width="138" height="62" rx="8" fill="var(--surface)" stroke="var(--line)"/><text x="212" y="252" font-weight="600" fill="var(--ink)">Circle</text><text x="212" y="270" fill="var(--ink-2)">radius 0.16</text><text x="212" y="284" fill="var(--ink-3)" font-size="10">moves with time</text><circle cx="338" cy="260" r="4" fill="var(--wire)"/></g>
               <g><rect x="392" y="176" width="128" height="58" rx="8" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.5"/><text x="404" y="198" font-weight="600" fill="var(--ink)">Smooth min</text><text x="404" y="216" fill="var(--ink-2)">melt 0.18</text><circle cx="520" cy="205" r="4" fill="var(--wire)"/></g>
               <g><rect x="332" y="322" width="138" height="56" rx="8" fill="var(--surface)" stroke="var(--line)"/><text x="344" y="344" font-weight="600" fill="var(--ink)">Rings</text><text x="344" y="362" fill="var(--ink-2)">every 0.11</text></g>
               <g><rect x="330" y="404" width="138" height="56" rx="8" fill="var(--surface)" stroke="var(--line)"/><text x="342" y="426" font-weight="600" fill="var(--ink)">Gradient</text><rect x="342" y="436" width="110" height="10" rx="3" fill="url(#g2)"/></g>

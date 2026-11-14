@@ -445,7 +445,7 @@ button {
   border-radius: 4px;
   color: var(--ink-40);
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: 10px;
   line-height: 11px;
 }
 
@@ -620,7 +620,7 @@ button {
 .preset__label {
   padding: 0 4px;
   color: var(--ink-70);
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
   line-height: 16px;
   letter-spacing: var(--tracking-tight);
@@ -1211,7 +1211,7 @@ button {
 .inspector__title {
   margin: 0;
   color: var(--ink-90);
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   line-height: 18px;
 }
@@ -1245,7 +1245,7 @@ button {
   padding: 0 4px 0 8px;
   border-radius: 8px;
   color: var(--ink-80);
-  font-size: 13px;
+  font-size: 14px;
   line-height: 18px;
   cursor: default;
   user-select: none;
@@ -1302,7 +1302,7 @@ button {
 .layer__meta {
   flex-shrink: 0;
   color: var(--ink-50);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .layer__eye {
@@ -1373,14 +1373,14 @@ button {
 .add-menu__title {
   padding: 6px 10px 2px;
   color: var(--ink-50);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   line-height: 16px;
 }
 
 .add-menu .menu__item {
   height: 30px;
-  font-size: 13px;
+  font-size: 14px;
   letter-spacing: 0;
   word-spacing: 0;
 }
@@ -1409,7 +1409,7 @@ button {
   border-radius: 8px;
   background: var(--accent);
   color: var(--accent-ink);
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
 }
 
@@ -1428,7 +1428,7 @@ button {
   background: none;
   color: var(--ink-90);
   font: inherit;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
 }
 
