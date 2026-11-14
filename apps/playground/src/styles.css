@@ -292,6 +292,13 @@ button {
   color: var(--ink-40);
 }
 
+.timeline__ease {
+  appearance: none;
+  padding-right: 28px;
+  background: var(--surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath d='M2 4l3 3 3-3' fill='none' stroke='%23888' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 10px center;
+  cursor: pointer;
+}
+
 /* ---- Inline slider ------------------------------------------------------ */
 /* Thumb center = 9px + p·(W − 18px), matching Radix's in-bounds thumb offset. */
 

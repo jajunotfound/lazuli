@@ -163,12 +163,12 @@
         ...s,
         keys: {
           [ell.id]: [
-            { t: 0.1, geom: ell.geom, melt: 0.2, soft: 0.1 },
+            { t: 0.1, geom: ell.geom, melt: 0.2, soft: 0.1, ease: 'linear' },
             { t: 0.6, geom: { ...ell.geom, x: 0.25, rx: 0.2, angle: 0.8 }, melt: 0.9, soft: 0.4 },
           ],
           [path.id]: [
             { t: 0, geom: path.geom, melt: 0.5, soft: 0.2 },
-            { t: 0.3, geom: { kind: 'path', points: [[0.0, 0.3], [0.35, -0.1], [-0.2, -0.2]] }, melt: 0.5, soft: 0.2 },
+            { t: 0.3, geom: { kind: 'path', points: [[0.0, 0.3], [0.35, -0.1], [-0.2, -0.2]] }, melt: 0.5, soft: 0.2, ease: 'hold' },
             { t: 0.8, geom: { kind: 'path', points: [[0.0, 0.3], [0.35, -0.1], [-0.2, -0.2], [-0.3, 0.1]] }, melt: 0.5, soft: 0.2 },
           ],
         },

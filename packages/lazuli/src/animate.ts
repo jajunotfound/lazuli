@@ -1,9 +1,14 @@
 // Keyframed drawn layers: the stack as it is at time t of the loop (0–1). Between keyframes the
 // values ease in and out; the loop wraps from the last keyframe back to the first.
 
-import type { DrawnKey, DrawnLayer, Geometry, Stack } from './stack'
+import type { DrawnKey, DrawnLayer, Geometry, KeyEase, Stack } from './stack'
 
-const ease = (x: number) => x * x * (3 - 2 * x)
+/** Progress through a segment (0–1) after easing. Hold stays put until the next keyframe. */
+export function easeKey(kind: KeyEase | undefined, x: number): number {
+  if (kind === 'hold') return 0
+  if (kind === 'linear') return x
+  return x * x * (3 - 2 * x)
+}
 const mix = (a: number, b: number, k: number) => a + (b - a) * k
 
 function mixGeom(a: Geometry, b: Geometry, k: number): Geometry {
@@ -24,7 +29,7 @@ export function keyAt(keys: readonly DrawnKey[], t: number): Omit<DrawnKey, 't'>
   const b = sorted[i]
   const a = sorted[(i - 1 + sorted.length) % sorted.length]
   const span = (b.t - a.t + 1) % 1 || 1
-  const k = ease(((t - a.t + 1) % 1) / span)
+  const k = easeKey(a.ease, ((t - a.t + 1) % 1) / span)
   return { geom: mixGeom(a.geom, b.geom, k), melt: mix(a.melt, b.melt, k), soft: mix(a.soft, b.soft, k) }
 }
 

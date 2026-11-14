@@ -124,7 +124,11 @@ export interface DrawnKey {
   geom: Geometry
   melt: number
   soft: number
+  /** How the layer moves from this keyframe to the next. Default smooth (ease in and out). */
+  ease?: KeyEase
 }
+
+export type KeyEase = 'smooth' | 'linear' | 'hold'
 
 export const MAX_SHAPES = 4
 export const MAX_DRAWN = 8

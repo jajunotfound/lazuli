@@ -1,4 +1,4 @@
-import { animateStack, hasKeys, keyLoop, type DrawnLayer, type LazuliInstance, type Stack } from 'lazuli-bg'
+import { animateStack, hasKeys, keyLoop, type DrawnLayer, type KeyEase, type LazuliInstance, type Stack } from 'lazuli-bg'
 import { useEffect, useRef, useState, type MutableRefObject, type PointerEvent as ReactPointerEvent } from 'react'
 
 interface TimelineProps {
@@ -86,6 +86,11 @@ export function Timeline({ stack, selected, engine, live, time, playing, onKeys,
     onKeys(all)
   }
 
+  const setEase = (ease: KeyEase) => {
+    if (!sel || !atKey) return
+    onKeys({ ...(stack.keys ?? {}), [sel.id]: keys.map((k) => (k === atKey ? { ...k, ease: ease === 'smooth' ? undefined : ease } : k)) })
+  }
+
   return (
     <div className="timeline">
       <button type="button" className="icon-action" onClick={() => setPlaying((p) => !p)} aria-label={isPlaying ? 'Pause' : 'Play'} title={isPlaying ? 'Pause' : 'Play'}>
@@ -104,6 +109,13 @@ export function Timeline({ stack, selected, engine, live, time, playing, onKeys,
         <span className="timeline__head" ref={head} />
       </div>
       <span className="timeline__t">Loop {loop}s</span>
+      {atKey && (
+        <select className="timeline__add timeline__ease" value={atKey.ease ?? 'smooth'} onChange={(e) => setEase(e.target.value as KeyEase)} aria-label="Easing to the next keyframe" title="How it moves to the next keyframe">
+          <option value="smooth">Smooth</option>
+          <option value="linear">Linear</option>
+          <option value="hold">Hold</option>
+        </select>
+      )}
       <button type="button" className="timeline__add" onClick={toggleKey} disabled={!sel} title={sel ? (atKey ? 'Remove keyframe' : `Save ${sel.name} at this moment`) : 'Select a shape to animate it'}>
         {atKey ? 'Remove keyframe' : '◆ Add keyframe'}
       </button>

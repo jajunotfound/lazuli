@@ -343,3 +343,14 @@ test('a drawn field compiles to one shading pass with each layer’s join', () =
   assert.deepEqual([...(uniforms.u_pts_0 as Float32Array).slice(0, 8)].map((v) => +v.toFixed(3)), [0, 0.2, 0.2, -0.2, -0.2, -0.2, 0, 0.2])
   assert.equal(stackToConfig(s).shape.type, 'blobs', 'a drawn-only stack keeps the default settings for the rest')
 })
+
+test('keyframe easing: smooth by default, linear, hold', async () => {
+  const { keyAt } = await import('../src/animate')
+  const g = (x: number) => ({ kind: 'ellipse' as const, x, y: 0, rx: 0.1, ry: 0.1, angle: 0 })
+  const keys = (ease?: 'linear' | 'hold') => [{ t: 0, geom: g(0), melt: 0, soft: 0, ease }, { t: 0.5, geom: g(1), melt: 0, soft: 0 }]
+  const x = (k: ReturnType<typeof keys>, t: number) => (keyAt(k, t).geom as { x: number }).x
+  assert.ok(Math.abs(x(keys(), 0.125) - 0.15625) < 1e-9)
+  assert.ok(Math.abs(x(keys('linear'), 0.125) - 0.25) < 1e-9)
+  assert.equal(x(keys('hold'), 0.45), 0)
+  assert.equal(x(keys('hold'), 0.5), 1)
+})

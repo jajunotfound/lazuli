@@ -118,9 +118,13 @@ function keyedCode(stack: Readonly<Stack>): { names: Set<string>; lines: string[
     lines.push(`    float ph = ${span > 0 ? `fract(u_time / ${num(span)})` : '0.0'};`)
     lines.push('    float k;')
     const n = times.length
+    // The key each segment starts from decides its easing (the last key at that time, as keyAt picks).
+    const easeAt = (i: number) => [...keys].sort((p, q) => p.t - q.t).filter((k) => k.t === times[i]).pop()?.ease
     const segment = (a: number, b: number, x: string, len: number) => {
       const mid = at(((times[a] + (((times[b] - times[a] + 1) % 1) || 1) / 2) % 1))
-      const out = [`k = smoothstep(0.0, 1.0, (${x}) / ${num(len)});`]
+      const kind = easeAt(a)
+      const k = kind === 'hold' ? '0.0' : kind === 'linear' ? `clamp((${x}) / ${num(len)}, 0.0, 1.0)` : `smoothstep(0.0, 1.0, (${x}) / ${num(len)})`
+      const out = [`k = ${k};`]
       for (const m of moving) {
         const va = literal(m.type, frames[a][m.name] as ArrayLike<number> | number, m.from)
         const vb = literal(m.type, frames[b][m.name] as ArrayLike<number> | number, m.from)
