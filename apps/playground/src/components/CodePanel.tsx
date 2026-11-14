@@ -31,7 +31,7 @@ export function CodePanel({ stack, onApply, properties }: CodePanelProps) {
     <aside className="code-panel" aria-label="Code">
       <div className="code-panel__intro">
         <h2 className="code-panel__title">Code</h2>
-        <p className="code-panel__sub">The shader behind your canvas.</p>
+        <p className="code-panel__sub">Edit your canvas as shader code.</p>
       </div>
       <div className="code-panel__tabs">
         <div className="tabs-pill" role="tablist" aria-label="Code panel">

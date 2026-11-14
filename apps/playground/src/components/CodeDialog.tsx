@@ -1,21 +1,15 @@
 import type { Mood } from './Mascot'
 import * as Dialog from '@radix-ui/react-dialog'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { elementSnippet, glslFile, htmlFile, jsSnippet, shadertoyFile } from '../exportCode'
+import { elementSnippet, glslFile, htmlFile, shadertoyFile } from '../exportCode'
 import { CheckIcon, CloseIcon, CopyIcon } from '../icons'
 import type { Stack } from 'lazuli-bg'
 import { Segmented } from './Segmented'
 
-const TABS = [{ label: 'HTML file' }, { label: 'Web component' }, { label: 'JavaScript' }, { label: 'GLSL' }, { label: 'Shadertoy' }] as const
+// Two jobs: put it on a website, or take the shader. Each has one quieter extra
+// (a standalone HTML file; the Shadertoy wrapper) instead of tabs of its own.
+const TABS = [{ label: 'Website' }, { label: 'Shader' }] as const
 type Tab = (typeof TABS)[number]['label']
-
-const DESCRIPTIONS: Record<Tab, string> = {
-  'HTML file': 'One file, no dependencies. Open it anywhere.',
-  'Web component': 'Drop it into any site with one tag.',
-  JavaScript: 'For apps that set things up in code.',
-  GLSL: 'The raw shader, ready for your own renderer.',
-  Shadertoy: 'Paste it into a new Shadertoy.',
-}
 
 interface CodeDialogProps {
   open: boolean
@@ -26,14 +20,21 @@ interface CodeDialogProps {
 }
 
 export function CodeDialog({ open, onOpenChange, stack, onMood }: CodeDialogProps) {
-  const [tab, setTab] = useState<Tab>('HTML file')
+  const [tab, setTab] = useState<Tab>('Website')
+  const [shadertoy, setShadertoy] = useState(false)
   const [copied, setCopied] = useState(false)
   const codeRef = useRef<HTMLPreElement>(null)
 
   const code = useMemo(() => {
-    const text = tab === 'HTML file' ? htmlFile(stack) : tab === 'Web component' ? elementSnippet(stack) : tab === 'JavaScript' ? jsSnippet(stack) : tab === 'GLSL' ? glslFile(stack) : shadertoyFile(stack)
+    const text = tab === 'Website' ? elementSnippet(stack) : shadertoy ? shadertoyFile(stack) : glslFile(stack)
     return { shown: text, full: text }
-  }, [tab, stack])
+  }, [tab, shadertoy, stack])
+
+  const downloadHtml = () => {
+    const url = URL.createObjectURL(new Blob([htmlFile(stack)], { type: 'text/html' }))
+    Object.assign(document.createElement('a'), { href: url, download: 'lazuli.html' }).click()
+    setTimeout(() => URL.revokeObjectURL(url), 1000)
+  }
 
   useEffect(() => {
     if (!copied) return
@@ -41,7 +42,7 @@ export function CodeDialog({ open, onOpenChange, stack, onMood }: CodeDialogProp
     return () => clearTimeout(t)
   }, [copied])
 
-  useEffect(() => setCopied(false), [tab])
+  useEffect(() => setCopied(false), [tab, shadertoy])
 
   const copy = async () => {
     if (await copyText(code.full)) {
@@ -59,7 +60,7 @@ export function CodeDialog({ open, onOpenChange, stack, onMood }: CodeDialogProp
           <div className="code-dialog__head">
             <div>
               <Dialog.Title className="code-dialog__title">Export</Dialog.Title>
-              <Dialog.Description className="code-dialog__desc">{DESCRIPTIONS[tab]}</Dialog.Description>
+              <Dialog.Description className="visually-hidden">Copy the code for this canvas.</Dialog.Description>
             </div>
             <Dialog.Close className="code-dialog__close" aria-label="Close">
               <CloseIcon width={12} height={12} />
@@ -71,10 +72,22 @@ export function CodeDialog({ open, onOpenChange, stack, onMood }: CodeDialogProp
               <code>{code.shown}</code>
             </pre>
           </div>
-          <button type="button" className="copy-button" onClick={copy} data-copied={copied || undefined}>
-            {copied ? <CheckIcon width={16} height={16} /> : <CopyIcon width={16} height={16} />}
-            <span aria-live="polite">{copied ? 'Copied' : 'Copy code'}</span>
-          </button>
+          <div className="code-dialog__actions">
+            {tab === 'Website' ? (
+              <button type="button" className="button-quiet" onClick={downloadHtml}>
+                Download HTML
+              </button>
+            ) : (
+              <label className="code-dialog__toggle">
+                <input type="checkbox" checked={shadertoy} onChange={(e) => setShadertoy(e.target.checked)} />
+                Shadertoy
+              </label>
+            )}
+            <button type="button" className="copy-button" onClick={copy} data-copied={copied || undefined}>
+              {copied ? <CheckIcon width={16} height={16} /> : <CopyIcon width={16} height={16} />}
+              <span aria-live="polite">{copied ? 'Copied' : 'Copy'}</span>
+            </button>
+          </div>
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>

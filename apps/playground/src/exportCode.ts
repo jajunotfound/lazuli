@@ -1,4 +1,4 @@
-import { compileStack, configToStack, diffConfig, encodeStack, exportHtml, exportShader, exportShadertoy, stackToConfig, toFlat, type Stack } from 'lazuli-bg'
+import { compileStack, configToStack, encodeStack, exportHtml, exportShader, exportShadertoy, stackToConfig, toFlat, type Stack } from 'lazuli-bg'
 
 const PACKAGE = 'lazuli-bg'
 
@@ -32,42 +32,5 @@ ${elementTag(s, '')}
 `
 }
 
-export function jsSnippet(s: Stack): string {
-  if (!isFlat(s)) {
-    return `npm install ${PACKAGE}
-
-import { createLazuli, decodeStack } from '${PACKAGE}'
-
-// Fills the element (give it position: relative) and sits behind its content.
-const background = createLazuli(document.querySelector('#hero'))
-background.setStack(decodeStack('${encodeStack(s)}'))
-
-// Later: background.shuffle(), background.destroy()
-`
-  }
-  const options = toSource(diffConfig(stackToConfig(s)), '')
-  return `npm install ${PACKAGE}
-
-import { createLazuli } from '${PACKAGE}'
-
-// Fills the element (give it position: relative) and sits behind its content.
-const background = createLazuli(document.querySelector('#hero'), ${options})
-
-// Later: background.set({ … }), background.shuffle(), background.destroy()
-`
-}
-
 export const glslFile = (s: Stack) => exportShader(s)
 export const shadertoyFile = (s: Stack) => exportShadertoy(s)
-
-/** Object literal in JS style: unquoted keys, single quotes, short arrays on one line. */
-function toSource(v: unknown, indent: string): string {
-  if (Array.isArray(v)) return `[${v.map((x) => toSource(x, indent)).join(', ')}]`
-  if (v && typeof v === 'object') {
-    const entries = Object.entries(v)
-    if (entries.length === 0) return '{}'
-    const inner = indent + '  '
-    return `{\n${entries.map(([k, x]) => `${inner}${k}: ${toSource(x, inner)},`).join('\n')}\n${indent}}`
-  }
-  return typeof v === 'string' ? `'${v}'` : String(v)
-}
