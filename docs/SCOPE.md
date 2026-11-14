@@ -1,6 +1,6 @@
 # Lazuli scope: the background maker's knobs
 
-Status: proposal, 2026-11-14. Nothing is implemented yet.
+Status: superseded the same day by `docs/plans/layer-builder.md` (Lazuli becomes a visual shader builder). Kept for history; the partial implementation is parked on the local branch `wip-trim-panel`.
 
 Lazuli is a background maker: pick a preset, tune a few knobs, export. The engine has 80
 parameters; the default Blobs look shows 33 controls at once. This trims the panel to the knobs a

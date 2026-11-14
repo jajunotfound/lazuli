@@ -1,3 +1,15 @@
+# Handoff: 2026-11-14, later (pivot: Lazuli is a visual shader builder)
+
+Read `docs/plans/layer-builder.md` first; it is the plan of record. The user decided:
+- Lazuli lets people **build a shader visually as a layer stack** and export code. It supersedes
+  the "background maker" reset below and `docs/SCOPE.md`.
+- Build model: **layer stack** (chosen over a node graph and fixed recipe slots).
+- **Image and video export go.** Export is code only.
+- The trimmed-panel work is parked, unfinished, on local branch `wip-trim-panel` (62984d9).
+- Next: the user reviews the plan (open questions Q1, Q2), then Milestone 1 (Strip).
+
+---
+
 # Handoff: 2026-11-14 (product reset: Lazuli is a background maker)
 
 Read this section first. Everything below it is the earlier state and is kept for history; where it
