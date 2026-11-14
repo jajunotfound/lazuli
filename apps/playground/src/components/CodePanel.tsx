@@ -1,11 +1,12 @@
 import type { DrawnLayer, Geometry, Stack, StackOp } from 'lazuli-bg'
 import { useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
-import { CheckIcon, CloseIcon, CopyIcon } from '../icons'
+import { CheckIcon, CopyIcon } from '../icons'
 
 interface CodePanelProps {
   stack: Stack
   onOp(op: StackOp, tag?: string): void
-  onClose(): void
+  /** The selected layer's settings, shown in the Properties tab. */
+  properties: ReactNode
 }
 
 type NumKey = 'x' | 'y' | 'a' | 'b' | 'r' | 'angle' | 'melt' | 'soft'
@@ -32,8 +33,9 @@ function opFor(layer: DrawnLayer, k: NumKey, v: number): StackOp {
  * one below, then the palette. Numbers you can drag are highlighted; dragging one changes the
  * layer, so the canvas, the inspector and this text stay in step. Export has the full shader.
  */
-export function CodePanel({ stack, onOp, onClose }: CodePanelProps) {
+export function CodePanel({ stack, onOp, properties }: CodePanelProps) {
   const [copied, setCopied] = useState(false)
+  const [tab, setTab] = useState<'code' | 'props'>('code')
   const scrub = useRef<{ layer: DrawnLayer; k: NumKey; x: number; v: number } | null>(null)
   const body = useRef<HTMLDivElement>(null)
 
@@ -131,26 +133,42 @@ export function CodePanel({ stack, onOp, onClose }: CodePanelProps) {
 
   return (
     <aside className="code-panel" aria-label="Code">
-      <div className="code-panel__head">
-        <span className="code-panel__file">canvas.glsl</span>
-        <div className="code-panel__acts">
-          <button type="button" className="icon-action" onClick={copy} aria-label="Copy code" title="Copy code">
-            {copied ? <CheckIcon width={14} height={14} /> : <CopyIcon width={14} height={14} />}
+      <div className="code-panel__intro">
+        <h2 className="code-panel__title">Code</h2>
+        <p className="code-panel__sub">Your canvas, written as a shader.</p>
+      </div>
+      <div className="code-panel__tabs">
+        <div className="tabs-pill" role="tablist" aria-label="Code panel">
+          <button type="button" role="tab" aria-selected={tab === 'code'} onClick={() => setTab('code')}>
+            Code
           </button>
-          <button type="button" className="icon-action" onClick={onClose} aria-label="Close code (C)" title="Close code (C)">
-            <CloseIcon width={12} height={12} />
+          <button type="button" role="tab" aria-selected={tab === 'props'} onClick={() => setTab('props')}>
+            Properties
           </button>
         </div>
+        <span className="code-panel__file">canvas.glsl</span>
       </div>
-      <div className="code-panel__body" ref={body} onPointerDown={onDown} onPointerMove={onMove} onPointerUp={() => (scrub.current = null)}>
-        {lines.map((l, i) => (
-          <div className="code-line" key={i}>
-            <span className="code-line__n">{i + 1}</span>
-            <span className="code-line__t">{l}</span>
-          </div>
-        ))}
+      {tab === 'code' ? (
+        <div className="code-panel__body" ref={body} onPointerDown={onDown} onPointerMove={onMove} onPointerUp={() => (scrub.current = null)}>
+          {lines.map((l, i) => (
+            <div className="code-line" key={i}>
+              <span className="code-line__n">{i + 1}</span>
+              <span className="code-line__t">{l}</span>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="code-panel__props">{properties}</div>
+      )}
+      <div className="code-panel__foot">
+        <span>GLSL · Drag a highlighted number to change the canvas. Export has the full shader.</span>
+        {tab === 'code' && (
+          <button type="button" className="code-panel__copy" onClick={copy}>
+            {copied ? <CheckIcon width={14} height={14} /> : <CopyIcon width={14} height={14} />}
+            {copied ? 'Copied' : 'Copy'}
+          </button>
+        )}
       </div>
-      <div className="code-panel__foot">Drag a highlighted number to change the canvas. Export has the full shader.</div>
     </aside>
   )
 }

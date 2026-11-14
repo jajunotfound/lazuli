@@ -141,11 +141,6 @@ button {
   transition: opacity 1300ms var(--ease-out), transform 1300ms var(--ease-out), padding 200ms var(--ease-out);
 }
 
-/* With the code panel open, the canvas centers in the space right of it. */
-.stage[data-editor] {
-  padding-left: 512px;
-}
-
 /* Before the entrance reveals it: the preview grows out of where Lazuli sank. */
 .stage[data-veiled] {
   opacity: 0;
@@ -213,11 +208,6 @@ button {
 .modes button[aria-pressed='true'] {
   background: var(--row);
   color: var(--ink-90);
-}
-
-/* The frame moves right by half the code panel's extra space (512 − 304) / 2; the switch follows. */
-.stage[data-editor] .modes {
-  left: calc(50% + 104px);
 }
 
 /* ---- Timeline ------------------------------------------------------------- */
@@ -301,53 +291,100 @@ button {
   color: var(--ink-40);
 }
 
-/* ---- Code panel (beside the canvas, like a playground) ----------------------- */
+/* ---- Code workspace: a flush editor pane on the left, the preview on the right -------- */
+
+:root {
+  --code-w: clamp(420px, 38vw, 600px);
+  --bar-h: 56px;
+}
 
 .code-panel {
   position: fixed;
-  top: 16px;
-  bottom: 16px;
-  /* Clear of the dock even when its icons magnify (up to ~104px wide), and under it. */
-  left: 120px;
-  z-index: calc(var(--z-toolbar) - 1);
+  inset: 0 auto 0 0;
+  z-index: var(--z-toolbar);
   display: flex;
   flex-direction: column;
-  width: 376px;
-  overflow: hidden;
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  background: var(--code-bg);
-  box-shadow: var(--shadow-panel);
+  width: var(--code-w);
+  border-right: 1px solid var(--border);
+  background: var(--surface);
   animation: fade-in 160ms var(--ease-out);
 }
 
-.code-panel__head {
+.code-panel__intro {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 20px 24px 16px;
+}
+
+.code-panel__title {
+  margin: 0;
+  color: var(--ink-90);
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 22px;
+}
+
+.code-panel__sub {
+  margin: 0;
+  color: var(--ink-50);
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.code-panel__tabs {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  min-height: 44px;
-  padding: 6px 8px 6px 14px;
-  border-bottom: 1px solid var(--border);
-  background: var(--surface);
+  padding: 10px 16px;
+  border-block: 1px solid var(--border);
 }
 
 .code-panel__file {
-  color: var(--ink-60);
+  color: var(--ink-50);
   font: 12px var(--font-mono);
 }
 
-.code-panel__acts {
+.tabs-pill {
   display: flex;
   gap: 2px;
+  padding: 2px;
+  border-radius: 10px;
+  background: var(--row);
+}
+
+.tabs-pill button {
+  height: 28px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--ink-60);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.tabs-pill button[aria-selected='true'] {
+  background: var(--surface);
+  color: var(--ink-90);
+  box-shadow: 0 0 0 1px var(--border);
 }
 
 .code-panel__body {
   flex: 1;
   min-height: 0;
   overflow: auto;
-  padding: 10px 0;
+  padding: 12px 0;
+  background: var(--code-bg);
   color: var(--ink-90);
-  font: 12px/1.8 var(--font-mono);
+  font: 12px/2 var(--font-mono);
+}
+
+.code-panel__props {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
 }
 
 .code-line {
@@ -361,15 +398,15 @@ button {
 
 .code-line__n {
   flex-shrink: 0;
-  width: 38px;
-  padding-right: 12px;
+  width: 40px;
+  padding-right: 14px;
   color: var(--ink-40);
   text-align: right;
   user-select: none;
 }
 
 .code-line__t {
-  padding-right: 12px;
+  padding-right: 16px;
 }
 
 .tk-kw { color: #b4440f; }
@@ -391,11 +428,81 @@ button {
 }
 
 .code-panel__foot {
-  padding: 8px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px 12px 24px;
   border-top: 1px solid var(--border);
-  background: var(--surface);
   color: var(--ink-50);
   font-size: 12px;
+  line-height: 16px;
+}
+
+.code-panel__copy {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink-80);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.code-panel__copy:hover {
+  background: var(--row);
+}
+
+/* The inspector inside the Properties tab: no card, it fills the pane. */
+.inspector.inspector--embedded {
+  position: static;
+  width: auto;
+  max-height: none;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  animation: none;
+}
+
+/* One left edge for the whole pane: 24px, like the heading. */
+.inspector--embedded .inspector__head {
+  padding-left: 24px;
+  padding-right: 16px;
+}
+
+.inspector--embedded .inspector__body {
+  padding: 12px 24px;
+}
+
+/* The preview's own bar: view switch on the left, Export on the right. */
+.code-topbar {
+  position: fixed;
+  top: 0;
+  right: 0;
+  left: var(--code-w);
+  z-index: var(--z-toolbar);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: var(--bar-h);
+  padding: 0 16px 0 24px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.code-topbar .modes {
+  position: static;
+  transform: none;
+}
+
+.stage[data-editor] {
+  padding: calc(var(--bar-h) + 24px) 24px 24px calc(var(--code-w) + 24px);
 }
 
 /* ---- The editing overlay on the frame --------------------------------------- */

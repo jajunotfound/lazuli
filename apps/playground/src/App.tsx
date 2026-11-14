@@ -285,6 +285,17 @@ export function App() {
     ],
   ]
 
+  const modes = (
+    <div className="modes" role="group" aria-label="View">
+      <button type="button" aria-pressed={!editorOpen} onClick={() => setEditorOpen(false)}>
+        Canvas
+      </button>
+      <button type="button" aria-pressed={editorOpen} onClick={() => setEditorOpen(true)} title="Code (C)">
+        Code
+      </button>
+    </div>
+  )
+
   return (
     <Tooltip.Provider delayDuration={300} skipDelayDuration={200}>
       <div
@@ -295,16 +306,7 @@ export function App() {
           if (welcomeOpen && !meeting) closeWelcome()
         }}
       >
-        {panels && (
-          <div className="modes" role="group" aria-label="View">
-            <button type="button" aria-pressed={!editorOpen} onClick={() => setEditorOpen(false)}>
-              Canvas
-            </button>
-            <button type="button" aria-pressed={editorOpen} onClick={() => setEditorOpen(true)} title="Code (C)">
-              Code
-            </button>
-          </div>
-        )}
+        {panels && !editorOpen && modes}
         <div className="stage__area">
           <div className="canvas-col">
             <div className="frame" ref={setStage}>
@@ -315,11 +317,22 @@ export function App() {
         </div>
       </div>
 
-      <Toolbar groups={groups} open={openPanel} setOpen={setOpenPanel} compact={compact} magnify={!reducedMotion && !coarse} hidden={!panels} canvas={stage} />
+      {/* Code mode is a workspace: the dock tucks away, the editor and its Properties take the left. */}
+      <Toolbar groups={groups} open={openPanel} setOpen={setOpenPanel} compact={compact} magnify={!reducedMotion && !coarse} hidden={!panels || editorOpen} canvas={stage} />
 
-      {panels && editorOpen && <CodePanel stack={stack} onOp={onOp} onClose={() => setEditorOpen(false)} />}
+      {panels && editorOpen && (
+        <>
+          <CodePanel stack={stack} onOp={onOp} properties={<Inspector embedded stack={stack} selected={selected} onPatch={onPatch} onOp={onOp} canDo={canDo} />} />
+          <div className="code-topbar">
+            {modes}
+            <button type="button" className="button-primary" onClick={() => setCodeOpen(true)}>
+              Export
+            </button>
+          </div>
+        </>
+      )}
 
-      {panels && <Inspector stack={stack} selected={selected} onPatch={onPatch} onOp={onOp} canDo={canDo} />}
+      {panels && !editorOpen && <Inspector stack={stack} selected={selected} onPatch={onPatch} onOp={onOp} canDo={canDo} />}
 
       {controlsHidden && (
         <button type="button" className="show-controls" onClick={toggleControls} aria-label="Show panels" aria-keyshortcuts="H">

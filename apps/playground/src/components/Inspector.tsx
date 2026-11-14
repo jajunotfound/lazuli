@@ -16,6 +16,8 @@ interface InspectorProps {
   onPatch(patch: LazuliInput): void
   onOp(op: StackOp, tag?: string): void
   canDo(op: StackOp): boolean
+  /** Inside the code workspace's Properties tab instead of floating on the right. */
+  embedded?: boolean
 }
 
 const COMBINE: { value: CombineMode; label: string }[] = [
@@ -26,7 +28,7 @@ const COMBINE: { value: CombineMode; label: string }[] = [
 ]
 
 /** The right panel: the selected layer's settings in a label | control grid. */
-export function Inspector({ stack, selected, onPatch, onOp, canDo }: InspectorProps) {
+export function Inspector({ stack, selected, onPatch, onOp, canDo, embedded }: InspectorProps) {
   const found = selected === SCENE_ID ? null : findLayer(stack, selected)
   const layer: Layer | 'scene' = found?.layer ?? 'scene'
   const view = layerView(stack, selected)
@@ -39,7 +41,7 @@ export function Inspector({ stack, selected, onPatch, onOp, canDo }: InspectorPr
   const duplicable = layer !== 'scene' && canDo({ op: 'duplicate', id: selected })
 
   return (
-    <aside className="inspector" aria-label="Inspector">
+    <aside className={embedded ? 'inspector inspector--embedded' : 'inspector'} aria-label="Inspector">
       <div className="inspector__head">
         {layer === 'scene' || layer.kind === 'color' || layer.kind === 'background' ? (
           <h2 className="inspector__title">{title}</h2>
