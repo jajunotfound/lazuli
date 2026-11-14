@@ -5,7 +5,8 @@
 :root {
   --font-sans: 'Manrope', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
-  --tracking-tight: -1px;
+  /* Manrope's own spacing reads right at 12–16px; the Paper file's -1px was for Plus Jakarta Sans. */
+  --tracking-tight: 0;
 
   /* Ink is black at varying strength. */
   --ink: 0 0 0;
@@ -360,7 +361,6 @@ button {
   font-weight: 500;
   line-height: 18px;
   letter-spacing: var(--tracking-tight);
-  word-spacing: 2px;
   white-space: nowrap;
   pointer-events: none;
 }
@@ -1103,7 +1103,6 @@ button {
   font-size: 12px;
   line-height: 16px;
   letter-spacing: var(--tracking-tight);
-  word-spacing: 2px;
 }
 
 /* ---- Option list (select rows) ----------------------------------------- */
@@ -1133,7 +1132,6 @@ button {
   font-weight: 500;
   line-height: 18px;
   letter-spacing: var(--tracking-tight);
-  word-spacing: 2px;
   text-align: left;
 }
 
@@ -1204,7 +1202,6 @@ button {
   font-weight: 500;
   line-height: 16px;
   letter-spacing: var(--tracking-tight);
-  word-spacing: 2px;
 }
 
 .preset[data-edited] .preset__label::after {
@@ -1233,7 +1230,6 @@ button {
   font-weight: 500;
   line-height: 16px;
   letter-spacing: var(--tracking-tight);
-  word-spacing: 2px;
   white-space: nowrap;
   transition:
     background-color 120ms ease,
@@ -1521,7 +1517,6 @@ button {
   font-size: 16px;
   line-height: 24px;
   letter-spacing: var(--tracking-tight);
-  word-spacing: 2px;
 }
 
 .welcome__links {
@@ -1578,7 +1573,6 @@ button {
   font-weight: 500;
   line-height: 16px;
   letter-spacing: var(--tracking-tight);
-  word-spacing: 2px;
   text-align: center;
   text-shadow: 0 1px 2px #0000002e;
   pointer-events: none;
@@ -1649,7 +1643,6 @@ button {
   font-weight: 600;
   line-height: 20px;
   letter-spacing: var(--tracking-tight);
-  word-spacing: 2px;
 }
 
 .code-dialog__desc {
@@ -1658,7 +1651,6 @@ button {
   font-size: 14px;
   line-height: 18px;
   letter-spacing: var(--tracking-tight);
-  word-spacing: 2px;
 }
 
 .code-dialog__close {
@@ -1782,7 +1774,6 @@ button {
   font-weight: 600;
   line-height: 18px;
   letter-spacing: var(--tracking-tight);
-  word-spacing: 2px;
   transition: filter 120ms ease;
 }
 
