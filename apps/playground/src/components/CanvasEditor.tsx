@@ -6,6 +6,8 @@ export type DrawTool = 'move' | 'pen' | 'ellipse' | 'rect'
 
 interface CanvasEditorProps {
   stack: Stack
+  /** Keyed layers while the timeline plays: they move, so no outline or handles for them. */
+  moving?: string[]
   selected: string
   tool: DrawTool
   onSelect(id: string): void
@@ -28,7 +30,7 @@ const PEN_CLOSE_PX = 10
  * layers, resizes them by their corners, drags path points, and the melt handle between a shape
  * and the one below it. All edits go through stack ops, so undo and the rules still apply.
  */
-export function CanvasEditor({ stack, selected, tool, onSelect, setTool, onOp }: CanvasEditorProps) {
+export function CanvasEditor({ stack, moving = [], selected, tool, onSelect, setTool, onOp }: CanvasEditorProps) {
   const svg = useRef<SVGSVGElement>(null)
   const [box, setBox] = useState<Box>({ left: 0, top: 0, width: 1, height: 1 })
   const [drag, setDrag] = useState<Drag | null>(null)
@@ -59,7 +61,7 @@ export function CanvasEditor({ stack, selected, tool, onSelect, setTool, onOp }:
   }, [tool])
 
   const drawn = stack.shapes.filter((x): x is DrawnLayer => x.kind === 'drawn' && x.visible)
-  const sel = drawn.find((x) => x.id === selected) ?? null
+  const sel = drawn.find((x) => x.id === selected && !moving.includes(x.id)) ?? null
   // The drawn layer right below the selection, which the melt handle joins it to.
   const below = (() => {
     if (!sel) return null
@@ -106,6 +108,9 @@ export function CanvasEditor({ stack, selected, tool, onSelect, setTool, onOp }:
     if (target) {
       onSelect(target.id)
       setDrag({ kind: 'move', id: target.id, from: p, geom: target.geom })
+    } else {
+      // Empty canvas: the background, like clicking the page in a design tool.
+      onSelect(stack.background.id)
     }
   }
 
@@ -161,7 +166,7 @@ export function CanvasEditor({ stack, selected, tool, onSelect, setTool, onOp }:
     return <rect className={cls} x={cx - g.w * box.height} y={cy - g.h * box.height} width={g.w * 2 * box.height} height={g.h * 2 * box.height} rx={g.radius * box.height} transform={rot} />
   }
 
-  const hovered = tool === 'move' && !drag && hover ? drawn.find((x) => x.id !== selected && hit(x.geom, hover[0], hover[1])) : undefined
+  const hovered = tool === 'move' && !drag && hover ? drawn.find((x) => x.id !== selected && !moving.includes(x.id) && hit(x.geom, hover[0], hover[1])) : undefined
   const draft = drag?.kind === 'draw' ? fromDrag(drag.shape, drag.from, drag.to, drag.square) : null
 
   return (

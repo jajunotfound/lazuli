@@ -103,6 +103,16 @@ export interface Stack {
   background: BackgroundLayer
   motion: LazuliConfig['motion']
   quality: LazuliConfig['quality']
+  /** Keyframes for drawn layers, by layer id: what the layer is at each point of the loop. */
+  keys?: Record<string, DrawnKey[]>
+}
+
+/** A drawn layer at one moment of the loop (t from 0 to 1). */
+export interface DrawnKey {
+  t: number
+  geom: Geometry
+  melt: number
+  soft: number
 }
 
 export const MAX_SHAPES = 4
@@ -353,6 +363,7 @@ export function applyOp(input: Readonly<Stack>, op: StackOp): StackResult {
       } else if (p.list === 'textures') s.textures.splice(p.index, 1)
       else if (p.list === 'warps') s.shapes[p.shape].warps.splice(p.index, 1)
       else s.cursor = null
+      if (s.keys) delete s.keys[op.id]
       return { ok: true, stack: s }
     }
 

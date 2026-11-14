@@ -1,8 +1,10 @@
 import * as Tooltip from '@radix-ui/react-tooltip'
-import { applyOp, createLazuli, findLayer, presetStack, stackToConfig, type LazuliInput, type LazuliInstance, type PresetId, type Stack, type StackOp } from 'lazuli-bg'
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import { animateStack, applyOp, createLazuli, findLayer, hasKeys, presetStack, stackToConfig, type LazuliInput, type LazuliInstance, type PresetId, type Stack, type StackOp } from 'lazuli-bg'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { CanvasEditor, type DrawTool } from './components/CanvasEditor'
 import { CodeDialog } from './components/CodeDialog'
+import { CodePanel } from './components/CodePanel'
+import { Timeline } from './components/Timeline'
 import { Entrance } from './components/Entrance'
 import { Inspector } from './components/Inspector'
 import { Layers } from './components/Layers'
@@ -10,20 +12,11 @@ import type { Mood } from './components/Mascot'
 import { PresetGrid } from './components/PresetsPanel'
 import { Toolbar, type ToolbarItem } from './components/Toolbar'
 import { AboutButton, WelcomeCard } from './components/Welcome'
-import { BackgroundIcon, CodeIcon, ColorsIcon, EllipseIcon, HideIcon, LayersIcon, MotionIcon, MoveIcon, PenIcon, PresetsIcon, RectIcon, ShapesIcon, ShowIcon, TextureIcon } from './icons'
+import { CodeIcon, EllipseIcon, ExportIcon, HideIcon, LayersIcon, MoveIcon, PenIcon, PresetsIcon, RectIcon, ShowIcon } from './icons'
 import { moved } from './geom'
 import { patchLayer, SCENE_ID } from './layerEdit'
 import { hasSeenWelcome, markMet, markWelcomeSeen, readUrlStack, shouldMeet, writeUrlStack, type PanelId } from './state'
 import { useMediaQuery } from './useMediaQuery'
-
-type FrameSize = 'wide' | 'square' | 'phone' | 'fill'
-/** Frame shapes to preview in: what the shader will fill on a page. Fill is the whole window. */
-const SIZES: Record<FrameSize, { label: string; ratio: number }> = {
-  wide: { label: '16:9', ratio: 16 / 9 },
-  square: { label: 'Square', ratio: 1 },
-  phone: { label: 'Phone', ratio: 9 / 19.5 },
-  fill: { label: 'Fill', ratio: 16 / 9 },
-}
 
 interface History {
   past: Stack[]
@@ -50,7 +43,11 @@ export function App() {
   const engine = useRef<LazuliInstance | null>(null)
   const [openPanel, setOpenPanel] = useState<PanelId | null>(null)
   const [tool, setTool] = useState<DrawTool>('move')
-  const [size, setSize] = useState<FrameSize>('wide')
+  const [editorOpen, setEditorOpen] = useState(false)
+  // The timeline's playhead (0–1 of the loop) and whether it's running.
+  const timeRef = useRef(0)
+  const playingRef = useRef(true)
+  const [playing, setPlaying] = useState(true)
   const [codeOpen, setCodeOpen] = useState(false)
   const [meeting, setMeeting] = useState(shouldMeet)
   const [revealed, setRevealed] = useState(() => !meeting)
@@ -63,6 +60,8 @@ export function App() {
   const compact = useMediaQuery('(max-width: 640px)')
   const coarse = useMediaQuery('(pointer: coarse)')
   const config = useMemo(() => stackToConfig(stack), [stack])
+  // What the canvas overlay outlines: keyed shapes where they are at the playhead.
+  const view = hasKeys(stack) ? animateStack(stack, timeRef.current) : stack
 
   // ---- history -----------------------------------------------------------
   const commit = useCallback((next: Stack, tag: string | null = null) => {
@@ -101,7 +100,7 @@ export function App() {
   }, [stage])
 
   useEffect(() => {
-    engine.current?.setStack(live(stack))
+    engine.current?.setStack(live(hasKeys(stack) ? animateStack(stack, timeRef.current) : stack))
   }, [stack, live])
 
   useEffect(() => {
@@ -147,7 +146,17 @@ export function App() {
         setMood('oops', 1600)
         return
       }
-      commit(r.stack, tag ?? (op.op === 'tune' ? `tune:${op.id}:${op.strength === undefined ? 'size' : 'strength'}` : null))
+      let next = r.stack
+      // Auto-key: paused on the timeline, an edit to a keyed shape updates its key at the playhead.
+      if (op.op === 'reshape' && !playingRef.current && next.keys?.[op.id]?.length) {
+        const layer = next.shapes.find((x) => x.id === op.id)
+        if (layer?.kind === 'drawn') {
+          const t = timeRef.current
+          const keys = next.keys[op.id].filter((k) => Math.abs(k.t - t) >= 0.02)
+          next = { ...next, keys: { ...next.keys, [op.id]: [...keys, { t, geom: layer.geom, melt: layer.melt, soft: layer.soft }].sort((a, b) => a.t - b.t) } }
+        }
+      }
+      commit(next, tag ?? (op.op === 'tune' ? `tune:${op.id}:${op.strength === undefined ? 'size' : 'strength'}` : null))
       // Select what was just made.
       if (op.op === 'add' || op.op === 'duplicate') {
         const before = new Set(JSON.stringify(stack).match(/"id":"[^"]+"/g))
@@ -238,6 +247,7 @@ export function App() {
       else if (key === 'p') setTool('pen')
       else if (key === 'o') setTool('ellipse')
       else if (key === 'r') setTool('rect')
+      else if (key === 'c') setEditorOpen((o) => !o)
       else if (key === 'h') toggleControls()
     }
     window.addEventListener('keydown', onKey)
@@ -249,15 +259,8 @@ export function App() {
   const panels = !controlsHidden && !meeting
 
   // ---- the dock ----------------------------------------------------------
-  // Presets and the layer list open beside the dock; the section tools jump straight to that
-  // layer in the inspector, like the old panels; Get code and Hide close it out.
-  const kindOf = (id: string) => (id === SCENE_ID ? 'scene' : findLayer(stack, id)?.layer.kind)
-  const selKind = kindOf(selected)
-  const jump = (id: string | undefined, add?: StackOp) => () => {
-    if (id) setSelected(id)
-    else if (add) onOp(add)
-    setOpenPanel(null)
-  }
+  // Three groups, by what you're doing: draw, organise, output. Color, background and motion
+  // live in the Layers list (and a click on empty canvas selects the background).
   const groups: ToolbarItem[][] = [
     [
       { kind: 'action', id: 'tool-move', label: 'Move', icon: MoveIcon, shortcut: 'V', pressed: tool === 'move', onClick: () => setTool('move') },
@@ -266,6 +269,7 @@ export function App() {
       { kind: 'action', id: 'tool-rect', label: 'Rectangle', icon: RectIcon, shortcut: 'R', pressed: tool === 'rect', onClick: () => setTool('rect') },
     ],
     [
+      { kind: 'panel', id: 'layers', label: 'Layers', icon: LayersIcon, keepOpenOnCanvas: true, content: <Layers stack={stack} selected={selected} onSelect={setSelected} onOp={onOp} canDo={canDo} /> },
       { kind: 'panel', id: 'presets', label: 'Presets', icon: PresetsIcon, content: (
         <div className="panel panel--presets">
           <div className="panel__head">
@@ -274,17 +278,10 @@ export function App() {
           <PresetGrid stack={stack} preset={preset} onPick={pickPreset} />
         </div>
       ) },
-      { kind: 'panel', id: 'layers', label: 'Layers', icon: LayersIcon, keepOpenOnCanvas: true, content: <Layers stack={stack} selected={selected} onSelect={setSelected} onOp={onOp} canDo={canDo} /> },
     ],
     [
-      { kind: 'action', id: 'shape', label: 'Shape', icon: ShapesIcon, pressed: selKind === 'shape' || selKind === 'warp', onClick: jump(stack.shapes.find((x) => x.visible)?.id ?? stack.shapes[0].id) },
-      { kind: 'action', id: 'color', label: 'Color', icon: ColorsIcon, pressed: selKind === 'color', onClick: jump(stack.color.id) },
-      { kind: 'action', id: 'texture', label: 'Texture', icon: TextureIcon, pressed: selKind === 'texture', onClick: jump(stack.textures[0]?.id, { op: 'add', layer: 'texture', type: 'grain' }) },
-      { kind: 'action', id: 'background', label: 'Background', icon: BackgroundIcon, pressed: selKind === 'background', onClick: jump(stack.background.id) },
-      { kind: 'action', id: 'motion', label: 'Motion', icon: MotionIcon, pressed: selKind === 'scene', onClick: jump(SCENE_ID) },
-    ],
-    [
-      { kind: 'action', id: 'code', label: 'Get code', icon: CodeIcon, onClick: () => setCodeOpen(true) },
+      { kind: 'action', id: 'code', label: 'Code', icon: CodeIcon, shortcut: 'C', pressed: editorOpen, onClick: () => setEditorOpen((o) => !o) },
+      { kind: 'action', id: 'export', label: 'Export', icon: ExportIcon, onClick: () => setCodeOpen(true) },
       { kind: 'action', id: 'hide', label: 'Hide controls', icon: HideIcon, onClick: toggleControls, shortcut: 'H' },
     ],
   ]
@@ -293,29 +290,25 @@ export function App() {
     <Tooltip.Provider delayDuration={300} skipDelayDuration={200}>
       <div
         className="stage"
-        data-size={size}
+        data-editor={(panels && editorOpen) || undefined}
         data-veiled={!revealed || undefined}
         onPointerDown={() => {
           if (welcomeOpen && !meeting) closeWelcome()
         }}
       >
-        <div className="stage__fit">
-          <div className="frame" ref={setStage} style={{ '--r': SIZES[size].ratio } as CSSProperties}>
-            {panels && <CanvasEditor stack={stack} selected={selected} tool={tool} onSelect={setSelected} setTool={setTool} onOp={onOp} />}
+        <div className="stage__area">
+          <div className="canvas-col">
+            <div className="frame" ref={setStage}>
+              {panels && <CanvasEditor stack={view} moving={playing && hasKeys(stack) ? Object.keys(stack.keys ?? {}) : []} selected={selected} tool={tool} onSelect={setSelected} setTool={setTool} onOp={onOp} />}
+            </div>
+            {panels && <Timeline stack={stack} selected={selected} engine={engine} live={live} time={timeRef} playing={playingRef} onKeys={(keys) => commit({ ...stack, keys })} onPlaying={setPlaying} />}
           </div>
         </div>
-        {panels && (
-          <div className="sizes" role="group" aria-label="Frame size">
-            {(Object.keys(SIZES) as FrameSize[]).map((k) => (
-              <button key={k} type="button" aria-pressed={size === k} onClick={() => setSize(k)}>
-                {SIZES[k].label}
-              </button>
-            ))}
-          </div>
-        )}
       </div>
 
       <Toolbar groups={groups} open={openPanel} setOpen={setOpenPanel} compact={compact} magnify={!reducedMotion && !coarse} hidden={!panels} canvas={stage} />
+
+      {panels && editorOpen && <CodePanel stack={stack} onOp={onOp} onClose={() => setEditorOpen(false)} />}
 
       {panels && <Inspector stack={stack} selected={selected} onPatch={onPatch} onOp={onOp} canDo={canDo} />}
 

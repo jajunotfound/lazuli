@@ -177,3 +177,11 @@ export const RectIcon = (p: IconProps) => (
     <rect {...stroke} x="4" y="6" width="16" height="12" rx="2" />
   </Svg>
 )
+
+// Export: an arrow leaving a tray.
+export const ExportIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path {...stroke} d="M12 15V3.5M7.5 8 12 3.5 16.5 8" />
+    <path {...stroke} d="M5 12.5v5A2.5 2.5 0 0 0 7.5 20h9a2.5 2.5 0 0 0 2.5-2.5v-5" />
+  </Svg>
+)

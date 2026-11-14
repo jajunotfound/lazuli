@@ -135,9 +135,15 @@ button {
 .stage {
   position: fixed;
   inset: 0;
-  padding: 64px 320px 64px 112px;
+  /* Symmetric, so the frame sits in the middle of the window. */
+  padding: 72px 304px 24px;
   background: var(--ground-canvas);
-  transition: opacity 1300ms var(--ease-out), transform 1300ms var(--ease-out);
+  transition: opacity 1300ms var(--ease-out), transform 1300ms var(--ease-out), padding 200ms var(--ease-out);
+}
+
+/* With the code panel open, the canvas centers in the space right of it. */
+.stage[data-editor] {
+  padding-left: 488px;
 }
 
 /* Before the entrance reveals it: the preview grows out of where Lazuli sank. */
@@ -147,8 +153,7 @@ button {
   transition: none;
 }
 
-/* The frame keeps its shape and fits the space between the dock and the inspector. */
-.stage__fit {
+.stage__area {
   width: 100%;
   height: 100%;
   display: grid;
@@ -156,61 +161,199 @@ button {
   container-type: size;
 }
 
+/* The frame (16:9) and the timeline under it, as wide as the space allows. */
+.canvas-col {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: min(100cqw, (100cqh - 60px) * 16 / 9);
+}
+
 .frame {
   position: relative;
-  width: min(100cqw, 100cqh * var(--r));
-  aspect-ratio: var(--r);
+  width: 100%;
+  aspect-ratio: 16 / 9;
   border-radius: 4px;
   overflow: hidden;
   background: var(--surface);
   box-shadow: 0 0 0 1px var(--border);
 }
 
-.stage[data-size='fill'] {
-  padding: 0;
-}
+/* ---- Timeline ------------------------------------------------------------- */
 
-.stage[data-size='fill'] .frame {
-  width: 100%;
-  height: 100%;
-  aspect-ratio: auto;
-  border-radius: 0;
-  box-shadow: none;
-}
-
-.sizes {
-  position: absolute;
-  top: 16px;
-  left: 50%;
-  z-index: 2;
+.timeline {
   display: flex;
-  gap: 2px;
-  padding: 2px;
+  align-items: center;
+  gap: 10px;
+  height: 48px;
+  padding: 0 8px 0 6px;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 12px;
   background: var(--surface);
-  transform: translateX(-50%);
 }
 
-.sizes button {
+.timeline__t {
+  flex-shrink: 0;
+  color: var(--ink-50);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.timeline__track {
+  position: relative;
+  flex: 1;
   height: 28px;
+  cursor: ew-resize;
+  touch-action: none;
+}
+
+.timeline__line {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--row-strong);
+  transform: translateY(-50%);
+}
+
+.timeline__key {
+  position: absolute;
+  top: 50%;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  background: var(--accent);
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+
+.timeline__head {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 2px;
+  margin-left: -1px;
+  border-radius: 1px;
+  background: var(--ink-90);
+}
+
+.timeline__add {
+  flex-shrink: 0;
+  height: 30px;
   padding: 0 12px;
-  border: 0;
+  border: 1px solid var(--border);
   border-radius: 8px;
-  background: none;
-  color: var(--ink-60);
+  background: var(--surface);
+  color: var(--ink-80);
   font: inherit;
   font-size: 12px;
   font-weight: 600;
 }
 
-.sizes button:hover {
-  color: var(--ink-90);
+.timeline__add:hover:not(:disabled) {
+  background: var(--row);
 }
 
-.sizes button[aria-pressed='true'] {
-  background: var(--row);
+.timeline__add:disabled {
+  color: var(--ink-40);
+}
+
+/* ---- Code panel (beside the canvas, like a playground) ----------------------- */
+
+.code-panel {
+  position: fixed;
+  top: 16px;
+  bottom: 16px;
+  left: 96px;
+  z-index: var(--z-toolbar);
+  display: flex;
+  flex-direction: column;
+  width: 376px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--code-bg);
+  box-shadow: var(--shadow-panel);
+  animation: fade-in 160ms var(--ease-out);
+}
+
+.code-panel__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 44px;
+  padding: 6px 8px 6px 14px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.code-panel__file {
+  color: var(--ink-60);
+  font: 12px var(--font-mono);
+}
+
+.code-panel__acts {
+  display: flex;
+  gap: 2px;
+}
+
+.code-panel__body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 10px 0;
   color: var(--ink-90);
+  font: 12px/1.8 var(--font-mono);
+}
+
+.code-line {
+  display: flex;
+  white-space: pre;
+}
+
+.code-line:hover {
+  background: var(--row);
+}
+
+.code-line__n {
+  flex-shrink: 0;
+  width: 38px;
+  padding-right: 12px;
+  color: var(--ink-40);
+  text-align: right;
+  user-select: none;
+}
+
+.code-line__t {
+  padding-right: 12px;
+}
+
+.tk-kw { color: #b4440f; }
+.tk-fn { color: var(--accent); }
+.tk-cm { color: var(--ink-40); }
+.tk-st { color: #0d7a5f; }
+
+.tk-num {
+  padding: 0 2px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--accent);
+  cursor: ew-resize;
+  user-select: none;
+}
+
+.tk-num:hover {
+  outline: 1px solid var(--accent);
+}
+
+.code-panel__foot {
+  padding: 8px 14px;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--ink-50);
+  font-size: 12px;
 }
 
 /* ---- The editing overlay on the frame --------------------------------------- */

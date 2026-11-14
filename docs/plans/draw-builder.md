@@ -50,7 +50,7 @@ so melted shapes color as one liquid form. A group lands on the layers below lik
 
 1. **Draw engine:** drawn layers, field groups, melt / soft cut / intersect, export. Tests + GPU checks.
    **Done 2026-11-14:** criteria 1–6 pass (parity 0/255; 4 drawn GPU checks; drawn export matches).
-2. **Canvas:** framed canvas (16:9 · Square · Phone · Fill), dock tools Move / Pen / Ellipse /
+2. **Canvas:** one centered 16:9 frame (sizes dropped at the user's request; was 16:9 · Square · Phone · Fill), dock tools Move / Pen / Ellipse /
    Rectangle, selection handles, melt handle between shapes.
    **Done 2026-11-14:** blank start (two melting ellipses); V/P/O/R tools, Shift+R shuffle, arrows
    nudge; drag to draw, click points to pen (close on the first point, Enter or double-click);
@@ -58,7 +58,12 @@ so melted shapes color as one liquid form. A group lands on the layers below lik
 3. **Fields and bending:** text, noise, cells, gradient sources; repeat, kaleidoscope, twist.
 4. **Color and light:** on-canvas gradient, contours, glow, light as height.
 5. **Motion:** loop timeline with keyframes.
+   **Started 2026-11-14 (brought forward):** timeline under the canvas, ◆ Key, scrub, play/pause,
+   auto-key while paused; keys live in the stack (`keys`, `animateStack`). Not yet: export of
+   animation, per-key easing.
 6. **Code view:** side editor (Code | Properties) with scrubbable numbers; Code layers.
+   **Started 2026-11-14 (brought forward):** `CodePanel` shows the canvas as code, numbers scrub
+   (position, size, corner, rotation, melt, softness). Not yet: typing edits, Code layers.
 7. **Examples:** today's looks rebuilt as files made with the tool; presets become examples.
 
 ## Type
