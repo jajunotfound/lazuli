@@ -26,7 +26,7 @@ export function WelcomeCard({ config, onClose }: { config: Config; onClose(): vo
             </button>
           </div>
           <p className="welcome__text">
-            Draw soft, animated shaders and export the code.{' '}
+            Draw soft shaders and export the code.{' '}
             <span className="welcome__links">
               <a href={AUTHOR_URL} target="_blank" rel="noreferrer">
                 Made by jaju

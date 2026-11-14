@@ -1516,8 +1516,6 @@ button {
   color: var(--ink-80);
   font-size: 14px;
   line-height: 20px;
-  /* Two even lines, never one word left on its own. */
-  text-wrap: balance;
   letter-spacing: var(--tracking-tight);
 }
 
