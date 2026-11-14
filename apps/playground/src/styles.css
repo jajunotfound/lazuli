@@ -317,6 +317,85 @@ button {
   top: 50%;
 }
 
+/* ==========================================================================
+   Toolbar
+   ========================================================================== */
+
+.toolbar {
+  position: fixed;
+  z-index: var(--z-toolbar);
+  left: 43px;
+  top: 50%;
+  width: 58px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 12px 8px;
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  background: var(--surface);
+  transform: translateY(-50%);
+  transition:
+    transform 280ms var(--ease-out),
+    opacity 200ms ease;
+}
+
+.toolbar[data-hidden] {
+  transform: translate(-160px, -50%);
+  opacity: 0;
+}
+
+.toolbar__divider {
+  align-self: stretch;
+  flex-shrink: 0;
+  height: 1px;
+  background: var(--border);
+}
+
+.tool {
+  --size: 40px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: var(--size);
+  height: var(--size);
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: calc(var(--size) / 4);
+  background: var(--surface);
+  color: var(--ink-60);
+  transition:
+    width 160ms var(--ease-out),
+    height 160ms var(--ease-out),
+    border-radius 160ms var(--ease-out),
+    background-color 120ms ease;
+}
+
+.tool__icon {
+  width: calc(var(--size) * 0.4);
+  height: calc(var(--size) * 0.4);
+  transition:
+    width 160ms var(--ease-out),
+    height 160ms var(--ease-out);
+}
+
+.tool:hover {
+  color: var(--ink-80);
+}
+
+.tool:active,
+.tool[data-flash] {
+  background: var(--tool-pressed);
+}
+
+.tool[data-state='open'],
+.tool[aria-pressed='true'] {
+  border-color: var(--tool-open-border);
+  background: var(--tool-open);
+  color: var(--ink-80);
+}
+
 .show-controls {
   position: fixed;
   z-index: var(--z-toolbar);
@@ -1608,8 +1687,17 @@ button {
   width: 300px;
 }
 
+
+/* The layers list as a dock popover (beside the dock, like the other panels). */
+.popover .layers {
+  position: static;
+  width: 248px;
+  max-height: var(--radix-popover-content-available-height, calc(100dvh - 32px));
+  animation: none;
+}
+
 /* ==========================================================================
-   Phone (≤ 640px): layers along the top, the inspector as a bottom sheet
+   Phone (≤ 640px): the dock along the bottom, the inspector at the top
    ========================================================================== */
 
 @media (max-width: 640px) {
@@ -1622,8 +1710,7 @@ button {
   }
 
   .inspector {
-    top: auto;
-    bottom: calc(12px + env(safe-area-inset-bottom));
+    top: calc(12px + env(safe-area-inset-top));
     left: 12px;
     right: 12px;
     width: auto;
@@ -1653,6 +1740,44 @@ button {
     display: none;
   }
 }
+
+@media (max-width: 640px) {
+  .toolbar {
+    left: 50%;
+    top: auto;
+    bottom: calc(34px + env(safe-area-inset-bottom));
+    width: auto;
+    flex-direction: row;
+    align-items: center;
+    gap: 6px;
+    padding: 8px;
+    transform: translateX(-50%);
+  }
+
+  .toolbar[data-hidden] {
+    transform: translate(-50%, 160px);
+  }
+
+  .toolbar__divider {
+    align-self: center;
+    width: 1px;
+    height: 24px;
+  }
+
+}
+
+/* Ten tools don't fit a 390px screen at 40px each; tighten slightly. */
+@media (max-width: 420px) {
+  .toolbar {
+    gap: 4px;
+    padding: 7px;
+  }
+
+  .tool {
+    --size: 32px;
+  }
+}
+
 
 /* ==========================================================================
    Motion

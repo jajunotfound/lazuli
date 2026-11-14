@@ -1,4 +1,3 @@
-import * as Popover from '@radix-ui/react-popover'
 import * as Tooltip from '@radix-ui/react-tooltip'
 import { applyOp, configToStack, createLazuli, findLayer, presetConfig, stackToConfig, type LazuliInput, type LazuliInstance, type PresetId, type Stack, type StackOp } from 'lazuli-bg'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -8,10 +7,11 @@ import { Inspector } from './components/Inspector'
 import { Layers } from './components/Layers'
 import type { Mood } from './components/Mascot'
 import { PresetGrid } from './components/PresetsPanel'
+import { Toolbar, type ToolbarItem } from './components/Toolbar'
 import { AboutButton, WelcomeCard } from './components/Welcome'
-import { CodeIcon, HideIcon, PresetsIcon, ShowIcon } from './icons'
+import { BackgroundIcon, CodeIcon, ColorsIcon, HideIcon, LayersIcon, MotionIcon, PresetsIcon, ShapesIcon, ShowIcon, TextureIcon } from './icons'
 import { patchLayer, SCENE_ID } from './layerEdit'
-import { hasSeenWelcome, markMet, markWelcomeSeen, readUrlStack, shouldMeet, writeUrlStack } from './state'
+import { hasSeenWelcome, markMet, markWelcomeSeen, readUrlStack, shouldMeet, writeUrlStack, type PanelId } from './state'
 import { useMediaQuery } from './useMediaQuery'
 
 interface History {
@@ -37,7 +37,7 @@ export function App() {
 
   const [stage, setStage] = useState<HTMLDivElement | null>(null)
   const engine = useRef<LazuliInstance | null>(null)
-  const [presetsOpen, setPresetsOpen] = useState(false)
+  const [openPanel, setOpenPanel] = useState<PanelId | null>(null)
   const [codeOpen, setCodeOpen] = useState(false)
   const [meeting, setMeeting] = useState(shouldMeet)
   const [revealed, setRevealed] = useState(() => !meeting)
@@ -47,6 +47,8 @@ export function App() {
   const [speedTouched, setSpeedTouched] = useState(false)
 
   const reducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)')
+  const compact = useMediaQuery('(max-width: 640px)')
+  const coarse = useMediaQuery('(pointer: coarse)')
   const config = useMemo(() => stackToConfig(stack), [stack])
 
   // ---- history -----------------------------------------------------------
@@ -157,7 +159,7 @@ export function App() {
       setPreset(id)
       commit(next)
       setSelected(next.shapes[0].id)
-      setPresetsOpen(false)
+      setOpenPanel(null)
     },
     [commit],
   )
@@ -174,7 +176,10 @@ export function App() {
     markWelcomeSeen()
   }, [])
 
-  const toggleControls = useCallback(() => setControlsHidden((h) => !h), [])
+  const toggleControls = useCallback(() => {
+    setOpenPanel(null)
+    setControlsHidden((h) => !h)
+  }, [])
 
   // ---- keyboard ----------------------------------------------------------
   useEffect(() => {
@@ -217,21 +222,40 @@ export function App() {
   const [meetTarget] = useState(() => ({ x: 0, y: 0, w: innerWidth, h: innerHeight }))
   const panels = !controlsHidden && !meeting
 
-  const presetsButton = (
-    <Popover.Root open={presetsOpen} onOpenChange={setPresetsOpen}>
-      <Popover.Trigger className="icon-action" aria-label="Presets" title="Presets">
-        <PresetsIcon width={16} height={16} />
-      </Popover.Trigger>
-      <Popover.Portal>
-        <Popover.Content className="popover panel panel--presets" side="right" align="start" sideOffset={12} collisionPadding={12}>
+  // ---- the dock ----------------------------------------------------------
+  // Presets and the layer list open beside the dock; the section tools jump straight to that
+  // layer in the inspector, like the old panels; Get code and Hide close it out.
+  const kindOf = (id: string) => (id === SCENE_ID ? 'scene' : findLayer(stack, id)?.layer.kind)
+  const selKind = kindOf(selected)
+  const jump = (id: string | undefined, add?: StackOp) => () => {
+    if (id) setSelected(id)
+    else if (add) onOp(add)
+    setOpenPanel(null)
+  }
+  const groups: ToolbarItem[][] = [
+    [
+      { kind: 'panel', id: 'presets', label: 'Presets', icon: PresetsIcon, content: (
+        <div className="panel panel--presets">
           <div className="panel__head">
             <h2 className="panel__title">Start from a preset</h2>
           </div>
           <PresetGrid config={config} preset={preset} onPick={pickPreset} />
-        </Popover.Content>
-      </Popover.Portal>
-    </Popover.Root>
-  )
+        </div>
+      ) },
+      { kind: 'panel', id: 'layers', label: 'Layers', icon: LayersIcon, keepOpenOnCanvas: true, content: <Layers stack={stack} selected={selected} onSelect={setSelected} onOp={onOp} canDo={canDo} /> },
+    ],
+    [
+      { kind: 'action', id: 'shape', label: 'Shape', icon: ShapesIcon, pressed: selKind === 'shape' || selKind === 'warp', onClick: jump(stack.shapes.find((x) => x.visible)?.id ?? stack.shapes[0].id) },
+      { kind: 'action', id: 'color', label: 'Color', icon: ColorsIcon, pressed: selKind === 'color', onClick: jump(stack.color.id) },
+      { kind: 'action', id: 'texture', label: 'Texture', icon: TextureIcon, pressed: selKind === 'texture', onClick: jump(stack.textures[0]?.id, { op: 'add', layer: 'texture', type: 'grain' }) },
+      { kind: 'action', id: 'background', label: 'Background', icon: BackgroundIcon, pressed: selKind === 'background', onClick: jump(stack.background.id) },
+      { kind: 'action', id: 'motion', label: 'Motion', icon: MotionIcon, pressed: selKind === 'scene', onClick: jump(SCENE_ID) },
+    ],
+    [
+      { kind: 'action', id: 'code', label: 'Get code', icon: CodeIcon, onClick: () => setCodeOpen(true) },
+      { kind: 'action', id: 'hide', label: 'Hide controls', icon: HideIcon, onClick: toggleControls, shortcut: 'H' },
+    ],
+  ]
 
   return (
     <Tooltip.Provider delayDuration={300} skipDelayDuration={200}>
@@ -245,29 +269,9 @@ export function App() {
         aria-hidden="true"
       />
 
-      {panels && (
-        <>
-          <Layers stack={stack} selected={selected} onSelect={setSelected} onOp={onOp} canDo={canDo} header={presetsButton} />
-          <Inspector
-            stack={stack}
-            selected={selected}
-            onPatch={onPatch}
-            onOp={onOp}
-            canDo={canDo}
-            actions={
-              <>
-                <button type="button" className="icon-action" onClick={toggleControls} aria-label="Hide panels (H)" title="Hide panels (H)">
-                  <HideIcon width={16} height={16} />
-                </button>
-                <button type="button" className="button-primary" onClick={() => setCodeOpen(true)}>
-                  <CodeIcon width={14} height={14} />
-                  Get code
-                </button>
-              </>
-            }
-          />
-        </>
-      )}
+      <Toolbar groups={groups} open={openPanel} setOpen={setOpenPanel} compact={compact} magnify={!reducedMotion && !coarse} hidden={!panels} canvas={stage} />
+
+      {panels && <Inspector stack={stack} selected={selected} onPatch={onPatch} onOp={onOp} canDo={canDo} />}
 
       {controlsHidden && (
         <button type="button" className="show-controls" onClick={toggleControls} aria-label="Show panels" aria-keyshortcuts="H">

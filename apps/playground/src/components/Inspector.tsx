@@ -16,7 +16,6 @@ interface InspectorProps {
   onPatch(patch: LazuliInput): void
   onOp(op: StackOp): void
   canDo(op: StackOp): boolean
-  actions: ReactNode
 }
 
 const COMBINE: { value: CombineMode; label: string }[] = [
@@ -27,7 +26,7 @@ const COMBINE: { value: CombineMode; label: string }[] = [
 ]
 
 /** The right panel: the selected layer's settings in a label | control grid. */
-export function Inspector({ stack, selected, onPatch, onOp, canDo, actions }: InspectorProps) {
+export function Inspector({ stack, selected, onPatch, onOp, canDo }: InspectorProps) {
   const found = selected === SCENE_ID ? null : findLayer(stack, selected)
   const layer: Layer | 'scene' = found?.layer ?? 'scene'
   const view = layerView(stack, selected)
@@ -40,7 +39,6 @@ export function Inspector({ stack, selected, onPatch, onOp, canDo, actions }: In
 
   return (
     <aside className="inspector" aria-label="Inspector">
-      <div className="inspector__bar">{actions}</div>
       <div className="inspector__head">
         {layer === 'scene' || layer.kind === 'color' || layer.kind === 'background' ? (
           <h2 className="inspector__title">{title}</h2>

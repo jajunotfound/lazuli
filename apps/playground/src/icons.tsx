@@ -142,3 +142,13 @@ export const PresetsIcon = (p: IconProps) => (
     <rect {...stroke} x="13.5" y="13.5" width="7" height="7" rx="3.5" />
   </Svg>
 )
+
+// Layers: a list of rows, each with a small swatch (not stacked sheets: that's Background).
+export const LayersIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <rect {...stroke} x="3.5" y="4" width="4" height="4" rx="1" />
+    <rect {...stroke} x="3.5" y="10" width="4" height="4" rx="1" />
+    <rect {...stroke} x="3.5" y="16" width="4" height="4" rx="1" />
+    <path {...stroke} d="M11 6h9.5M11 12h9.5M11 18h9.5" />
+  </Svg>
+)

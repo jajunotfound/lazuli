@@ -20,7 +20,7 @@ import {
 export type Config = LazuliConfig
 export type Patch = LazuliInput
 export type SectionId = 'colors' | 'shapes' | 'texture' | 'background' | 'motion' | 'cursor'
-export type PanelId = SectionId | 'presets'
+export type PanelId = 'presets' | 'layers'
 
 /** Which parameters each popover shows (when active) and its Reset restores, in display order. */
 export const SECTIONS: Record<SectionId, { title: string; paths: ParamPath[] }> = {
