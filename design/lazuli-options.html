@@ -1,0 +1,548 @@
+<title>Lazuli Builder Options</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one option at a time, shown as a mock of the Lazuli app (dock · framed canvas · panel), with a live shader in the canvas. */
+:root {
+  --ground: #f3f4f7;
+  --surface: #ffffff;
+  --ink: #12151c;
+  --ink-2: #5b616e;
+  --ink-3: #8b909b;
+  --line: #e4e6eb;
+  --row: #f1f2f5;
+  --accent: #1f48a8;
+  --accent-soft: #e6ecf9;
+  --wire: #8fa6dd;
+  --code-bg: #f7f8fa;
+  --font-sans: 'Plus Jakarta Sans', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground: #0e1015; --surface: #171a21; --ink: #eef0f4; --ink-2: #a9afbb; --ink-3: #7a808c;
+    --line: #2a2e38; --row: #20242d; --accent: #7d9cf0; --accent-soft: #1d2740; --wire: #5671b8; --code-bg: #12151b;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --ground: #0e1015; --surface: #171a21; --ink: #eef0f4; --ink-2: #a9afbb; --ink-3: #7a808c;
+  --line: #2a2e38; --row: #20242d; --accent: #7d9cf0; --accent-soft: #1d2740; --wire: #5671b8; --code-bg: #12151b;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--ground); color: var(--ink); font: 14px/1.5 var(--font-sans);
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.page { max-width: 1120px; margin: 0 auto; padding-block: 32px 48px; display: flex; flex-direction: column; gap: 20px; }
+h1 { margin: 0; font-size: 26px; line-height: 1.2; letter-spacing: -0.02em; text-wrap: balance; }
+.lede { margin: 6px 0 0; color: var(--ink-2); max-width: 62ch; }
+
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; }
+.tab {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 1px; min-width: 150px;
+  padding: 10px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface);
+  color: var(--ink); font: inherit; text-align: left; cursor: pointer;
+}
+.tab:hover { border-color: var(--ink-3); }
+.tab[aria-selected="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.tab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.tab__num { font-size: 11px; color: var(--ink-3); font-weight: 600; letter-spacing: 0.04em; }
+.tab__name { font-weight: 600; }
+.tab__now { font-size: 11px; color: var(--accent); font-weight: 600; }
+
+.facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.fact { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; min-width: 0; }
+.fact__k { font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3); }
+.fact__v { margin-top: 2px; }
+@media (max-width: 720px) { .facts { grid-template-columns: 1fr; } }
+
+/* ---- the app mock ---------------------------------------------------- */
+.scroll { overflow-x: auto; border-radius: 16px; }
+.app {
+  position: relative; min-width: 860px; height: 560px; border: 1px solid var(--line); border-radius: 16px;
+  background: var(--ground); overflow: hidden; display: grid; grid-template-columns: 72px 1fr 264px;
+}
+.app--wide { grid-template-columns: 72px 1fr 0; }
+.dock {
+  align-self: center; justify-self: center; display: flex; flex-direction: column; gap: 6px; padding: 8px;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 20px;
+}
+.dock hr { width: 24px; border: 0; border-top: 1px solid var(--line); margin: 2px auto; }
+.tool {
+  width: 36px; height: 36px; display: grid; place-items: center; border-radius: 10px; color: var(--ink-2);
+  border: 1px solid var(--line); background: var(--surface);
+}
+.tool.on { background: var(--row); color: var(--ink); }
+.tool svg { width: 18px; height: 18px; }
+.stage { position: relative; display: grid; place-items: center; padding: 28px; min-width: 0; }
+.frame { position: relative; width: 100%; max-width: 560px; aspect-ratio: 16 / 10; border-radius: 6px; overflow: hidden; box-shadow: 0 0 0 1px var(--line); background: #fff; }
+.frame canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.frame__size { position: absolute; left: 0; top: -20px; font-size: 11px; color: var(--ink-3); }
+.panel { background: var(--surface); border-left: 1px solid var(--line); padding: 14px; display: flex; flex-direction: column; gap: 10px; overflow: auto; }
+.panel h3 { margin: 0; font-size: 13px; }
+.panel .sub { font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3); margin-top: 6px; }
+.field { display: grid; grid-template-columns: 72px 1fr 40px; align-items: center; gap: 8px; font-size: 12px; color: var(--ink-2); }
+.field input[type=range] { width: 100%; accent-color: var(--accent); }
+.field output { font-variant-numeric: tabular-nums; text-align: right; color: var(--ink); }
+.select { display: flex; justify-content: space-between; align-items: center; height: 28px; padding: 0 8px; border-radius: 6px; background: var(--row); color: var(--ink); font-size: 12px; }
+.chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.chip { padding: 2px 8px; border-radius: 999px; background: var(--row); font-size: 11px; color: var(--ink-2); }
+.chip.on { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.note { font-size: 12px; color: var(--ink-2); background: var(--row); border-radius: 8px; padding: 8px 10px; }
+.gradbar { height: 14px; border-radius: 4px; box-shadow: inset 0 0 0 1px var(--line); position: relative; }
+.gradbar i { position: absolute; top: -3px; width: 10px; height: 20px; border-radius: 3px; border: 2px solid #fff; box-shadow: 0 0 0 1px #0003; transform: translateX(-50%); }
+
+/* node editor */
+.graph { position: absolute; inset: 0; background-color: var(--ground); background-image: radial-gradient(var(--line) 1px, transparent 1px); background-size: 18px 18px; }
+.graph svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.mini { position: absolute; right: 16px; top: 16px; width: 200px; aspect-ratio: 16 / 10; border-radius: 8px; overflow: hidden; box-shadow: 0 0 0 1px var(--line), 0 2px 6px #0000001a; }
+.mini canvas { width: 100%; height: 100%; display: block; }
+
+/* draw overlay */
+.overlay { position: absolute; inset: 0; width: 100%; height: 100%; }
+.drag { cursor: grab; }
+.drag:active { cursor: grabbing; }
+.hint { position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%); font-size: 11px; padding: 3px 10px; border-radius: 999px; background: #000a; color: #fff; pointer-events: none; white-space: nowrap; }
+.timeline { position: absolute; left: 28px; right: 28px; bottom: 10px; height: 44px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; display: flex; align-items: center; gap: 10px; padding: 0 12px; font-size: 11px; color: var(--ink-3); }
+.track { position: relative; flex: 1; height: 2px; background: var(--line); }
+.track b { position: absolute; top: -5px; width: 10px; height: 10px; background: var(--accent); transform: translateX(-50%) rotate(45deg); border-radius: 2px; }
+.track .head { position: absolute; top: -12px; width: 2px; height: 26px; background: var(--ink); }
+
+/* code */
+.codewrap { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 16px; width: 100%; height: 100%; padding: 4px; }
+.code { background: var(--code-bg); border: 1px solid var(--line); border-radius: 10px; padding: 12px 0; font: 12px/1.7 var(--font-mono); overflow: auto; color: var(--ink); }
+.code div { padding: 0 12px; white-space: pre; }
+.code .ln { display: inline-block; width: 22px; color: var(--ink-3); user-select: none; }
+.code .c { color: var(--ink-3); }
+.code .num { color: var(--accent); background: var(--accent-soft); border-radius: 3px; padding: 0 2px; }
+.rightcol { display: flex; flex-direction: column; gap: 12px; min-width: 0; justify-content: center; }
+
+/* hybrid drawer */
+.drawer { position: absolute; left: 0; right: 0; bottom: 0; height: 172px; background: var(--surface); border-top: 1px solid var(--line); }
+.drawer__bar { display: flex; align-items: center; justify-content: space-between; padding: 8px 14px; font-size: 12px; font-weight: 600; border-bottom: 1px solid var(--line); }
+.drawer__bar span { color: var(--ink-3); font-weight: 500; }
+.drawer .graph { top: 37px; }
+.stage--up { align-items: start; padding-top: 20px; }
+
+[hidden] { display: none !important; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="page">
+  <header>
+    <h1>Five ways Lazuli could let you make your own shaders</h1>
+    <p class="lede">Each one is a mock of the actual Lazuli app, with a live shader in the canvas. Number 3 works: drag the shapes and try the sliders.</p>
+  </header>
+
+  <nav class="tabs" role="tablist" aria-label="Options">
+    <button class="tab" role="tab" id="t-remix" aria-controls="p-remix" data-id="remix"><span class="tab__num">OPTION 1</span><span class="tab__name">Remix built-in shapes</span><span class="tab__now">What Lazuli is today</span></button>
+    <button class="tab" role="tab" id="t-nodes" aria-controls="p-nodes" data-id="nodes"><span class="tab__num">OPTION 2</span><span class="tab__name">Node graph</span></button>
+    <button class="tab" role="tab" id="t-draw" aria-controls="p-draw" data-id="draw"><span class="tab__num">OPTION 3</span><span class="tab__name">Draw, then shape it</span><span class="tab__now">Recommended · try it</span></button>
+    <button class="tab" role="tab" id="t-code" aria-controls="p-code" data-id="code"><span class="tab__num">OPTION 4</span><span class="tab__name">Code with live sliders</span></button>
+    <button class="tab" role="tab" id="t-hybrid" aria-controls="p-hybrid" data-id="hybrid"><span class="tab__num">OPTION 5</span><span class="tab__name">Draw on top, nodes under</span></button>
+  </nav>
+
+  <!-- 1 · Remix ------------------------------------------------------------ -->
+  <section id="p-remix" role="tabpanel" aria-labelledby="t-remix">
+    <div class="facts">
+      <div class="fact"><div class="fact__k">You do</div><div class="fact__v">Pick a shape from a menu, move sliders, stack layers.</div></div>
+      <div class="fact"><div class="fact__k">You can make</div><div class="fact__v">Only what the six built-in shapes allow.</div></div>
+      <div class="fact"><div class="fact__k">Feels like</div><div class="fact__v">A filter app: fast, but never yours.</div></div>
+    </div>
+    <div class="scroll"><div class="app">
+      <div class="dock" aria-hidden="true">
+        <span class="tool" data-icon="grid"></span><span class="tool" data-icon="list"></span><hr>
+        <span class="tool on" data-icon="shapes"></span><span class="tool" data-icon="drop"></span><span class="tool" data-icon="grain"></span><span class="tool" data-icon="square"></span><span class="tool" data-icon="wave"></span><hr><span class="tool" data-icon="code"></span>
+      </div>
+      <div class="stage"><div class="frame"><span class="frame__size">Hero · 1440 × 900</span><canvas data-scene="remix"></canvas></div></div>
+      <aside class="panel">
+        <h3>Blobs</h3>
+        <div class="field"><span>Shape</span><span class="select" style="grid-column: span 2">Blobs <span>▾</span></span></div>
+        <div class="chips" aria-label="The only shapes you can pick"><span class="chip on">Blobs</span><span class="chip">Waves</span><span class="chip">Bands</span><span class="chip">Rings</span><span class="chip">Dots</span><span class="chip">Plate</span></div>
+        <div class="field"><span>Count</span><input type="range" min="1" max="6" value="3" disabled aria-label="Count"><output>3</output></div>
+        <div class="field"><span>Size</span><input type="range" value="50" disabled aria-label="Size"><output>100%</output></div>
+        <div class="field"><span>Softness</span><input type="range" value="50" disabled aria-label="Softness"><output>50</output></div>
+        <div class="field"><span>Wobble</span><input type="range" value="50" disabled aria-label="Wobble"><output>50</output></div>
+        <div class="note">The look comes from the shape someone else wrote. You can only adjust it.</div>
+      </aside>
+    </div></div>
+  </section>
+
+  <!-- 2 · Nodes ------------------------------------------------------------ -->
+  <section id="p-nodes" role="tabpanel" aria-labelledby="t-nodes" hidden>
+    <div class="facts">
+      <div class="fact"><div class="fact__k">You do</div><div class="fact__v">Drop in boxes and wire them: position, distance, blend, color.</div></div>
+      <div class="fact"><div class="fact__k">You can make</div><div class="fact__v">Anything a shader can do.</div></div>
+      <div class="fact"><div class="fact__k">Feels like</div><div class="fact__v">Blender or Unity materials. Powerful, but you think in wires and math.</div></div>
+    </div>
+    <div class="scroll"><div class="app">
+      <div class="dock" aria-hidden="true">
+        <span class="tool" data-icon="grid"></span><span class="tool on" data-icon="nodes"></span><span class="tool" data-icon="plus"></span><hr><span class="tool" data-icon="code"></span>
+      </div>
+      <div class="stage" style="padding:0">
+        <div class="graph">
+          <svg viewBox="0 0 620 560" preserveAspectRatio="xMidYMid meet" aria-label="A node graph: two circles melted together, then rings and a gradient">
+            <g fill="none" stroke="var(--wire)" stroke-width="2">
+              <path d="M138 140 C170 140 170 130 200 130"/><path d="M138 140 C170 140 170 260 200 260"/>
+              <path d="M338 130 C370 130 370 196 392 196"/><path d="M338 260 C370 260 370 214 392 214"/>
+              <path d="M138 400 C190 400 190 270 200 272"/>
+              <path d="M520 205 C560 205 540 330 470 340"/><path d="M332 350 C300 350 300 430 330 430"/>
+              <path d="M468 430 C500 430 500 470 520 470"/>
+            </g>
+            <g font-family="Plus Jakarta Sans, system-ui" font-size="12">
+              <g><rect x="18" y="112" width="120" height="56" rx="8" fill="var(--surface)" stroke="var(--line)"/><text x="30" y="134" font-weight="600" fill="var(--ink)">Position</text><text x="30" y="152" fill="var(--ink-2)">x, y</text><circle cx="138" cy="140" r="4" fill="var(--wire)"/></g>
+              <g><rect x="18" y="372" width="120" height="56" rx="8" fill="var(--surface)" stroke="var(--line)"/><text x="30" y="394" font-weight="600" fill="var(--ink)">Time</text><text x="30" y="412" fill="var(--ink-2)">seconds</text><circle cx="138" cy="400" r="4" fill="var(--wire)"/></g>
+              <g><rect x="200" y="100" width="138" height="62" rx="8" fill="var(--surface)" stroke="var(--line)"/><text x="212" y="122" font-weight="600" fill="var(--ink)">Circle</text><text x="212" y="140" fill="var(--ink-2)">radius 0.22</text><text x="212" y="154" fill="var(--ink-3)" font-size="10.5">distance out</text><circle cx="338" cy="130" r="4" fill="var(--wire)"/></g>
+              <g><rect x="200" y="230" width="138" height="62" rx="8" fill="var(--surface)" stroke="var(--line)"/><text x="212" y="252" font-weight="600" fill="var(--ink)">Circle</text><text x="212" y="270" fill="var(--ink-2)">radius 0.16</text><text x="212" y="284" fill="var(--ink-3)" font-size="10.5">moves with time</text><circle cx="338" cy="260" r="4" fill="var(--wire)"/></g>
+              <g><rect x="392" y="176" width="128" height="58" rx="8" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.5"/><text x="404" y="198" font-weight="600" fill="var(--ink)">Smooth min</text><text x="404" y="216" fill="var(--ink-2)">melt 0.18</text><circle cx="520" cy="205" r="4" fill="var(--wire)"/></g>
+              <g><rect x="332" y="322" width="138" height="56" rx="8" fill="var(--surface)" stroke="var(--line)"/><text x="344" y="344" font-weight="600" fill="var(--ink)">Rings</text><text x="344" y="362" fill="var(--ink-2)">every 0.11</text></g>
+              <g><rect x="330" y="404" width="138" height="56" rx="8" fill="var(--surface)" stroke="var(--line)"/><text x="342" y="426" font-weight="600" fill="var(--ink)">Gradient</text><rect x="342" y="436" width="110" height="10" rx="3" fill="url(#g2)"/></g>
+              <g><rect x="520" y="444" width="84" height="52" rx="8" fill="var(--surface)" stroke="var(--line)"/><text x="532" y="466" font-weight="600" fill="var(--ink)">Output</text><text x="532" y="484" fill="var(--ink-2)">pixel</text></g>
+            </g>
+            <defs><linearGradient id="g2"><stop offset="0" stop-color="#fbe3f0"/><stop offset=".5" stop-color="#c47bd9"/><stop offset="1" stop-color="#5b2fb0"/></linearGradient></defs>
+          </svg>
+          <div class="mini"><canvas data-scene="nodes"></canvas></div>
+        </div>
+      </div>
+      <aside class="panel">
+        <h3>Smooth min</h3>
+        <div class="sub">Inputs</div>
+        <div class="field"><span>A</span><span class="select" style="grid-column: span 2">Circle ▸ distance</span></div>
+        <div class="field"><span>B</span><span class="select" style="grid-column: span 2">Circle ▸ distance</span></div>
+        <div class="field"><span>Melt</span><input type="range" value="36" disabled aria-label="Melt"><output>0.18</output></div>
+        <div class="note">To make the shapes melt, you need to know that "smooth min" of two distances does it.</div>
+      </aside>
+    </div></div>
+  </section>
+
+  <!-- 3 · Draw ------------------------------------------------------------- -->
+  <section id="p-draw" role="tabpanel" aria-labelledby="t-draw" hidden>
+    <div class="facts">
+      <div class="fact"><div class="fact__k">You do</div><div class="fact__v">Draw shapes, then drag handles to soften, melt, ring and swirl them.</div></div>
+      <div class="fact"><div class="fact__k">You can make</div><div class="fact__v">Any shape you can draw, as soft, liquid, glowing or ringed forms.</div></div>
+      <div class="fact"><div class="fact__k">Feels like</div><div class="fact__v">Figma, where every shape is made of light.</div></div>
+    </div>
+    <div class="scroll"><div class="app">
+      <div class="dock" aria-hidden="true">
+        <span class="tool on" data-icon="cursor"></span><span class="tool" data-icon="pen"></span><span class="tool" data-icon="ellipse"></span><span class="tool" data-icon="square"></span><span class="tool" data-icon="text"></span><hr>
+        <span class="tool" data-icon="drop"></span><span class="tool" data-icon="wave"></span><hr><span class="tool" data-icon="code"></span>
+      </div>
+      <div class="stage stage--up">
+        <div class="frame" id="drawFrame"><span class="frame__size">Hero · 1440 × 900</span><canvas data-scene="draw"></canvas><svg class="overlay" id="drawOverlay" aria-label="Drag a shape to move it"></svg><span class="hint">Drag a shape · move the sliders</span></div>
+        <div class="timeline" aria-hidden="true"><span>0s</span><div class="track"><b style="left:0%"></b><b style="left:45%"></b><b style="left:100%"></b><span class="head" style="left:30%"></span></div><span>Loop 6s</span></div>
+      </div>
+      <aside class="panel">
+        <h3>Ellipse + 2 shapes</h3>
+        <div class="sub">Field</div>
+        <div class="field"><label for="dSoft">Softness</label><input id="dSoft" type="range" min="0" max="100" value="45"><output id="oSoft">45</output></div>
+        <div class="field"><label for="dMelt">Melt</label><input id="dMelt" type="range" min="0" max="100" value="55"><output id="oMelt">55</output></div>
+        <div class="field"><label for="dRings">Rings</label><input id="dRings" type="range" min="0" max="20" value="0"><output id="oRings">0</output></div>
+        <div class="field"><label for="dSwirl">Swirl</label><input id="dSwirl" type="range" min="0" max="100" value="0"><output id="oSwirl">0</output></div>
+        <div class="sub">Color</div>
+        <div class="gradbar" style="background: linear-gradient(90deg,#ffd3b0,#f0607e,#6b2fa8)"><i style="left:0%;background:#ffd3b0"></i><i style="left:50%;background:#f0607e"></i><i style="left:100%;background:#6b2fa8"></i></div>
+        <div class="note">Nothing here was pre-made: the forms are the shapes on the canvas, and the look is how you shape their field.</div>
+      </aside>
+    </div></div>
+  </section>
+
+  <!-- 4 · Code ------------------------------------------------------------- -->
+  <section id="p-code" role="tabpanel" aria-labelledby="t-code" hidden>
+    <div class="facts">
+      <div class="fact"><div class="fact__k">You do</div><div class="fact__v">Write or paste a shader; every number becomes a slider.</div></div>
+      <div class="fact"><div class="fact__k">You can make</div><div class="fact__v">Anything, if you can write GLSL.</div></div>
+      <div class="fact"><div class="fact__k">Feels like</div><div class="fact__v">A code editor with knobs. Not visual.</div></div>
+    </div>
+    <div class="scroll"><div class="app app--wide">
+      <div class="dock" aria-hidden="true"><span class="tool on" data-icon="code"></span><span class="tool" data-icon="grid"></span></div>
+      <div class="stage">
+        <div class="codewrap">
+          <div class="code" aria-label="Shader code">
+            <div><span class="ln">1</span><span class="c">// two circles that melt, with rings</span></div>
+            <div><span class="ln">2</span>float a = circle(p, vec2(-0.12, 0.0), <span class="num" id="nRad">0.22</span>);</div>
+            <div><span class="ln">3</span>float b = circle(p, orbit(t), 0.16);</div>
+            <div><span class="ln">4</span>float d = smin(a, b, <span class="num" id="nMelt">0.18</span>);</div>
+            <div><span class="ln">5</span></div>
+            <div><span class="ln">6</span>float ring = cos(d * <span class="num" id="nRings">6.0</span> * TAU);</div>
+            <div><span class="ln">7</span>float fill = smoothstep(0.04, -0.01, d);</div>
+            <div><span class="ln">8</span>vec3 col = ramp(-d / 0.25);</div>
+            <div><span class="ln">9</span><span class="c">// ... 40 more lines</span></div>
+          </div>
+          <div class="rightcol">
+            <div class="frame" style="max-width:none"><canvas data-scene="code"></canvas></div>
+            <div class="field"><label for="cRad">radius</label><input id="cRad" type="range" min="10" max="35" value="22"><output id="ocRad">0.22</output></div>
+            <div class="field"><label for="cMelt">smin k</label><input id="cMelt" type="range" min="0" max="40" value="18"><output id="ocMelt">0.18</output></div>
+            <div class="field"><label for="cRings">rings</label><input id="cRings" type="range" min="0" max="16" value="6"><output id="ocRings">6</output></div>
+          </div>
+        </div>
+      </div>
+      <aside class="panel" hidden></aside>
+    </div></div>
+  </section>
+
+  <!-- 5 · Hybrid ----------------------------------------------------------- -->
+  <section id="p-hybrid" role="tabpanel" aria-labelledby="t-hybrid" hidden>
+    <div class="facts">
+      <div class="fact"><div class="fact__k">You do</div><div class="fact__v">Draw like option 3; open any layer to see and rewire its nodes.</div></div>
+      <div class="fact"><div class="fact__k">You can make</div><div class="fact__v">Anything, with an easy start.</div></div>
+      <div class="fact"><div class="fact__k">Feels like</div><div class="fact__v">Two tools in one. A later step from option 3.</div></div>
+    </div>
+    <div class="scroll"><div class="app">
+      <div class="dock" aria-hidden="true">
+        <span class="tool on" data-icon="cursor"></span><span class="tool" data-icon="pen"></span><span class="tool" data-icon="ellipse"></span><span class="tool" data-icon="square"></span><hr><span class="tool" data-icon="nodes"></span><hr><span class="tool" data-icon="code"></span>
+      </div>
+      <div class="stage stage--up" style="padding-bottom:190px">
+        <div class="frame" style="max-width:420px"><canvas data-scene="hybrid"></canvas></div>
+        <div class="drawer">
+          <div class="drawer__bar">Nodes for “Ellipse” <span>Hide nodes</span></div>
+          <div class="graph">
+            <svg viewBox="0 0 620 130" preserveAspectRatio="xMidYMid meet" aria-label="The nodes behind the selected ellipse">
+              <g fill="none" stroke="var(--wire)" stroke-width="2"><path d="M136 50 H176"/><path d="M296 50 H336"/><path d="M456 50 H496"/></g>
+              <g font-family="Plus Jakarta Sans, system-ui" font-size="12">
+                <rect x="16" y="24" width="120" height="52" rx="8" fill="var(--surface)" stroke="var(--line)"/><text x="28" y="46" font-weight="600" fill="var(--ink)">Ellipse</text><text x="28" y="63" fill="var(--ink-2)">you drew this</text>
+                <rect x="176" y="24" width="120" height="52" rx="8" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.5"/><text x="188" y="46" font-weight="600" fill="var(--ink)">Swirl</text><text x="188" y="63" fill="var(--ink-2)">strength 0.8</text>
+                <rect x="336" y="24" width="120" height="52" rx="8" fill="var(--surface)" stroke="var(--line)"/><text x="348" y="46" font-weight="600" fill="var(--ink)">Melt</text><text x="348" y="63" fill="var(--ink-2)">with Rect</text>
+                <rect x="496" y="24" width="108" height="52" rx="8" fill="var(--surface)" stroke="var(--line)"/><text x="508" y="46" font-weight="600" fill="var(--ink)">Gradient</text><text x="508" y="63" fill="var(--ink-2)">3 stops</text>
+              </g>
+            </svg>
+          </div>
+        </div>
+      </div>
+      <aside class="panel">
+        <h3>Ellipse</h3>
+        <div class="sub">Field</div>
+        <div class="field"><span>Softness</span><input type="range" value="45" disabled aria-label="Softness"><output>45</output></div>
+        <div class="field"><span>Melt</span><input type="range" value="55" disabled aria-label="Melt"><output>55</output></div>
+        <div class="field"><span>Swirl</span><input type="range" value="80" disabled aria-label="Swirl"><output>80</output></div>
+        <div class="note">The same drawing tool, with the wiring one click away for anyone who wants it.</div>
+      </aside>
+    </div></div>
+  </section>
+</div>
+
+<script>
+// ---- dock icons (stroke icons in Lazuli's style) ----
+const ICONS = {
+  grid: '<rect x="4" y="4" width="6" height="6" rx="1.5"/><rect x="14" y="4" width="6" height="6" rx="1.5"/><rect x="4" y="14" width="6" height="6" rx="1.5"/><rect x="14" y="14" width="6" height="6" rx="1.5"/>',
+  list: '<rect x="3.5" y="4" width="4" height="4" rx="1"/><rect x="3.5" y="10" width="4" height="4" rx="1"/><rect x="3.5" y="16" width="4" height="4" rx="1"/><path d="M11 6h9.5M11 12h9.5M11 18h9.5"/>',
+  shapes: '<circle cx="12" cy="7" r="3.5"/><circle cx="7" cy="16" r="3.5"/><circle cx="17" cy="16" r="3.5"/>',
+  drop: '<path d="M12 3.5c3.5 4.2 6 7.4 6 10.4a6 6 0 0 1-12 0c0-3 2.5-6.2 6-10.4Z"/>',
+  grain: '<rect x="4" y="4" width="16" height="16" rx="4"/><path d="M8 8h.01M12 9h.01M16 8h.01M9 13h.01M14 12h.01M8 16h.01M13 16h.01M16 15h.01"/>',
+  square: '<rect x="4" y="5" width="16" height="14" rx="2"/>',
+  wave: '<path d="M3 12c2.5 0 2.5-5 5-5s2.5 10 5 10 2.5-5 5-5h3"/>',
+  code: '<path d="M9 7l-5 5 5 5M15 7l5 5-5 5"/>',
+  nodes: '<rect x="3" y="4" width="7" height="6" rx="1.5"/><rect x="14" y="14" width="7" height="6" rx="1.5"/><path d="M10 7c4 0 4 10 4 10"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>',
+  cursor: '<path d="M6 4l12 6-5.5 1.8L10 18 6 4Z"/>',
+  pen: '<path d="M4 20l3.5-1 10-10-2.5-2.5-10 10L4 20Z"/><path d="M13.5 7.5l3 3"/>',
+  ellipse: '<ellipse cx="12" cy="12" rx="8" ry="6"/>',
+  text: '<path d="M6 6h12M12 6v13"/>',
+}
+document.querySelectorAll('[data-icon]').forEach((el) => {
+  el.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${ICONS[el.dataset.icon] || ''}</svg>`
+})
+
+// ---- one small distance-field shader, set up differently for each mock ----
+const FRAG = `
+precision highp float;
+uniform vec2 res; uniform float t; uniform vec4 sh[4]; uniform float n;
+uniform float k; uniform float soft; uniform float rings; uniform float swirl; uniform float drift;
+uniform vec3 c0; uniform vec3 c1; uniform vec3 c2; uniform vec3 bg;
+float shape(vec2 p, vec4 s) {
+  if (s.w < 0.5) return length(p - s.xy) - s.z;
+  vec2 d = abs(p - s.xy) - vec2(s.z, s.z * 0.62);
+  return length(max(d, 0.0)) + min(max(d.x, d.y), 0.0) - 0.03;
+}
+float smin(float a, float b, float k) {
+  if (k <= 0.0001) return min(a, b);
+  float h = clamp(0.5 + 0.5 * (b - a) / k, 0.0, 1.0);
+  return mix(b, a, h) - k * h * (1.0 - h);
+}
+void main() {
+  vec2 p = (gl_FragCoord.xy - 0.5 * res) / res.y;
+  float a = swirl * exp(-dot(p, p) * 5.0) * (1.0 + 0.15 * sin(t * 0.6));
+  p = mat2(cos(a), sin(a), -sin(a), cos(a)) * p;
+  float d = 10.0;
+  for (int i = 0; i < 4; i++) {
+    if (float(i) >= n) break;
+    vec4 s = sh[i];
+    s.xy += drift * vec2(sin(t * 0.7 + float(i) * 2.1), cos(t * 0.5 + float(i) * 1.3));
+    d = smin(d, shape(p, s), k);
+  }
+  float fill = 1.0 - smoothstep(-0.004, soft, d);
+  float tone = clamp(-d / 0.22, 0.0, 1.0);
+  vec3 col = tone < 0.5 ? mix(c2, c1, tone * 2.0) : mix(c1, c0, tone * 2.0 - 1.0);
+  vec3 outc = mix(bg, col, fill);
+  if (rings > 0.5 && d > 0.0) {
+    float band = 0.5 + 0.5 * cos(d * rings * 6.2831853);
+    float line = smoothstep(0.82, 0.98, band) * exp(-d * 3.0);
+    outc = mix(outc, c1, line * 0.85);
+  }
+  gl_FragColor = vec4(outc, 1.0);
+}`
+const VERT = 'attribute vec2 a; void main(){ gl_Position = vec4(a, 0.0, 1.0); }'
+const hex = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255)
+
+const SCENES = {
+  remix: { shapes: [[-0.14, 0.02, 0.2, 0], [0.1, 0.09, 0.15, 0], [0.18, -0.14, 0.05, 0]], k: 0.16, soft: 0.07, rings: 0, swirl: 0, drift: 0.035, c: ['#1f48a8', '#4c78d8', '#d9e3f8'], bg: '#ffffff' },
+  nodes: { shapes: [[-0.12, 0.0, 0.2, 0], [0.12, 0.04, 0.15, 0]], k: 0.18, soft: 0.03, rings: 9, swirl: 0, drift: 0.05, c: ['#5b2fb0', '#c47bd9', '#fbe3f0'], bg: '#fff7fb' },
+  draw: { shapes: [[-0.22, 0.04, 0.17, 0], [0.12, -0.02, 0.16, 1], [0.3, 0.16, 0.07, 0]], k: 0.12, soft: 0.06, rings: 0, swirl: 0, drift: 0, c: ['#6b2fa8', '#f0607e', '#ffd3b0'], bg: '#fff4ec' },
+  code: { shapes: [[-0.12, 0.0, 0.22, 0], [0.12, 0.04, 0.16, 0]], k: 0.18, soft: 0.03, rings: 6, swirl: 0, drift: 0.05, c: ['#0d5c63', '#3fb6a8', '#d6f3ee'], bg: '#f3fbfa' },
+  hybrid: { shapes: [[-0.2, 0.03, 0.17, 0], [0.12, -0.02, 0.15, 1], [0.3, 0.15, 0.06, 0]], k: 0.12, soft: 0.06, rings: 0, swirl: 0.8, drift: 0, c: ['#1f48a8', '#6b8ff0', '#e3ebff'], bg: '#ffffff' },
+}
+
+const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches
+const views = []
+function makeView(canvas) {
+  const gl = canvas.getContext('webgl', { antialias: true })
+  if (!gl) return null
+  const sh = (type, src) => { const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); return s }
+  const prog = gl.createProgram()
+  gl.attachShader(prog, sh(gl.VERTEX_SHADER, VERT))
+  gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, FRAG))
+  gl.bindAttribLocation(prog, 0, 'a')
+  gl.linkProgram(prog)
+  gl.useProgram(prog)
+  gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer())
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW)
+  gl.enableVertexAttribArray(0)
+  gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0)
+  const u = (n) => gl.getUniformLocation(prog, n)
+  const scene = SCENES[canvas.dataset.scene]
+  return {
+    canvas, scene,
+    draw(time) {
+      const dpr = Math.min(devicePixelRatio || 1, 2)
+      const w = Math.max(1, Math.round(canvas.clientWidth * dpr)), h = Math.max(1, Math.round(canvas.clientHeight * dpr))
+      if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h }
+      gl.viewport(0, 0, w, h)
+      const s = scene, flat = new Float32Array(16)
+      s.shapes.forEach((x, i) => flat.set(x, i * 4))
+      gl.uniform2f(u('res'), w, h)
+      gl.uniform1f(u('t'), time)
+      gl.uniform4fv(u('sh'), flat)
+      gl.uniform1f(u('n'), s.shapes.length)
+      gl.uniform1f(u('k'), s.k)
+      gl.uniform1f(u('soft'), s.soft)
+      gl.uniform1f(u('rings'), s.rings)
+      gl.uniform1f(u('swirl'), s.swirl)
+      gl.uniform1f(u('drift'), s.drift)
+      gl.uniform3fv(u('c0'), hex(s.c[0])); gl.uniform3fv(u('c1'), hex(s.c[1])); gl.uniform3fv(u('c2'), hex(s.c[2]))
+      gl.uniform3fv(u('bg'), hex(s.bg))
+      gl.drawArrays(gl.TRIANGLES, 0, 3)
+    },
+  }
+}
+document.querySelectorAll('canvas[data-scene]').forEach((c) => { const v = makeView(c); if (v) views.push(v) })
+
+let active = null
+const start = performance.now()
+function loop(now) {
+  requestAnimationFrame(loop)
+  const t = reduced ? 0 : (now - start) / 1000
+  for (const v of views) if (v.canvas.closest('[role=tabpanel]') === active) v.draw(t)
+}
+requestAnimationFrame(loop)
+
+// ---- tabs, routed on the hash (#remix, #nodes, #draw, #code, #hybrid) ----
+const tabs = [...document.querySelectorAll('.tab')]
+function show(id) {
+  if (!SCENES[id]) id = 'draw'
+  for (const t of tabs) {
+    const on = t.dataset.id === id
+    t.setAttribute('aria-selected', on)
+    t.tabIndex = on ? 0 : -1
+    document.getElementById(`p-${t.dataset.id}`).hidden = !on
+  }
+  active = document.getElementById(`p-${id}`)
+  if (id === 'draw') requestAnimationFrame(drawOverlay)
+}
+tabs.forEach((t, i) => {
+  t.addEventListener('click', () => { history.replaceState(null, '', `#${t.dataset.id}`); show(t.dataset.id) })
+  t.addEventListener('keydown', (e) => {
+    const step = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0
+    if (!step) return
+    const next = tabs[(i + step + tabs.length) % tabs.length]
+    next.focus(); next.click()
+  })
+})
+addEventListener('hashchange', () => show(location.hash.slice(1)))
+show(location.hash.slice(1) || 'draw')
+
+// ---- option 3 is real: drag shapes, sliders shape the field ----
+const draw = SCENES.draw
+const frame = document.getElementById('drawFrame')
+const svg = document.getElementById('drawOverlay')
+const NS = 'http://www.w3.org/2000/svg'
+const toScreen = (x, y) => { const r = frame.getBoundingClientRect(); return [r.width / 2 + x * r.height, r.height / 2 - y * r.height] }
+const toField = (sx, sy) => { const r = frame.getBoundingClientRect(); return [(sx - r.width / 2) / r.height, -(sy - r.height / 2) / r.height] }
+function drawOverlay() {
+  const r = frame.getBoundingClientRect()
+  if (!r.width) return
+  svg.setAttribute('viewBox', `0 0 ${r.width} ${r.height}`)
+  svg.innerHTML = ''
+  const [ax, ay] = toScreen(draw.shapes[0][0], draw.shapes[0][1]), [bx, by] = toScreen(draw.shapes[1][0], draw.shapes[1][1])
+  const link = document.createElementNS(NS, 'line')
+  Object.entries({ x1: ax, y1: ay, x2: bx, y2: by, stroke: '#1f48a8', 'stroke-width': 1, 'stroke-dasharray': '3 4', opacity: 0.6 }).forEach(([k, v]) => link.setAttribute(k, v))
+  svg.append(link)
+  const melt = document.createElementNS(NS, 'rect')
+  const mx = (ax + bx) / 2, my = (ay + by) / 2
+  Object.entries({ x: mx - 6, y: my - 6, width: 12, height: 12, rx: 2, fill: '#fff', stroke: '#1f48a8', 'stroke-width': 1.5, transform: `rotate(45 ${mx} ${my})` }).forEach(([k, v]) => melt.setAttribute(k, v))
+  const meltTitle = document.createElementNS(NS, 'title'); meltTitle.textContent = 'Melt handle'; melt.append(meltTitle)
+  svg.append(melt)
+  draw.shapes.forEach((s, i) => {
+    const [cx, cy] = toScreen(s[0], s[1])
+    const rr = s[2] * r.height
+    const el = document.createElementNS(NS, s[3] > 0.5 ? 'rect' : 'circle')
+    const attrs = s[3] > 0.5 ? { x: cx - rr, y: cy - rr * 0.62, width: rr * 2, height: rr * 1.24, rx: 4 } : { cx, cy, r: rr }
+    Object.entries({ ...attrs, fill: 'transparent', stroke: '#1f48a8', 'stroke-width': 1, 'stroke-dasharray': '4 3', class: 'drag', 'data-i': i }).forEach(([k, v]) => el.setAttribute(k, v))
+    svg.append(el)
+    for (const [hx, hy] of [[cx - rr, cy], [cx + rr, cy]]) {
+      const h = document.createElementNS(NS, 'rect')
+      Object.entries({ x: hx - 3.5, y: hy - 3.5, width: 7, height: 7, fill: '#fff', stroke: '#1f48a8', 'stroke-width': 1 }).forEach(([k, v]) => h.setAttribute(k, v))
+      svg.append(h)
+    }
+  })
+}
+let dragging = null
+svg.addEventListener('pointerdown', (e) => {
+  const r = frame.getBoundingClientRect()
+  const [fx, fy] = toField(e.clientX - r.left, e.clientY - r.top)
+  let best = -1, bestD = Infinity
+  draw.shapes.forEach((s, i) => { const d = Math.hypot(s[0] - fx, s[1] - fy) - s[2]; if (d < bestD) { bestD = d; best = i } })
+  if (bestD < 0.06) { dragging = { i: best, dx: draw.shapes[best][0] - fx, dy: draw.shapes[best][1] - fy }; svg.setPointerCapture(e.pointerId) }
+})
+svg.addEventListener('pointermove', (e) => {
+  if (!dragging) return
+  const r = frame.getBoundingClientRect()
+  const [fx, fy] = toField(e.clientX - r.left, e.clientY - r.top)
+  const s = draw.shapes[dragging.i]
+  s[0] = Math.max(-0.75, Math.min(0.75, fx + dragging.dx)); s[1] = Math.max(-0.45, Math.min(0.45, fy + dragging.dy))
+  drawOverlay()
+})
+svg.addEventListener('pointerup', () => (dragging = null))
+addEventListener('resize', drawOverlay)
+
+const bind = (id, out, apply) => {
+  const el = document.getElementById(id), o = document.getElementById(out)
+  const go = () => { o.textContent = el.value; apply(+el.value) }
+  el.addEventListener('input', go); go()
+}
+bind('dSoft', 'oSoft', (v) => (draw.soft = 0.005 + (v / 100) * 0.12))
+bind('dMelt', 'oMelt', (v) => (draw.k = (v / 100) * 0.22))
+bind('dRings', 'oRings', (v) => (draw.rings = v))
+bind('dSwirl', 'oSwirl', (v) => (draw.swirl = (v / 100) * 2.2))
+
+// ---- option 4: sliders rewrite the numbers in the code ----
+const code = SCENES.code
+const bindCode = (id, out, num, fmt, apply) => {
+  const el = document.getElementById(id), o = document.getElementById(out), n = document.getElementById(num)
+  const go = () => { const s = fmt(+el.value); o.textContent = s; n.textContent = s; apply(+el.value) }
+  el.addEventListener('input', go); go()
+}
+bindCode('cRad', 'ocRad', 'nRad', (v) => (v / 100).toFixed(2), (v) => (code.shapes[0][2] = v / 100))
+bindCode('cMelt', 'ocMelt', 'nMelt', (v) => (v / 100).toFixed(2), (v) => (code.k = v / 100))
+bindCode('cRings', 'ocRings', 'nRings', (v) => `${v}.0`, (v) => (code.rings = v))
+</script>
