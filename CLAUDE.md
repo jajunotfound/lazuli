@@ -5,7 +5,7 @@ blobs, waves, bands, rings, dot grids or Chladni patterns that drift and react t
 Users tune shape, color, texture, background, motion and cursor (or start from a preset), then
 export code, a PNG or a video. v2 is built per `ITERATION.md`; its Paper design pass is next.
 
-- Repo: https://github.com/jajunotfound/lazuli (default branch `build-lazuli`)
+- Repo: https://github.com/jajunotfound/lazuli (default branch `main`; `build-lazuli` mirrors it)
 - License: MIT. Deploy target: Vercel (`vercel.json` at root).
 
 ## Source of truth

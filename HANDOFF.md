@@ -1,3 +1,50 @@
+# Handoff: 2026-11-14 (product reset: Lazuli is a background maker)
+
+Read this section first. Everything below it is the earlier state and is kept for history; where it
+conflicts with this section, this section wins.
+
+## Decision: Lazuli is a background maker
+
+Pick a preset, tune a few knobs, export a PNG, a video or `<lazuli-bg>` code. One background at a
+time, with an output-size picker. The npm package is the export format, not a separate product.
+
+Why: v2 grew in three directions at once (drop-in library, background maker, shader design tool)
+and the UI showed it. The user picked the background maker.
+
+### Cut
+
+- **Image as a frame's source** and applying the effect to items: it never ran on the engine (SVG
+  filter stand-in) and doesn't fit a background maker.
+- **Free-drawn frames / the frames canvas.** Replaced by an output-size picker (16:9, 1:1, 4:5,
+  9:16, custom). If frames survive at all, picking the Frame tool shows the size presets right away
+  and one click makes a frame; drawing first and choosing a size after is the wrong order.
+- Re-check every v2 knob against "does a designer making a background need this?" before the
+  redesign. Fewer, better controls.
+
+### Design direction for the panel (user's reference: Figma-style inspector)
+
+Port the reference's structure, not its dark palette:
+- One panel surface, not a card per row. Label column left, input fields right.
+- Compact fields (~32px) with icon prefixes; numbers are editable and scrubbable.
+- No whole-row slider fills (they read as selection, cover labels, and look broken at low values).
+- Colors: swatch + hex + opacity in one field; palette stops shown on a gradient bar above the
+  list; "+" beside the Stops header instead of an "Add color" row.
+- No step dots under values.
+
+### State
+
+- GitHub: `main` force-updated to `ab3af8a` and set as the default branch (2026-11-14).
+  `build-lazuli` points at the same commit. Local `~/lazuli` main checkout is still the old scaffold.
+- Paper MCP was not connected this session; nothing new is in Paper yet.
+
+### Next
+
+1. Trim the parameter list to the background-maker scope (proposal for the user to approve).
+2. Redesign the panel in Paper in the new structure; user reviews.
+3. Implement; remove the frames canvas and image source from the playground.
+
+---
+
 # Handoff: 2026-09-30 (v2 built and designed in Paper; next: review the design, then implement)
 
 Read `CLAUDE.md` first for stable context and `ITERATION.md` for the v2 plan. This file is the
