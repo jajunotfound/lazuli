@@ -1,7 +1,7 @@
 <title>Lazuli Builder Options</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
 <style>
 /* Layout: one option at a time, shown as a mock of the Lazuli app (dock · framed canvas · panel), with a live shader in the canvas. */
 :root {
@@ -16,28 +16,29 @@
   --accent-soft: #e6ecf9;
   --wire: #8fa6dd;
   --code-bg: #f7f8fa;
-  --font-sans: 'Plus Jakarta Sans', system-ui, sans-serif;
+  --syn-key: #b4440f; --syn-fn: #1f48a8; --syn-com: #8b909b; --syn-str: #0d7a5f; --syn-line: #eef0f4;
+  --font-sans: 'Manrope', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, Menlo, monospace;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --ground: #0e1015; --surface: #171a21; --ink: #eef0f4; --ink-2: #a9afbb; --ink-3: #7a808c;
-    --line: #2a2e38; --row: #20242d; --accent: #7d9cf0; --accent-soft: #1d2740; --wire: #5671b8; --code-bg: #12151b;
+    --line: #2a2e38; --row: #20242d; --accent: #7d9cf0; --accent-soft: #1d2740; --wire: #5671b8; --code-bg: #12151b; --syn-key: #f08a5d; --syn-fn: #8fb1ff; --syn-com: #6b717d; --syn-str: #5fd3b0; --syn-line: #1b1f27;
     color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
   --ground: #0e1015; --surface: #171a21; --ink: #eef0f4; --ink-2: #a9afbb; --ink-3: #7a808c;
-  --line: #2a2e38; --row: #20242d; --accent: #7d9cf0; --accent-soft: #1d2740; --wire: #5671b8; --code-bg: #12151b;
+  --line: #2a2e38; --row: #20242d; --accent: #7d9cf0; --accent-soft: #1d2740; --wire: #5671b8; --code-bg: #12151b; --syn-key: #f08a5d; --syn-fn: #8fb1ff; --syn-com: #6b717d; --syn-str: #5fd3b0; --syn-line: #1b1f27;
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
 body {
-  margin: 0; background: var(--ground); color: var(--ink); font: 14px/1.5 var(--font-sans);
+  margin: 0; background: var(--ground); color: var(--ink); font: 13px/1.5 var(--font-sans);
   padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
 }
 .page { max-width: 1120px; margin: 0 auto; padding-block: 32px 48px; display: flex; flex-direction: column; gap: 20px; }
-h1 { margin: 0; font-size: 26px; line-height: 1.2; letter-spacing: -0.02em; text-wrap: balance; }
+h1 { margin: 0; font-size: 22px; line-height: 1.2; letter-spacing: -0.02em; text-wrap: balance; }
 .lede { margin: 6px 0 0; color: var(--ink-2); max-width: 62ch; }
 
 .tabs { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -49,13 +50,13 @@ h1 { margin: 0; font-size: 26px; line-height: 1.2; letter-spacing: -0.02em; text
 .tab:hover { border-color: var(--ink-3); }
 .tab[aria-selected="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
 .tab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.tab__num { font-size: 11px; color: var(--ink-3); font-weight: 600; letter-spacing: 0.04em; }
+.tab__num { font-size: 10px; color: var(--ink-3); font-weight: 600; letter-spacing: 0.04em; }
 .tab__name { font-weight: 600; }
-.tab__now { font-size: 11px; color: var(--accent); font-weight: 600; }
+.tab__now { font-size: 10.5px; color: var(--accent); font-weight: 600; }
 
 .facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
 .fact { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; min-width: 0; }
-.fact__k { font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3); }
+.fact__k { font-size: 10px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3); }
 .fact__v { margin-top: 2px; }
 @media (max-width: 720px) { .facts { grid-template-columns: 1fr; } }
 
@@ -82,16 +83,16 @@ h1 { margin: 0; font-size: 26px; line-height: 1.2; letter-spacing: -0.02em; text
 .frame canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 .frame__size { position: absolute; left: 0; top: -20px; font-size: 11px; color: var(--ink-3); }
 .panel { background: var(--surface); border-left: 1px solid var(--line); padding: 14px; display: flex; flex-direction: column; gap: 10px; overflow: auto; }
-.panel h3 { margin: 0; font-size: 13px; }
+.panel h3 { margin: 0; font-size: 12.5px; }
 .panel .sub { font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3); margin-top: 6px; }
-.field { display: grid; grid-template-columns: 72px 1fr 40px; align-items: center; gap: 8px; font-size: 12px; color: var(--ink-2); }
+.field { display: grid; grid-template-columns: 68px 1fr 40px; align-items: center; gap: 8px; font-size: 11.5px; color: var(--ink-2); }
 .field input[type=range] { width: 100%; accent-color: var(--accent); }
 .field output { font-variant-numeric: tabular-nums; text-align: right; color: var(--ink); }
 .select { display: flex; justify-content: space-between; align-items: center; height: 28px; padding: 0 8px; border-radius: 6px; background: var(--row); color: var(--ink); font-size: 12px; }
 .chips { display: flex; flex-wrap: wrap; gap: 4px; }
 .chip { padding: 2px 8px; border-radius: 999px; background: var(--row); font-size: 11px; color: var(--ink-2); }
 .chip.on { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
-.note { font-size: 12px; color: var(--ink-2); background: var(--row); border-radius: 8px; padding: 8px 10px; }
+.note { font-size: 11.5px; color: var(--ink-2); background: var(--row); border-radius: 8px; padding: 8px 10px; }
 .gradbar { height: 14px; border-radius: 4px; box-shadow: inset 0 0 0 1px var(--line); position: relative; }
 .gradbar i { position: absolute; top: -3px; width: 10px; height: 20px; border-radius: 3px; border: 2px solid #fff; box-shadow: 0 0 0 1px #0003; transform: translateX(-50%); }
 
@@ -127,18 +128,32 @@ h1 { margin: 0; font-size: 26px; line-height: 1.2; letter-spacing: -0.02em; text
 .drawer .graph { top: 37px; }
 .stage--up { align-items: start; padding-top: 20px; }
 
-/* option 3: canvas / code switch */
-.switch2 { display: inline-flex; padding: 2px; border-radius: 8px; background: var(--row); }
-.switch2 button { border: 0; background: none; font: inherit; font-size: 12px; font-weight: 600; color: var(--ink-2); padding: 4px 12px; border-radius: 6px; cursor: pointer; }
+/* option 3: Canvas | Code. Code opens a full-height editor beside the canvas, like a playground. */
+.switch2 { display: inline-flex; padding: 2px; border-radius: 8px; background: var(--row); border: 1px solid var(--line); }
+.switch2 button { border: 0; background: none; font: inherit; font-size: 12px; font-weight: 600; color: var(--ink-2); padding: 3px 12px; border-radius: 6px; cursor: pointer; }
 .switch2 button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 0 0 1px var(--line); }
-.codepane { display: none; position: absolute; left: 28px; right: 28px; bottom: 10px; height: 206px; }
-.app.is-code .codepane { display: block; }
-.app.is-code .timeline, .app.is-code .hint { display: none; }
-.app.is-code #drawFrame { max-width: 380px; }
-.codepane .code { height: 100%; }
-.code .num[data-key] { cursor: ew-resize; }
-.code .num[data-key]:hover { outline: 1px solid var(--accent); }
-.code .add { display: inline-block; margin: 6px 12px 0; padding: 3px 10px; border: 1px dashed var(--ink-3); border-radius: 6px; color: var(--ink-2); font-family: var(--font-sans); font-size: 12px; }
+.stagebar { position: absolute; left: 0; right: 0; top: 12px; display: flex; justify-content: center; z-index: 2; }
+#drawApp { grid-template-areas: "dock stage panel"; }
+#drawApp > .dock { grid-area: dock; } #drawApp > .stage { grid-area: stage; } #drawApp > .panel { grid-area: panel; }
+#drawApp > .side { grid-area: side; display: none; }
+#drawApp.is-code { grid-template-columns: 72px 340px 1fr; grid-template-areas: "dock side stage"; }
+#drawApp.is-code > .side { display: flex; }
+#drawApp.is-code > .panel { display: none; }
+#drawApp .stage--up { padding-top: 56px; }
+.side { flex-direction: column; min-width: 0; background: var(--code-bg); border-right: 1px solid var(--line); }
+.side__head { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; border-bottom: 1px solid var(--line); background: var(--surface); }
+.side__file { font: 11px var(--font-mono); color: var(--ink-3); }
+.side__body { flex: 1; overflow: auto; min-height: 0; }
+.side__props { padding: 14px; display: flex; flex-direction: column; gap: 10px; background: var(--surface); height: 100%; }
+.side__foot { padding: 8px 12px; border-top: 1px solid var(--line); font-size: 11px; color: var(--ink-3); background: var(--surface); }
+.editor { padding: 10px 0; font: 11.5px/1.8 var(--font-mono); color: var(--ink); }
+.editor div { padding: 0 12px 0 0; white-space: pre; }
+.editor div:hover { background: var(--syn-line); }
+.editor .ln { display: inline-block; width: 34px; padding-right: 12px; text-align: right; color: var(--ink-3); user-select: none; }
+.editor .kw { color: var(--syn-key); } .editor .fn { color: var(--syn-fn); } .editor .cm { color: var(--syn-com); } .editor .st { color: var(--syn-str); }
+.editor .num { color: var(--accent); border-bottom: 1px dotted var(--accent); }
+.editor .num[data-key] { cursor: ew-resize; background: var(--accent-soft); border-radius: 3px; border-bottom: 0; padding: 0 2px; }
+.editor .add { display: inline-block; margin: 10px 0 0 46px; padding: 3px 10px; border: 1px dashed var(--ink-3); border-radius: 6px; color: var(--ink-2); font-family: var(--font-sans); font-size: 11.5px; }
 
 /* beyond circles gallery */
 .gallery { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
@@ -148,7 +163,7 @@ h1 { margin: 0; font-size: 26px; line-height: 1.2; letter-spacing: -0.02em; text
 .card canvas { display: block; width: 100%; aspect-ratio: 16 / 10; }
 .card__body { padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 6px; }
 .card__title { font-weight: 600; }
-.card__how { font-size: 12px; color: var(--ink-2); }
+.card__how { font-size: 11.5px; color: var(--ink-2); }
 .blocks { display: flex; flex-wrap: wrap; gap: 4px; }
 .block { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
 .k-draw { background: #fde7d9; color: #8a3b12; } .k-field { background: #e2f3ef; color: #0d5c63; }
@@ -221,7 +236,7 @@ h1 { margin: 0; font-size: 26px; line-height: 1.2; letter-spacing: -0.02em; text
               <path d="M520 205 C560 205 540 330 470 340"/><path d="M332 350 C300 350 300 430 330 430"/>
               <path d="M468 430 C500 430 500 470 520 470"/>
             </g>
-            <g font-family="Plus Jakarta Sans, system-ui" font-size="12">
+            <g font-family="Manrope, system-ui" font-size="12">
               <g><rect x="18" y="112" width="120" height="56" rx="8" fill="var(--surface)" stroke="var(--line)"/><text x="30" y="134" font-weight="600" fill="var(--ink)">Position</text><text x="30" y="152" fill="var(--ink-2)">x, y</text><circle cx="138" cy="140" r="4" fill="var(--wire)"/></g>
               <g><rect x="18" y="372" width="120" height="56" rx="8" fill="var(--surface)" stroke="var(--line)"/><text x="30" y="394" font-weight="600" fill="var(--ink)">Time</text><text x="30" y="412" fill="var(--ink-2)">seconds</text><circle cx="138" cy="400" r="4" fill="var(--wire)"/></g>
               <g><rect x="200" y="100" width="138" height="62" rx="8" fill="var(--surface)" stroke="var(--line)"/><text x="212" y="122" font-weight="600" fill="var(--ink)">Circle</text><text x="212" y="140" fill="var(--ink-2)">radius 0.22</text><text x="212" y="154" fill="var(--ink-3)" font-size="10.5">distance out</text><circle cx="338" cy="130" r="4" fill="var(--wire)"/></g>
@@ -259,14 +274,19 @@ h1 { margin: 0; font-size: 26px; line-height: 1.2; letter-spacing: -0.02em; text
         <span class="tool on" data-icon="cursor"></span><span class="tool" data-icon="pen"></span><span class="tool" data-icon="ellipse"></span><span class="tool" data-icon="square"></span><span class="tool" data-icon="text"></span><hr>
         <span class="tool" data-icon="drop"></span><span class="tool" data-icon="wave"></span><hr><span class="tool" data-icon="code"></span>
       </div>
+      <div class="side" aria-label="Code editor">
+        <div class="side__head"><div class="switch2" role="group" aria-label="Editor"><button type="button" id="sCode" aria-pressed="true">Code</button><button type="button" id="sProps" aria-pressed="false">Properties</button></div><span class="side__file">canvas.glsl</span></div>
+        <div class="side__body"><div class="editor" id="drawCode"></div><div class="side__props" id="sideProps" hidden></div></div>
+        <div class="side__foot">Drag a highlighted number sideways. Edits show on the canvas as you type.</div>
+      </div>
       <div class="stage stage--up">
+        <div class="stagebar"><div class="switch2" role="group" aria-label="View"><button type="button" id="vCanvas" aria-pressed="true">Canvas</button><button type="button" id="vCode" aria-pressed="false">Code</button></div></div>
         <div class="frame" id="drawFrame"><span class="frame__size">Hero · 1440 × 900</span><canvas data-scene="draw"></canvas><svg class="overlay" id="drawOverlay" aria-label="Drag a shape to move it"></svg><span class="hint">Drag a shape · move the sliders</span></div>
         <div class="timeline" aria-hidden="true"><span>0s</span><div class="track"><b style="left:0%"></b><b style="left:45%"></b><b style="left:100%"></b><span class="head" style="left:30%"></span></div><span>Loop 6s</span></div>
-        <div class="codepane"><div class="code" id="drawCode" aria-label="The shader for this canvas"></div></div>
       </div>
       <aside class="panel">
-        <div class="switch2" role="group" aria-label="View"><button type="button" id="vCanvas" aria-pressed="true">Canvas</button><button type="button" id="vCode" aria-pressed="false">Code</button></div>
         <h3>Ellipse + 2 shapes</h3>
+        <div id="drawFields" style="display:flex;flex-direction:column;gap:10px">
         <div class="sub">Field</div>
         <div class="field"><label for="dSoft">Softness</label><input id="dSoft" type="range" min="0" max="100" value="45"><output id="oSoft">45</output></div>
         <div class="field"><label for="dMelt">Melt</label><input id="dMelt" type="range" min="0" max="100" value="55"><output id="oMelt">55</output></div>
@@ -274,6 +294,7 @@ h1 { margin: 0; font-size: 26px; line-height: 1.2; letter-spacing: -0.02em; text
         <div class="field"><label for="dSwirl">Swirl</label><input id="dSwirl" type="range" min="0" max="100" value="0"><output id="oSwirl">0</output></div>
         <div class="sub">Color</div>
         <div class="gradbar" style="background: linear-gradient(90deg,#ffd3b0,#f0607e,#6b2fa8)"><i style="left:0%;background:#ffd3b0"></i><i style="left:50%;background:#f0607e"></i><i style="left:100%;background:#6b2fa8"></i></div>
+        </div>
         <div class="note">Nothing here was pre-made: the forms are the shapes on the canvas, and the look is how you shape their field.</div>
       </aside>
     </div></div>
@@ -331,7 +352,7 @@ h1 { margin: 0; font-size: 26px; line-height: 1.2; letter-spacing: -0.02em; text
           <div class="graph">
             <svg viewBox="0 0 620 130" preserveAspectRatio="xMidYMid meet" aria-label="The nodes behind the selected ellipse">
               <g fill="none" stroke="var(--wire)" stroke-width="2"><path d="M136 50 H176"/><path d="M296 50 H336"/><path d="M456 50 H496"/></g>
-              <g font-family="Plus Jakarta Sans, system-ui" font-size="12">
+              <g font-family="Manrope, system-ui" font-size="12">
                 <rect x="16" y="24" width="120" height="52" rx="8" fill="var(--surface)" stroke="var(--line)"/><text x="28" y="46" font-weight="600" fill="var(--ink)">Ellipse</text><text x="28" y="63" fill="var(--ink-2)">you drew this</text>
                 <rect x="176" y="24" width="120" height="52" rx="8" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.5"/><text x="188" y="46" font-weight="600" fill="var(--ink)">Swirl</text><text x="188" y="63" fill="var(--ink-2)">strength 0.8</text>
                 <rect x="336" y="24" width="120" height="52" rx="8" fill="var(--surface)" stroke="var(--line)"/><text x="348" y="46" font-weight="600" fill="var(--ink)">Melt</text><text x="348" y="63" fill="var(--ink-2)">with Rect</text>
@@ -587,10 +608,23 @@ bind('dSwirl', 'oSwirl', (v) => ((draw.swirl = (v / 100) * 2.2), renderCode()))
 // ---- option 3: the same drawing as code, numbers you can scrub ----
 const drawApp = document.getElementById('drawApp')
 const vCanvas = document.getElementById('vCanvas'), vCode = document.getElementById('vCode')
+const fields = document.getElementById('drawFields'), panelEl = drawApp.querySelector('.panel')
+const sideProps = document.getElementById('sideProps'), sCode = document.getElementById('sCode'), sProps = document.getElementById('sProps')
+const setSide = (props) => {
+  codeEl.hidden = props
+  sideProps.hidden = !props
+  sCode.setAttribute('aria-pressed', !props)
+  sProps.setAttribute('aria-pressed', props)
+}
+sCode.addEventListener('click', () => setSide(false))
+sProps.addEventListener('click', () => setSide(true))
 const setView = (code) => {
   drawApp.classList.toggle('is-code', code)
   vCanvas.setAttribute('aria-pressed', !code)
   vCode.setAttribute('aria-pressed', code)
+  // One set of controls: in the side panel's Properties tab while coding, in the inspector otherwise.
+  if (code) sideProps.append(fields)
+  else panelEl.insertBefore(fields, panelEl.querySelector('.note'))
   requestAnimationFrame(drawOverlay)
 }
 vCanvas.addEventListener('click', () => setView(false))
@@ -601,16 +635,29 @@ function renderCode() {
   const [e, r, d] = draw.shapes
   const num = (key, v) => `<span class="num" data-key="${key}" title="Drag sideways">${v}</span>`
   const pos = (v) => `<span class="num">${f(v)}</span>`
+  const kw = (w) => `<span class="kw">${w}</span>`, fn = (w) => `<span class="fn">${w}</span>`, cm = (w) => `<span class="cm">${w}</span>`, st = (w) => `<span class="st">${w}</span>`
   const lines = [
-    '<span class="c">// Written from your canvas. Drag a number sideways to change it.</span>',
-    `p = swirl(p, ${num('dSwirl', f(draw.swirl))});`,
-    `float ellipse = circle(p, vec2(${pos(e[0])}, ${pos(e[1])}), ${pos(e[2])});`,
-    `float rect    = box(p, vec2(${pos(r[0])}, ${pos(r[1])}), vec2(${pos(r[2])}, ${pos(r[2] * 0.62)}));`,
-    `float drop    = circle(p, vec2(${pos(d[0])}, ${pos(d[1])}), ${pos(d[2])});`,
-    `float d = smin(smin(ellipse, rect, ${num('dMelt', f(draw.k))}), drop, ${num('dMelt', f(draw.k))});`,
-    `float fill  = smoothstep(${num('dSoft', f(draw.soft))}, 0.0, d);`,
-    `float rings = cos(d * ${num('dRings', draw.rings.toFixed(1))} * TAU);`,
-    'vec3 col = ramp(-d / 0.22, #ffd3b0, #f0607e, #6b2fa8);',
+    cm('// Written from your canvas. Edit here or there.'),
+    '',
+    `${kw('vec4')} ${fn('mainColor')}(${kw('vec2')} p) {`,
+    `  p = ${fn('swirl')}(p, ${num('dSwirl', f(draw.swirl))});`,
+    '',
+    `  ${cm('// Ellipse')}`,
+    `  ${kw('float')} ellipse = ${fn('circle')}(p, ${kw('vec2')}(${pos(e[0])}, ${pos(e[1])}), ${pos(e[2])});`,
+    `  ${cm('// Rectangle')}`,
+    `  ${kw('float')} rect = ${fn('box')}(p, ${kw('vec2')}(${pos(r[0])}, ${pos(r[1])}), ${kw('vec2')}(${pos(r[2])}, ${pos(r[2] * 0.62)}));`,
+    `  ${cm('// Drop')}`,
+    `  ${kw('float')} drop = ${fn('circle')}(p, ${kw('vec2')}(${pos(d[0])}, ${pos(d[1])}), ${pos(d[2])});`,
+    '',
+    `  ${cm('// Melt them together')}`,
+    `  ${kw('float')} melt = ${num('dMelt', f(draw.k))};`,
+    `  ${kw('float')} d = ${fn('smin')}(${fn('smin')}(ellipse, rect, melt), drop, melt);`,
+    '',
+    `  ${kw('float')} fill = ${fn('smoothstep')}(${num('dSoft', f(draw.soft))}, 0.0, d);`,
+    `  ${kw('float')} rings = ${fn('cos')}(d * ${num('dRings', draw.rings.toFixed(1))} * TAU);`,
+    `  ${kw('vec3')} col = ${fn('ramp')}(-d / 0.22, ${st('#ffd3b0')}, ${st('#f0607e')}, ${st('#6b2fa8')});`,
+    `  ${kw('return')} ${fn('layer')}(col, fill, rings);`,
+    '}',
   ]
   codeEl.innerHTML = lines.map((l, i) => `<div><span class="ln">${i + 1}</span>${l}</div>`).join('') + '<span class="add">+ Code layer: write your own field</span>'
 }
@@ -762,7 +809,7 @@ function makeFx(canvas) {
       const g = c.getContext('2d')
       g.filter = 'blur(6px)'
       g.fillStyle = '#fff'
-      g.font = '800 150px "Plus Jakarta Sans", system-ui, sans-serif'
+      g.font = '800 150px "Manrope", system-ui, sans-serif'
       g.textAlign = 'center'
       g.textBaseline = 'middle'
       g.fillText('lazuli', 320, 205)
