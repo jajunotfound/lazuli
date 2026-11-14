@@ -1516,12 +1516,14 @@ button {
   color: var(--ink-80);
   font-size: 14px;
   line-height: 20px;
+  /* Two even lines, never one word left on its own. */
+  text-wrap: balance;
   letter-spacing: var(--tracking-tight);
 }
 
 .welcome__links {
   display: block;
-  margin-top: 4px;
+  margin-top: 8px;
 }
 
 .welcome__links a {
