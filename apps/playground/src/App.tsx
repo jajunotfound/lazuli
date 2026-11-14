@@ -323,13 +323,6 @@ export function App() {
         <div className="stage__area">
           <div className="canvas-col">
             <div className="frame" ref={setStage}>
-              {panels && !stack.shapes.some((x) => x.visible) && (
-                <div className="frame__empty">
-                  <p>
-                    Pick <kbd>P</kbd> Pen, <kbd>O</kbd> Ellipse or <kbd>R</kbd> Rectangle and draw.
-                  </p>
-                </div>
-              )}
               {panels && <CanvasEditor stack={view} moving={playing && hasKeys(stack) ? Object.keys(stack.keys ?? {}) : []} selected={selected} tool={tool} onSelect={setSelected} setTool={setTool} onOp={onOp} />}
             </div>
             {panels && <Timeline stack={stack} selected={selected} engine={engine} live={live} time={timeRef} playing={playingRef} onKeys={(keys) => commit({ ...stack, keys })} onPlaying={setPlaying} />}

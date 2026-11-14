@@ -158,6 +158,25 @@ vec4 drawnShade(float d, float w) {
   float cov = 1.0 - smoothstep(-0.25 * w, w, d);
   return shade(cov, clamp(-d / 0.16, 0.0, 1.0));
 }
+
+// Light: the field as a rounded surface (a quarter-circle bevel, deeper with more light), its
+// normal from the field's slope g; the surface mirrors the palette, dark below and light above,
+// plus a highlight. Flat inside the bevel reads as the palette's middle.
+uniform float u_light; uniform float u_shine;
+vec4 drawnLit(float d, vec2 g, float w) {
+  float R = mix(0.03, 0.22, u_light);
+  float x = clamp(-d / R, 0.0, 1.0);
+  float h = sqrt(max(1.0 - (1.0 - x) * (1.0 - x), 1e-4));
+  float slope = x < 1.0 ? (1.0 - x) / h : 0.0;
+  vec3 n = normalize(vec3(g * slope, 1.0));
+  vec3 r = reflect(vec3(0.0, 0.0, -1.0), n);
+  float env = clamp(0.5 + 0.5 * r.y + 0.15 * r.x, 0.0, 1.0);
+  vec3 col = shade(1.0, env).rgb;
+  vec3 l = normalize(vec3(-0.45, 0.65, 0.6));
+  col += pow(max(dot(r, l), 0.0), mix(6.0, 90.0, u_shine)) * u_shine * 1.4;
+  float cov = 1.0 - smoothstep(-0.25 * w, w, d);
+  return vec4(clamp(col, 0.0, 1.0) * cov, cov);
+}
 `
 
 /** `float drawn_i(vec2 p)`: the layer's signed distance, with its own uniforms. */
@@ -284,8 +303,16 @@ function composeShapes(shapes: readonly ShapeEntry[]): string {
         const i = g[m]
         lines.push(`  d = ${FIELD_OP[shapes[i].combine]}(d, drawn_${i}(${at(i)}), u_melt_${i});`)
       }
-      lines.push(`  return drawnShade(d, u_soft_${g[0]});`)
-      out.push(`vec4 field_${g[0]}(vec2 p, float t) {\n${lines.join('\n')}\n}`)
+      lines.push('  return d;')
+      out.push(`float fieldD_${g[0]}(vec2 p, float t) {\n${lines.join('\n')}\n}`)
+      // Flat color, or lit: the slope comes from the field one pixel either side.
+      out.push(`vec4 field_${g[0]}(vec2 p, float t) {
+  float d = fieldD_${g[0]}(p, t);
+  if (u_light <= 0.0) return drawnShade(d, u_soft_${g[0]});
+  float e = 1.0 / u_res.y;
+  vec2 g = vec2(fieldD_${g[0]}(p + vec2(e, 0.0), t) - fieldD_${g[0]}(p - vec2(e, 0.0), t), fieldD_${g[0]}(p + vec2(0.0, e), t) - fieldD_${g[0]}(p - vec2(0.0, e), t)) / (2.0 * e);
+  return drawnLit(d, g, u_soft_${g[0]});
+}`)
       continue
     }
     if (g.length < 2) continue
@@ -320,6 +347,8 @@ function shapeConfig(base: ReturnType<typeof stackToConfig>, shape: ShapeLayer) 
 export function stackUniforms(s: Readonly<Stack>): UniformValues {
   const base = stackToConfig(s)
   const out: UniformValues = globalUniforms(base)
+  out.u_light = s.color.light?.amount ?? 0
+  out.u_shine = s.color.light?.shine ?? 0.5
   // The pointer pushes every shape only when the cursor is the stack-wide one.
   if (!s.cursor?.visible) {
     out.u_pull = 0

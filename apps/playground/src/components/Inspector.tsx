@@ -105,6 +105,12 @@ export function Inspector({ stack, selected, onPatch, onOp, canDo, embedded }: I
             )}
           </>
         )}
+        {layer !== 'scene' && layer.kind === 'color' && (
+          <>
+            <NumberField label="Light" value={Math.round((stack.color.light?.amount ?? 0) * 100)} min={0} max={100} step={1} format={(v) => (v === 0 ? 'Flat' : String(Math.round(v)))} onChange={(v) => onOp({ op: 'light', amount: v / 100 }, 'light:amount')} />
+            <NumberField label="Shine" value={Math.round((stack.color.light?.shine ?? 0.5) * 100)} min={0} max={100} step={1} format={(v) => String(Math.round(v))} onChange={(v) => onOp({ op: 'light', shine: v / 100 }, 'light:shine')} />
+          </>
+        )}
         {paths.map((p) => (
           <Field key={p} path={p} view={view} set={onPatch} />
         ))}

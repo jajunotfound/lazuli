@@ -35,11 +35,13 @@ export function writeCode(s: Stack): string {
   out.push('vec4 color(vec2 p) {')
   out.push(`  return palette(field(p), ${n(back[back.length - 1]?.soft ?? 0.3)}); // softness`)
   out.push('}', '')
+  const light = s.color.light ?? { amount: 0, shine: 0.5 }
+  out.push(`light(${n(light.amount)}, ${n(light.shine)}); // 0 = flat color, 1 = chrome; then shine`)
   out.push(`palette(${s.color.settings.palette.join(', ')});`)
   const bg = s.background.settings
   out.push(`background(${bg.type === 'solid' ? bg.color : bg.type === 'gradient' ? bg.gradient.join(', ') : 'none'});`)
   const generated = s.shapes.filter((x) => x.kind === 'shape')
-  if (generated.length) out.push('', `// plus ${generated.map((x) => x.name).join(', ')}: built-in shapes, kept as they are`)
+  if (generated.length) out.push('', `// plus ${generated.map((x) => x.name).join(', ')}: built-in shapes (delete this line to remove them)`)
   return out.join('\n')
 }
 
@@ -65,6 +67,9 @@ export interface ParsedCode {
   soft?: number
   palette?: string[]
   background?: string[] | 'none'
+  light?: { amount: number; shine: number }
+  /** Built-in (generated) shapes stay only while the "// plus …" line is in the text. */
+  keepBuiltIn: boolean
 }
 
 /** Split `a, f(b, c), d` at top-level commas. */
@@ -131,7 +136,7 @@ function readShape(expr: string): { geom: Geometry; source: string } | string {
 const HEX = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i
 
 export function readCode(text: string): { code: ParsedCode } | { error: CodeError } {
-  const code: ParsedCode = { shapes: [] }
+  const code: ParsedCode = { shapes: [], keepBuiltIn: /^\s*\/\/ plus /m.test(text) }
   const lines = text.split('\n')
   for (let i = 0; i < lines.length; i++) {
     const raw = lines[i]
@@ -163,6 +168,12 @@ export function readCode(text: string): { code: ParsedCode } | { error: CodeErro
       const soft = num(m[1])
       if (soft === null || soft < 0 || soft > 1) return fail('Softness is a number from 0 to 1')
       code.soft = soft
+      continue
+    }
+    if ((m = /^light\((.*)\);$/.exec(line))) {
+      const [a, b] = splitArgs(m[1]).map(num)
+      if (a === null || a === undefined || a < 0 || a > 1 || (b !== undefined && (b === null || b < 0 || b > 1))) return fail('light(amount, shine): numbers from 0 to 1')
+      code.light = { amount: a, shine: b ?? 0.5 }
       continue
     }
     if ((m = /^palette\((.*)\);$/.exec(line))) {
@@ -204,7 +215,8 @@ export function applyCode(s: Stack, code: ParsedCode): Stack {
     return { ...base, geom: p.geom, combine: i === 0 ? base.combine : p.join, melt: i === 0 ? base.melt : p.melt, name: p.name ?? (was ? was.name : names[p.geom.kind]), visible: !p.hidden }
   })
   if (code.soft !== undefined && back.length) back[back.length - 1] = { ...back[back.length - 1], soft: code.soft }
-  const out: Stack = { ...s, shapes: [...back.reverse(), ...s.shapes.filter((x) => x.kind === 'shape')] }
+  const out: Stack = { ...s, shapes: [...back.reverse(), ...(code.keepBuiltIn ? s.shapes.filter((x) => x.kind === 'shape') : [])] }
+  if (code.light) out.color = { ...out.color, light: code.light }
   if (code.palette) out.color = { ...s.color, settings: { ...s.color.settings, palette: code.palette } }
   if (code.background) {
     const b = s.background.settings

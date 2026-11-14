@@ -83,6 +83,11 @@ export interface TextureLayer extends LayerBase {
 export interface ColorLayer extends LayerBase {
   kind: 'color'
   settings: LazuliConfig['color']
+  /**
+   * Light on drawn shapes: each becomes a rounded surface that reflects the palette (dark below,
+   * light above) with a highlight. amount 0 is flat color; 1 is deep, chrome-like. shine 0–1.
+   */
+  light?: { amount: number; shine: number }
 }
 
 export interface BackgroundLayer extends LayerBase {
@@ -211,6 +216,7 @@ export type StackOp =
   | { op: 'rename'; id: string; name: string }
   | { op: 'tune'; id: string; strength?: number; size?: number }
   | { op: 'reshape'; id: string; geom?: Geometry; melt?: number; soft?: number }
+  | { op: 'light'; amount?: number; shine?: number }
 
 export type StackError =
   | 'not_found'
@@ -452,6 +458,13 @@ export function applyOp(input: Readonly<Stack>, op: StackOp): StackResult {
       const unit = (v: number) => Math.min(1, Math.max(0, v))
       if (op.melt !== undefined && Number.isFinite(op.melt)) l.melt = unit(op.melt)
       if (op.soft !== undefined && Number.isFinite(op.soft)) l.soft = unit(op.soft)
+      return { ok: true, stack: s }
+    }
+
+    case 'light': {
+      const unit = (v: number | undefined, d: number) => (v !== undefined && Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : d)
+      const was = s.color.light ?? { amount: 0, shine: 0.5 }
+      s.color = { ...s.color, light: { amount: unit(op.amount, was.amount), shine: unit(op.shine, was.shine) } }
       return { ok: true, stack: s }
     }
 
