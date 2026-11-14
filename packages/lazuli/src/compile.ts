@@ -80,6 +80,30 @@ vec2 rippleWarp(vec2 p, vec4 k, float t) {
   return p + (r > 1e-4 ? d / r : vec2(0.0)) * w;
 }
 
+// k.x: copies around the center. Space folds like a kaleidoscope.
+vec2 kaleidoWarp(vec2 p, vec4 k, float t) {
+  vec2 c = warpCenter();
+  vec2 d = p - c;
+  float s = 6.2831853 / k.x;
+  float a = abs(mod(atan(d.y, d.x), s) - 0.5 * s);
+  return c + length(d) * vec2(cos(a), sin(a));
+}
+
+// k.x: tile size (height units). The shape repeats across the frame.
+vec2 repeatWarp(vec2 p, vec4 k, float t) {
+  vec2 c = warpCenter();
+  return c + mod(p - c + 0.5 * k.x, k.x) - 0.5 * k.x;
+}
+
+// k.x: turn per unit of distance from the center.
+vec2 twistWarp(vec2 p, vec4 k, float t) {
+  vec2 c = warpCenter();
+  vec2 d = p - c;
+  float a = k.x * length(d);
+  float s = sin(a), co = cos(a);
+  return c + mat2(co, s, -s, co) * d;
+}
+
 // The pointer on one shape: k = (pull, reach σ², smear, swirl). Same math as the stack-wide cursor.
 vec2 cursorWarp(vec2 p, vec4 k, float t) {
   float aspect = u_res.x / u_res.y;
@@ -117,6 +141,9 @@ function warpValues(w: WarpLayer, base: ReturnType<typeof stackToConfig>): numbe
   const z = w.size / 100
   if (w.type === 'swirl') return [s * 6, lerp(0.12, 1, z), 0, 0]
   if (w.type === 'noise') return [s * 0.3, lerp(8, 1, z), 0, 0]
+  if (w.type === 'kaleido') return [Math.round(lerp(2, 16, s)), 0, 0, 0]
+  if (w.type === 'repeat') return [lerp(0.12, 0.8, z), 0, 0, 0]
+  if (w.type === 'twist') return [(s - 0.5) * 24, 0, 0, 0]
   return [s * 0.04, lerp(90, 10, z), 0, 0]
 }
 
@@ -152,6 +179,7 @@ float dUnion(float a, float b, float k) {
   return mix(b, a, h) - k * h * (1.0 - h);
 }
 float dCut(float a, float b, float k) { return -dUnion(-a, b, k); }
+vec2 cellHash(vec2 p) { return fract(sin(vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)))) * 43758.5453); }
 float dIntersect(float a, float b, float k) { return -dUnion(-a, -b, k); }
 // A field through the palette: coverage from the edge (w = softness), tone from depth.
 vec4 drawnShade(float d, float w) {
@@ -163,6 +191,22 @@ vec4 drawnShade(float d, float w) {
 // normal from the field's slope g; the surface mirrors the palette, dark below and light above,
 // plus a highlight. Flat inside the bevel reads as the palette's middle.
 uniform float u_light; uniform float u_shine;
+uniform float u_contours; uniform float u_glow;
+// Around the shape: a glow fading out from the edge, and contour rings at even distances.
+vec4 drawnFx(vec4 c, float d) {
+  if (d <= 0.0) return c;
+  vec3 tint = shade(1.0, 0.5).rgb;
+  if (u_glow > 0.0) {
+    float g = u_glow * exp(-d * 9.0) * 0.8;
+    c += vec4(tint * g, g) * (1.0 - c.a);
+  }
+  if (u_contours > 0.5) {
+    float band = 0.5 + 0.5 * cos(d * u_contours * 6.2831853);
+    float line = smoothstep(0.82, 0.97, band) * exp(-d * 3.0);
+    c += vec4(tint * line, line) * (1.0 - c.a);
+  }
+  return c;
+}
 vec4 drawnLit(float d, vec2 g, float w) {
   float R = mix(0.03, 0.22, u_light);
   float x = clamp(-d / R, 0.0, 1.0);
@@ -184,15 +228,23 @@ function drawnFunction(l: DrawnLayer, i: number): string {
   const head = `uniform float u_melt_${i}; uniform float u_soft_${i};`
   const center = 'vec2 q = p - vec2(0.5 * u_res.x / u_res.y, 0.5);'
   if (l.geom.kind === 'ellipse') {
-    return `${head}\nuniform vec4 u_geo_${i}; uniform float u_ang_${i};\nfloat drawn_${i}(vec2 p) {\n  ${center}\n  return sdEllipse(drawnTurn(u_ang_${i}) * (q - u_geo_${i}.xy), u_geo_${i}.zw);\n}`
+    return `${head}\nuniform vec4 u_geo_${i}; uniform float u_ang_${i};\nfloat drawn_${i}(vec2 p, float t) {\n  ${center}\n  return sdEllipse(drawnTurn(u_ang_${i}) * (q - u_geo_${i}.xy), u_geo_${i}.zw);\n}`
   }
   if (l.geom.kind === 'rect') {
-    return `${head}\nuniform vec4 u_geo_${i}; uniform vec2 u_rect_${i};\nfloat drawn_${i}(vec2 p) {\n  ${center}\n  return sdRoundRect(drawnTurn(u_rect_${i}.y) * (q - u_geo_${i}.xy), u_geo_${i}.zw, u_rect_${i}.x);\n}`
+    return `${head}\nuniform vec4 u_geo_${i}; uniform vec2 u_rect_${i};\nfloat drawn_${i}(vec2 p, float t) {\n  ${center}\n  return sdRoundRect(drawnTurn(u_rect_${i}.y) * (q - u_geo_${i}.xy), u_geo_${i}.zw, u_rect_${i}.x);\n}`
+  }
+  if (l.geom.kind === 'noise') {
+    // Clouds: inside where the noise rises above the threshold; it drifts with time.
+    return `${head}\nuniform vec2 u_geo_${i};\nfloat drawn_${i}(vec2 p, float t) {\n  ${center}\n  float v = fbm(q * u_geo_${i}.x + drift(vec2(0.12, 0.08), t), 4.0);\n  return (mix(0.72, 0.28, u_geo_${i}.y) - v) * 0.25;\n}`
+  }
+  if (l.geom.kind === 'cells') {
+    // Tiles: distance to the nearest of many moving points, shrunk by the gap.
+    return `${head}\nuniform vec2 u_geo_${i};\nfloat drawn_${i}(vec2 p, float t) {\n  ${center}\n  vec2 c = q * u_geo_${i}.x;\n  vec2 cell = floor(c), f = fract(c);\n  float f1 = 8.0;\n  for (int y = -1; y <= 1; y++) for (int x = -1; x <= 1; x++) {\n    vec2 g = vec2(float(x), float(y));\n    vec2 o = 0.5 + 0.35 * sin(t * lf(0.1) + 6.2831853 * cellHash(cell + g));\n    f1 = min(f1, length(g + o - f));\n  }\n  return (f1 - (1.0 - u_geo_${i}.y) * 0.5) / u_geo_${i}.x;\n}`
   }
   // A closed polygon: points packed two per vec4, the first point repeated at the end.
   return `${head}
 uniform vec4 u_pts_${i}[17]; uniform float u_npts_${i};
-float drawn_${i}(vec2 p) {
+float drawn_${i}(vec2 p, float t) {
   ${center}
   float d = 1e9, s = 1.0;
   for (int m = 0; m < 16; m++) {
@@ -216,6 +268,10 @@ function drawnValues(l: DrawnLayer, i: number, out: UniformValues) {
   } else if (g.kind === 'rect') {
     out[`u_geo_${i}`] = [g.x, g.y, g.w, g.h]
     out[`u_rect_${i}`] = [g.radius, g.angle]
+  } else if (g.kind === 'noise') {
+    out[`u_geo_${i}`] = [g.scale, g.level]
+  } else if (g.kind === 'cells') {
+    out[`u_geo_${i}`] = [g.scale, g.gap]
   } else {
     const flat = new Float32Array(68)
     ;[...g.points, g.points[0]].forEach(([x, y], k) => flat.set([x, y], k * 2))
@@ -298,20 +354,20 @@ function composeShapes(shapes: readonly ShapeEntry[]): string {
     if (shapes[g[0]].kind === 'drawn') {
       // Back to front: start from the backmost drawn shape, join each one above it.
       const back = g[g.length - 1]
-      const lines = [`  float d = drawn_${back}(${at(back)});`]
+      const lines = [`  float d = drawn_${back}(${at(back)}, t);`]
       for (let m = g.length - 2; m >= 0; m--) {
         const i = g[m]
-        lines.push(`  d = ${FIELD_OP[shapes[i].combine]}(d, drawn_${i}(${at(i)}), u_melt_${i});`)
+        lines.push(`  d = ${FIELD_OP[shapes[i].combine]}(d, drawn_${i}(${at(i)}, t), u_melt_${i});`)
       }
       lines.push('  return d;')
       out.push(`float fieldD_${g[0]}(vec2 p, float t) {\n${lines.join('\n')}\n}`)
       // Flat color, or lit: the slope comes from the field one pixel either side.
       out.push(`vec4 field_${g[0]}(vec2 p, float t) {
   float d = fieldD_${g[0]}(p, t);
-  if (u_light <= 0.0) return drawnShade(d, u_soft_${g[0]});
+  if (u_light <= 0.0) return drawnFx(drawnShade(d, u_soft_${g[0]}), d);
   float e = 1.0 / u_res.y;
   vec2 g = vec2(fieldD_${g[0]}(p + vec2(e, 0.0), t) - fieldD_${g[0]}(p - vec2(e, 0.0), t), fieldD_${g[0]}(p + vec2(0.0, e), t) - fieldD_${g[0]}(p - vec2(0.0, e), t)) / (2.0 * e);
-  return drawnLit(d, g, u_soft_${g[0]});
+  return drawnFx(drawnLit(d, g, u_soft_${g[0]}), d);
 }`)
       continue
     }
@@ -349,6 +405,8 @@ export function stackUniforms(s: Readonly<Stack>): UniformValues {
   const out: UniformValues = globalUniforms(base)
   out.u_light = s.color.light?.amount ?? 0
   out.u_shine = s.color.light?.shine ?? 0.5
+  out.u_contours = s.color.look?.contours ?? 0
+  out.u_glow = s.color.look?.glow ?? 0
   // The pointer pushes every shape only when the cursor is the stack-wide one.
   if (!s.cursor?.visible) {
     out.u_pull = 0

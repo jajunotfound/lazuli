@@ -25,6 +25,9 @@ const WARPS = [
   { type: 'swirl', label: 'Swirl' },
   { type: 'noise', label: 'Noise' },
   { type: 'ripple', label: 'Ripple' },
+  { type: 'twist', label: 'Twist' },
+  { type: 'kaleido', label: 'Kaleido' },
+  { type: 'repeat', label: 'Repeat' },
 ] as const
 
 /** Which list a layer reorders within: shapes, textures, or one shape's warps. */
@@ -142,6 +145,8 @@ export function Layers({ stack, selected, onSelect, onOp, canDo, header }: Layer
                 <AddGroup title="Draw">
                   <AddItem label="Ellipse" op={{ op: 'add', layer: 'drawn', geom: { kind: 'ellipse', x: 0, y: 0, rx: 0.16, ry: 0.16, angle: 0 } }} canDo={canDo} onOp={onOp} close={() => setAddOpen(false)} />
                   <AddItem label="Rectangle" op={{ op: 'add', layer: 'drawn', geom: { kind: 'rect', x: 0, y: 0, w: 0.18, h: 0.12, radius: 0.02, angle: 0 } }} canDo={canDo} onOp={onOp} close={() => setAddOpen(false)} />
+                  <AddItem label="Noise" op={{ op: 'add', layer: 'drawn', geom: { kind: 'noise', scale: 3, level: 0.5 } }} canDo={canDo} onOp={onOp} close={() => setAddOpen(false)} />
+                  <AddItem label="Cells" op={{ op: 'add', layer: 'drawn', geom: { kind: 'cells', scale: 5, gap: 0.2 } }} canDo={canDo} onOp={onOp} close={() => setAddOpen(false)} />
                 </AddGroup>
                 <AddGroup title="Built-in">
                   {SHAPES.map((t) => (
@@ -247,6 +252,8 @@ function LayerIcon({ kind }: { kind: string }) {
     ellipse: <ellipse cx="8" cy="8" rx="5.5" ry="4" />,
     rect: <rect x="3" y="4.5" width="10" height="7" rx="1.5" />,
     path: <path d="M8 2.5l5 4-2 6.5H5L3 6.5l5-4Z" />,
+    noise: <path d="M2.5 9c1.5-3 3.5-3 5 0s3.5 3 6 0M2.5 5.5c1.5-2 3.5-2 5 0s3.5 2 6 0" />,
+    cells: <path d="M2.5 2.5h5v5h-5zM8.5 2.5h5v5h-5zM2.5 8.5h5v5h-5zM8.5 8.5h5v5h-5z" />,
   }
   return (
     <svg className="layer__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">

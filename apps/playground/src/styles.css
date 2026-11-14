@@ -510,6 +510,13 @@ button {
   font: 600 12px var(--font-sans);
 }
 
+.panel__sub {
+  margin: 8px 8px 0;
+  color: var(--ink-50);
+  font-size: 12px;
+  font-weight: 600;
+}
+
 .panel__new {
   height: 28px;
   padding: 0 10px;

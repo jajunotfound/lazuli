@@ -81,7 +81,19 @@ export function Inspector({ stack, selected, onPatch, onOp, canDo, embedded }: I
           <>
             <NumberField label="Melt" value={Math.round(drawn.melt * 100)} min={0} max={100} step={1} format={(v) => String(Math.round(v))} onChange={(v) => onOp({ op: 'reshape', id: selected, melt: v / 100 }, `melt:${selected}`)} />
             <NumberField label="Softness" value={Math.round(drawn.soft * 100)} min={0} max={100} step={1} format={(v) => String(Math.round(v))} onChange={(v) => onOp({ op: 'reshape', id: selected, soft: v / 100 }, `soft:${selected}`)} />
-            {drawn.geom.kind !== 'path' && (
+            {drawn.geom.kind === 'noise' && (
+              <>
+                <NumberField label="Scale" value={drawn.geom.scale} min={0.5} max={20} step={0.1} format={(v) => v.toFixed(1)} onChange={(v) => drawn.geom.kind === 'noise' && onOp({ op: 'reshape', id: selected, geom: { ...drawn.geom, scale: v } }, `scale:${selected}`)} />
+                <NumberField label="Fill" value={Math.round(drawn.geom.level * 100)} min={0} max={100} step={1} format={(v) => String(Math.round(v))} onChange={(v) => drawn.geom.kind === 'noise' && onOp({ op: 'reshape', id: selected, geom: { ...drawn.geom, level: v / 100 } }, `level:${selected}`)} />
+              </>
+            )}
+            {drawn.geom.kind === 'cells' && (
+              <>
+                <NumberField label="Scale" value={drawn.geom.scale} min={1} max={30} step={0.5} format={(v) => v.toFixed(1)} onChange={(v) => drawn.geom.kind === 'cells' && onOp({ op: 'reshape', id: selected, geom: { ...drawn.geom, scale: v } }, `scale:${selected}`)} />
+                <NumberField label="Gap" value={Math.round(drawn.geom.gap * 100)} min={0} max={100} step={1} format={(v) => String(Math.round(v))} onChange={(v) => drawn.geom.kind === 'cells' && onOp({ op: 'reshape', id: selected, geom: { ...drawn.geom, gap: v / 100 } }, `gap:${selected}`)} />
+              </>
+            )}
+            {(drawn.geom.kind === 'ellipse' || drawn.geom.kind === 'rect') && (
               <NumberField
                 label="Rotation"
                 value={Math.round((drawn.geom.angle * 180) / Math.PI)}
@@ -89,7 +101,7 @@ export function Inspector({ stack, selected, onPatch, onOp, canDo, embedded }: I
                 max={180}
                 step={1}
                 format={(v) => `${Math.round(v)}°`}
-                onChange={(v) => drawn.geom.kind !== 'path' && onOp({ op: 'reshape', id: selected, geom: { ...drawn.geom, angle: (v * Math.PI) / 180 } }, `turn:${selected}`)}
+                onChange={(v) => (drawn.geom.kind === 'ellipse' || drawn.geom.kind === 'rect') && onOp({ op: 'reshape', id: selected, geom: { ...drawn.geom, angle: (v * Math.PI) / 180 } }, `turn:${selected}`)}
               />
             )}
             {drawn.geom.kind === 'rect' && (
@@ -109,6 +121,8 @@ export function Inspector({ stack, selected, onPatch, onOp, canDo, embedded }: I
           <>
             <NumberField label="Light" value={Math.round((stack.color.light?.amount ?? 0) * 100)} min={0} max={100} step={1} format={(v) => (v === 0 ? 'Flat' : String(Math.round(v)))} onChange={(v) => onOp({ op: 'light', amount: v / 100 }, 'light:amount')} />
             <NumberField label="Shine" value={Math.round((stack.color.light?.shine ?? 0.5) * 100)} min={0} max={100} step={1} format={(v) => String(Math.round(v))} onChange={(v) => onOp({ op: 'light', shine: v / 100 }, 'light:shine')} />
+            <NumberField label="Contours" value={stack.color.look?.contours ?? 0} min={0} max={40} step={1} format={(v) => (v === 0 ? 'Off' : String(Math.round(v)))} onChange={(v) => onOp({ op: 'look', contours: v }, 'look:contours')} />
+            <NumberField label="Glow" value={Math.round((stack.color.look?.glow ?? 0) * 100)} min={0} max={100} step={1} format={(v) => (v === 0 ? 'Off' : String(Math.round(v)))} onChange={(v) => onOp({ op: 'look', glow: v / 100 }, 'look:glow')} />
           </>
         )}
         {paths.map((p) => (

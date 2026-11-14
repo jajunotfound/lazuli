@@ -10,7 +10,7 @@ import { cloneConfig, DEFAULT_CONFIG, type CursorMode, type LazuliConfig, type S
 
 export type ShapeSettings = Pick<LazuliConfig, 'blobs' | 'waves' | 'bands' | 'rings' | 'dots' | 'nodal'>
 export type CombineMode = 'merge' | 'add' | 'cut' | 'intersect'
-export type WarpType = 'cursor' | 'swirl' | 'noise' | 'ripple'
+export type WarpType = 'cursor' | 'swirl' | 'noise' | 'ripple' | 'kaleido' | 'repeat' | 'twist'
 export type ScreenTexture = 'halftone' | 'dither'
 
 interface LayerBase {
@@ -59,6 +59,10 @@ export type Geometry =
   | { kind: 'ellipse'; x: number; y: number; rx: number; ry: number; angle: number }
   | { kind: 'rect'; x: number; y: number; w: number; h: number; radius: number; angle: number }
   | { kind: 'path'; points: [number, number][] }
+  /** Clouds from noise: scale = features per frame height, level 0–1 = how much is filled. */
+  | { kind: 'noise'; scale: number; level: number }
+  /** Organic tiles: scale = cells per frame height, gap 0–1 between them. */
+  | { kind: 'cells'; scale: number; gap: number }
 
 /** A shape you drew. Drawn layers next to each other join into one field (see compile.ts). */
 export interface DrawnLayer extends LayerBase {
@@ -88,6 +92,8 @@ export interface ColorLayer extends LayerBase {
    * light above) with a highlight. amount 0 is flat color; 1 is deep, chrome-like. shine 0–1.
    */
   light?: { amount: number; shine: number }
+  /** Around drawn shapes: contour rings (0 = none, else rings per frame height) and a glow (0–1). */
+  look?: { contours: number; glow: number }
 }
 
 export interface BackgroundLayer extends LayerBase {
@@ -217,6 +223,7 @@ export type StackOp =
   | { op: 'tune'; id: string; strength?: number; size?: number }
   | { op: 'reshape'; id: string; geom?: Geometry; melt?: number; soft?: number }
   | { op: 'light'; amount?: number; shine?: number }
+  | { op: 'look'; contours?: number; glow?: number }
 
 export type StackError =
   | 'not_found'
@@ -318,7 +325,7 @@ export function applyOp(input: Readonly<Stack>, op: StackOp): StackResult {
         if (s.shapes.filter((x) => x.kind === 'drawn').length >= MAX_DRAWN) return fail('drawn_limit')
         const geom = cleanGeometry(op.geom)
         if (!geom) return fail('bad_geometry')
-        const names = { ellipse: 'Ellipse', rect: 'Rectangle', path: 'Path' }
+        const names = { ellipse: 'Ellipse', rect: 'Rectangle', path: 'Path', noise: 'Noise', cells: 'Cells' }
         const layer: DrawnLayer = { id: nextId(s, 'drawn'), kind: 'drawn', name: names[geom.kind], visible: true, geom, melt: 0.5, combine: 'merge', soft: 0.3, warps: [] }
         return insertAt(s.shapes, layer, op.index) ? { ok: true, stack: s } : fail('bad_index')
       }
@@ -468,6 +475,14 @@ export function applyOp(input: Readonly<Stack>, op: StackOp): StackResult {
       return { ok: true, stack: s }
     }
 
+    case 'look': {
+      const was = s.color.look ?? { contours: 0, glow: 0 }
+      const contours = op.contours !== undefined && Number.isFinite(op.contours) ? Math.min(60, Math.max(0, Math.round(op.contours))) : was.contours
+      const glow = op.glow !== undefined && Number.isFinite(op.glow) ? Math.min(1, Math.max(0, op.glow)) : was.glow
+      s.color = { ...s.color, look: { contours, glow } }
+      return { ok: true, stack: s }
+    }
+
     case 'rename': {
       const found = findLayer(s, op.id)
       if (!found) return fail('not_found')
@@ -491,6 +506,14 @@ export function cleanGeometry(g: Geometry): Geometry | null {
     const v = [n(g.x, -4, 4), n(g.y, -4, 4), n(g.w, 0.002, 4), n(g.h, 0.002, 4), n(g.radius ?? 0, 0, 4), n(g.angle ?? 0, -10, 10)]
     if (v.some((x) => x === null)) return null
     return { kind: 'rect', x: v[0]!, y: v[1]!, w: v[2]!, h: v[3]!, radius: Math.min(v[4]!, v[2]!, v[3]!), angle: v[5]! }
+  }
+  if (g.kind === 'noise') {
+    const v = [n(g.scale, 0.5, 20), n(g.level, 0, 1)]
+    return v.some((x) => x === null) ? null : { kind: 'noise', scale: v[0]!, level: v[1]! }
+  }
+  if (g.kind === 'cells') {
+    const v = [n(g.scale, 1, 30), n(g.gap, 0, 1)]
+    return v.some((x) => x === null) ? null : { kind: 'cells', scale: v[0]!, gap: v[1]! }
   }
   if (g.kind === 'path') {
     if (!Array.isArray(g.points) || g.points.length < 3 || g.points.length > MAX_PATH_POINTS) return null

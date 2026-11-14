@@ -18,7 +18,11 @@ export const toField = (b: Box, cx: number, cy: number): [number, number] => [
 /** Field point → overlay pixels (relative to the frame's top-left). */
 export const toScreen = (b: Box, x: number, y: number): [number, number] => [b.width / 2 + x * b.height, b.height / 2 - y * b.height]
 
+/** Noise and cells fill the whole frame: nothing to drag or outline. */
+export const isField = (g: Geometry): g is Extract<Geometry, { kind: 'noise' | 'cells' }> => g.kind === 'noise' || g.kind === 'cells'
+
 export function center(g: Geometry): [number, number] {
+  if (isField(g)) return [0, 0]
   if (g.kind !== 'path') return [g.x, g.y]
   const n = g.points.length
   return [g.points.reduce((a, p) => a + p[0], 0) / n, g.points.reduce((a, p) => a + p[1], 0) / n]
@@ -27,13 +31,14 @@ export function center(g: Geometry): [number, number] {
 /** A point in the shape's own frame (unrotated, relative to its center). */
 export function local(g: Geometry, x: number, y: number): [number, number] {
   const [cx, cy] = center(g)
-  const a = g.kind === 'path' ? 0 : -g.angle
+  const a = g.kind === 'ellipse' || g.kind === 'rect' ? -g.angle : 0
   const dx = x - cx, dy = y - cy
   return [dx * Math.cos(a) - dy * Math.sin(a), dx * Math.sin(a) + dy * Math.cos(a)]
 }
 
 /** Is the field point inside the shape (with a little slack, in field units)? */
 export function hit(g: Geometry, x: number, y: number, slack = 0.01): boolean {
+  if (isField(g)) return false
   if (g.kind === 'ellipse') {
     const [lx, ly] = local(g, x, y)
     return (lx / (g.rx + slack)) ** 2 + (ly / (g.ry + slack)) ** 2 <= 1
@@ -52,13 +57,14 @@ export function hit(g: Geometry, x: number, y: number, slack = 0.01): boolean {
 
 /** The same shape moved by (dx, dy). */
 export function moved(g: Geometry, dx: number, dy: number): Geometry {
+  if (isField(g)) return g
   if (g.kind === 'path') return { ...g, points: g.points.map(([x, y]) => [x + dx, y + dy]) }
   return { ...g, x: g.x + dx, y: g.y + dy }
 }
 
 /** Ellipse or rect resized so a corner handle sits at the field point (center stays put). */
 export function resized(g: Geometry, x: number, y: number, square = false): Geometry {
-  if (g.kind === 'path') return g
+  if (g.kind !== 'ellipse' && g.kind !== 'rect') return g
   let [lx, ly] = local(g, x, y).map((v) => Math.max(0.01, Math.abs(v)))
   if (square) lx = ly = Math.max(lx, ly)
   return g.kind === 'ellipse' ? { ...g, rx: lx, ry: ly } : { ...g, w: lx, h: ly, radius: Math.min(g.radius, lx, ly) }
@@ -66,7 +72,7 @@ export function resized(g: Geometry, x: number, y: number, square = false): Geom
 
 /** The four corners of an ellipse's or rect's box, in field units (rotated). */
 export function corners(g: Geometry): [number, number][] {
-  if (g.kind === 'path') return []
+  if (g.kind !== 'ellipse' && g.kind !== 'rect') return []
   const hx = g.kind === 'ellipse' ? g.rx : g.w
   const hy = g.kind === 'ellipse' ? g.ry : g.h
   const c = Math.cos(g.angle), s = Math.sin(g.angle)

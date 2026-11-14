@@ -9,7 +9,9 @@ import { Entrance } from './components/Entrance'
 import { Inspector } from './components/Inspector'
 import { Layers } from './components/Layers'
 import type { Mood } from './components/Mascot'
+import { ExampleGrid } from './components/ExampleGrid'
 import { PresetGrid } from './components/PresetsPanel'
+import { exampleStack, type Example } from './examples'
 import { Toolbar, type ToolbarItem } from './components/Toolbar'
 import { AboutButton, WelcomeCard } from './components/Welcome'
 import { EllipseIcon, ExportIcon, HideIcon, LayersIcon, MoveIcon, PenIcon, PresetsIcon, RectIcon, ShowIcon } from './icons'
@@ -186,6 +188,17 @@ export function App() {
     [commit],
   )
 
+  const pickExample = useCallback(
+    (e: Example) => {
+      const next = exampleStack(e)
+      setPreset(null)
+      commit(next)
+      setSelected(next.shapes[0]?.id ?? next.background.id)
+      setOpenPanel(null)
+    },
+    [commit],
+  )
+
   /** Clear everything (preset included) and start from an empty canvas. */
   const newCanvas = useCallback(() => {
     const blank = blankStack()
@@ -288,6 +301,9 @@ export function App() {
               New canvas
             </button>
           </div>
+          <h3 className="panel__sub">Examples</h3>
+          <ExampleGrid onPick={pickExample} />
+          <h3 className="panel__sub">Built-in</h3>
           <PresetGrid stack={stack} preset={preset} onPick={pickPreset} />
         </div>
       ) },

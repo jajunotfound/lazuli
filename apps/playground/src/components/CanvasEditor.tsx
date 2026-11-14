@@ -1,6 +1,6 @@
 import type { DrawnLayer, Geometry, Stack, StackOp } from 'lazuli-bg'
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
-import { center, corners, fromDrag, hit, moved, resized, toField, toScreen, type Box } from '../geom'
+import { center, corners, fromDrag, hit, isField, moved, resized, toField, toScreen, type Box } from '../geom'
 
 export type DrawTool = 'move' | 'pen' | 'ellipse' | 'rect'
 
@@ -159,6 +159,7 @@ export function CanvasEditor({ stack, moving = [], selected, tool, onSelect, set
   })
 
   const outline = (g: Geometry, cls: string) => {
+    if (isField(g)) return null
     if (g.kind === 'path') return <polygon className={cls} points={g.points.map(([x, y]) => px(x, y).join(',')).join(' ')} />
     const [cx, cy] = px(g.x, g.y)
     const rot = `rotate(${(-g.angle * 180) / Math.PI} ${cx} ${cy})`
@@ -186,7 +187,9 @@ export function CanvasEditor({ stack, moving = [], selected, tool, onSelect, set
       {sel && tool === 'move' && (
         <g>
           {outline(sel.geom, 'ce-outline')}
-          {sel.geom.kind === 'path'
+          {sel.geom.kind === 'noise' || sel.geom.kind === 'cells'
+            ? null
+            : sel.geom.kind === 'path'
             ? sel.geom.points.map(([x, y], i) => {
                 const [sx, sy] = px(x, y)
                 return <rect key={i} className="ce-handle" data-handle="vertex" data-index={i} x={sx - 4} y={sy - 4} width="8" height="8" />

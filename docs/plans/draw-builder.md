@@ -56,7 +56,14 @@ so melted shapes color as one liquid form. A group lands on the layers below lik
    nudge; drag to draw, click points to pen (close on the first point, Enter or double-click);
    move, corner resize, path point drag, melt handle; inspector Melt / Softness / Rotation / Corner.
 3. **Fields and bending:** text, noise, cells, gradient sources; repeat, kaleidoscope, twist.
+   **Done 2026-11-15 (partly):** Noise (scale, fill) and Cells (scale, gap) are drawn layers that fill
+   the frame and melt/cut like any shape; Twist, Kaleido and Repeat join the warps. All are in the
+   Draw menu, the inspector and the code (`noise(p, …)`, `cells(p, …)`, `kaleido(p)`). Deferred:
+   text as a field (needs a glyph SDF atlas) and gradient sources.
 4. **Color and light:** on-canvas gradient, contours, glow, light as height.
+   **Done 2026-11-15 (partly):** Light (depth + shine: bevel from the field, palette reflection,
+   specular) for chrome looks; Contours and Glow on the colour map; all in the inspector and code
+   (`light()`, `contours()`, `glow()`, written only when on). Deferred: on-canvas gradient handles.
 5. **Motion:** loop timeline with keyframes.
    **Started 2026-11-14 (brought forward):** timeline under the canvas, ◆ Key, scrub, play/pause,
    auto-key while paused; keys live in the stack (`keys`, `animateStack`). Not yet: export of
@@ -67,6 +74,9 @@ so melted shapes color as one liquid form. A group lands on the layers below lik
    melt / cut / intersect, palette, background): valid edits apply as you type, errors underline
    and keep the last good canvas, Alt-drag slides numbers. Not yet: Code layers (free GLSL).
 7. **Examples:** today's looks rebuilt as files made with the tool; presets become examples.
+   **Done 2026-11-15:** `examples.ts` holds eight looks written in the code language (Liquid chrome,
+   Lava, Bite, Star, Bloom, Tide pool, Clouds, Ripples); Presets shows them as Examples above the
+   Built-in presets. Picking one opens it as editable drawn layers.
 
 ## Type
 

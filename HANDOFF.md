@@ -1,11 +1,15 @@
-# Handoff: 2026-11-14, latest (option 3: draw, then shape the field)
+# Handoff: 2026-11-15, latest (option 3: draw, then shape the field)
 
 Plan of record now: `docs/plans/draw-builder.md`. Options page (direction chosen):
 https://claude.ai/artifact/RbtHBZsYipJXT1hi3g1emW (`design/lazuli-options.html`).
-- Done: M1 draw engine (drawn layers in `stack.ts`, field groups in `compile.ts`), M2 canvas
-  (`apps/playground/src/components/CanvasEditor.tsx`, `geom.ts`, framed stage with sizes).
+- Done: M1 draw engine, M2 canvas, M3 noise/cells fields + twist/kaleido/repeat warps,
+  M4 light/contours/glow, M7 examples (`apps/playground/src/examples.ts`, written in the code
+  language; `ExampleGrid.tsx`). Code view (`canvasCode.ts`, `CodeEditor.tsx`) covers all of it.
+- Deferred: text as a field, gradient sources, on-canvas gradient handles.
+- Open in M5/M6: animation in exports, per-key easing, Code layers (free GLSL).
 - Type: Manrope, even px sizes only (14 body).
-- Next: M3 fields and bending (text, noise, cells, gradient; repeat, kaleidoscope, twist).
+- Checks: `pnpm -C packages/lazuli test`; `node --import ./packages/lazuli/test/register.mjs <script>`
+  for playground TS from node (extensionless imports need the hook).
 
 ---
 
