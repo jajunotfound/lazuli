@@ -1,4 +1,4 @@
-import { animateStack, hasKeys, type DrawnLayer, type LazuliInstance, type Stack } from 'lazuli-bg'
+import { animateStack, hasKeys, keyLoop, type DrawnLayer, type LazuliInstance, type Stack } from 'lazuli-bg'
 import { useEffect, useRef, useState, type MutableRefObject, type PointerEvent as ReactPointerEvent } from 'react'
 
 interface TimelineProps {
@@ -16,7 +16,6 @@ interface TimelineProps {
   onPlaying?(playing: boolean): void
 }
 
-const LOOP_S = 6
 
 /**
  * The loop under the canvas. Play runs the keyframes; dragging the bar scrubs (and pauses);
@@ -34,7 +33,7 @@ export function Timeline({ stack, selected, engine, live, time, playing, onKeys,
   playing.current = isPlaying
   useEffect(() => onPlaying?.(isPlaying), [isPlaying, onPlaying])
 
-  const loop = stack.motion.loop > 0 ? stack.motion.loop : LOOP_S
+  const loop = keyLoop(stack)
   const sel = stack.shapes.find((x): x is DrawnLayer => x.id === selected && x.kind === 'drawn')
   const keys = (sel && stack.keys?.[sel.id]) || []
 

@@ -84,7 +84,11 @@ export function App() {
   }, [stack, selected])
 
   // ---- engine ------------------------------------------------------------
-  const live = useCallback((s: Stack): Stack => (speedTouched ? { ...s, motion: { ...s.motion, reducedMotion: 'ignore' } } : s), [speedTouched])
+  // The timeline plays the keyframes here, so the engine gets each moment without them.
+  const live = useCallback((s: Stack): Stack => {
+    const out = s.keys ? { ...s, keys: undefined } : s
+    return speedTouched ? { ...out, motion: { ...out.motion, reducedMotion: 'ignore' } } : out
+  }, [speedTouched])
   const liveRef = useRef(live)
   liveRef.current = live
   const stackRef = useRef(stack)

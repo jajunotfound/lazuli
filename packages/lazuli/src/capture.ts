@@ -5,6 +5,7 @@
 import { resolveConfig, type LazuliInput } from './config'
 import type { LazuliInstance } from './engine'
 import { createRenderer } from './renderer'
+import { animateStack, hasKeys, keyPhase } from './animate'
 import type { Stack } from './stack'
 
 export interface SnapshotOptions {
@@ -44,9 +45,10 @@ export async function snapshot(source: LazuliInstance | LazuliInput, opts: Snaps
     renderer.destroy()
     throw new Error(`[lazuli] ${width}×${height} is larger than this GPU can render (${max[0]}×${max[1]}).`)
   }
-  if (opts.stack) renderer.setStack(opts.stack)
+  const time = opts.time ?? instance?.time ?? 0
+  if (opts.stack) renderer.setStack(hasKeys(opts.stack) ? animateStack(opts.stack, keyPhase(opts.stack, time)) : opts.stack)
   const drawn = renderer.draw({
-    time: opts.time ?? instance?.time ?? 0,
+    time,
     mouse: [0.5, 0.5],
     vel: [0, 0],
     active: 0,

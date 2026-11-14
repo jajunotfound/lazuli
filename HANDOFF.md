@@ -6,7 +6,8 @@ https://claude.ai/artifact/RbtHBZsYipJXT1hi3g1emW (`design/lazuli-options.html`)
   M4 light/contours/glow, M7 examples (`apps/playground/src/examples.ts`, written in the code
   language; `ExampleGrid.tsx`). Code view (`canvasCode.ts`, `CodeEditor.tsx`) covers all of it.
 - Deferred: text as a field, gradient sources, on-canvas gradient handles.
-- Open in M5/M6: animation in exports, per-key easing, Code layers (free GLSL).
+- Animation now exports (shader eases keyed values; engine/element/snapshot play keys).
+- Open in M5/M6: per-key easing, Code layers (free GLSL).
 - Type: Manrope, even px sizes only (14 body).
 - Checks: `pnpm -C packages/lazuli test`; `node --import ./packages/lazuli/test/register.mjs <script>`
   for playground TS from node (extensionless imports need the hook).

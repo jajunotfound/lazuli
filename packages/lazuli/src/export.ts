@@ -8,6 +8,7 @@
 //   u_mouse   pointer in 0–1, y up;  u_vel  its velocity;  u_active  0–1 while it's over
 // Everything else (palette, shapes, warps, background) is a constant.
 
+import { animateStack, keyLoop } from './animate'
 import { stackFragment, stackUniforms } from './compile'
 import { VERTEX_SHADER } from './shader'
 import { stackToConfig, type Stack } from './stack'
@@ -34,7 +35,9 @@ function literal(type: string, v: ArrayLike<number> | number, offset = 0): strin
  * arrays (GLSL ES 1.00 has no constant arrays) become globals filled in at the top of main().
  */
 export function exportShader(stack: Readonly<Stack>): string {
-  const values = stackUniforms(stack)
+  // Keyframed layers start where the loop starts; keyedCode() moves them each frame.
+  const values = stackUniforms(animateStack(stack, 0))
+  const keyed = keyedCode(stack)
   const init: string[] = []
   // One name per declaration first: `uniform float a, b;` becomes two declarations.
   const split = stackFragment(stack).replace(/uniform\s+(\w+)\s+([\w\s,\[\]]+?)\s*;/g, (m, type: string, names: string) =>
@@ -43,12 +46,17 @@ export function exportShader(stack: Readonly<Stack>): string {
   let src = split.replace(/uniform\s+(\w+)\s+(\w+)\s*(?:\[(\d+)\])?\s*;/g, (m, type: string, name: string, count?: string) => {
     if (LIVE.has(name)) return m
     const v = values[name] as UniformValue | undefined
+    if (keyed.names.has(name) && !count) {
+      init.push(`  ${name} = ${literal(type, (v as ArrayLike<number> | number) ?? 0)};`)
+      return `${type} ${name};`
+    }
     if (count) {
       for (let i = 0; i < Number(count); i++) init.push(`  ${name}[${i}] = ${literal(type, (v as ArrayLike<number>) ?? [], i * SIZE[type])};`)
       return `${type} ${name}[${count}];`
     }
     return `const ${type} ${name} = ${literal(type, (v as ArrayLike<number> | number) ?? 0)};`
   })
+  init.push(...keyed.lines)
   src = src.replace(/void\s+main\s*\(\s*\)\s*\{/, (m) => `void lazuliInit() {\n${init.join('\n')}\n}\n\n${m}\n  lazuliInit();`)
   const s = stack.motion
   const header = [
@@ -57,6 +65,90 @@ export function exportShader(stack: Readonly<Stack>): string {
     '//   u_dpr, u_mouse (0–1, y up), u_vel, u_active (0–1 while the pointer is over).',
   ]
   return `${header.join('\n')}\n${src}`
+}
+
+const same = (a: ArrayLike<number> | number | undefined, b: ArrayLike<number> | number | undefined, from = 0, n = 1) => {
+  for (let i = 0; i < n; i++) {
+    const x = typeof a === 'number' ? a : (a?.[from + i] ?? 0)
+    const y = typeof b === 'number' ? b : (b?.[from + i] ?? 0)
+    if (Math.abs(x - y) > 1e-6) return false
+  }
+  return true
+}
+
+/**
+ * Keyframes as GLSL: for each keyed layer, the values that change become globals eased between
+ * keyframes on the loop's phase (the same easing as animateStack). Returns the global names and the
+ * lines for lazuliInit().
+ */
+function keyedCode(stack: Readonly<Stack>): { names: Set<string>; lines: string[] } {
+  const names = new Set<string>()
+  const lines: string[] = []
+  const span = keyLoop(stack) * stack.motion.speed
+  const decl = new Map<string, { type: string; count: number }>()
+  for (const m of stackFragment(stack).matchAll(/uniform\s+(\w+)\s+([^;]+);/g)) {
+    for (const part of m[2].split(',')) {
+      const d = /(\w+)\s*(?:\[(\d+)\])?/.exec(part.trim())
+      if (d) decl.set(d[1], { type: m[1], count: Number(d[2] ?? 0) })
+    }
+  }
+  for (const layer of stack.shapes) {
+    const keys = layer.kind === 'drawn' && layer.visible ? stack.keys?.[layer.id] : undefined
+    if (!keys || keys.length < 2) continue
+    const times = [...new Set(keys.map((k) => k.t))].sort((a, b) => a - b)
+    if (times.length < 2) continue
+    const only: Stack = { ...stack, keys: { [layer.id]: keys } }
+    const at = (t: number) => stackUniforms(animateStack(only, t))
+    const frames = times.map(at)
+    // Each moving value: a name, or one element of an array (vec4 u_pts_i[17]).
+    const moving: { target: string; type: string; name: string; from: number }[] = []
+    for (const name of Object.keys(frames[0])) {
+      const d = decl.get(name)
+      if (!d || LIVE.has(name)) continue
+      const n = SIZE[d.type]
+      for (let e = 0; e < Math.max(d.count, 1); e++) {
+        const from = e * n
+        if (frames.every((f) => same(f[name] as ArrayLike<number> | number, frames[0][name] as ArrayLike<number> | number, from, n))) continue
+        moving.push({ target: d.count ? `${name}[${e}]` : name, type: d.type, name, from })
+        if (!d.count) names.add(name)
+      }
+    }
+    if (!moving.length) continue
+    lines.push(`  { // keyframes: ${layer.name}`)
+    lines.push(`    float ph = ${span > 0 ? `fract(u_time / ${num(span)})` : '0.0'};`)
+    lines.push('    float k;')
+    const n = times.length
+    const segment = (a: number, b: number, x: string, len: number) => {
+      const mid = at(((times[a] + (((times[b] - times[a] + 1) % 1) || 1) / 2) % 1))
+      const out = [`k = smoothstep(0.0, 1.0, (${x}) / ${num(len)});`]
+      for (const m of moving) {
+        const va = literal(m.type, frames[a][m.name] as ArrayLike<number> | number, m.from)
+        const vb = literal(m.type, frames[b][m.name] as ArrayLike<number> | number, m.from)
+        const size = SIZE[m.type]
+        const avg = Array.from({ length: size }, (_, i) => {
+          const pick = (f: typeof mid) => (typeof f[m.name] === 'number' ? (f[m.name] as number) : ((f[m.name] as ArrayLike<number>)[m.from + i] ?? 0))
+          return (pick(frames[a]) + pick(frames[b])) / 2
+        })
+        // Values that ease (positions, sizes) mix; ones that can't (a path's point count) switch halfway.
+        const eases = same(mid[m.name] as ArrayLike<number> | number, size === 1 && typeof mid[m.name] === 'number' ? avg[0] : padTo(avg, m.from), m.from, size)
+        out.push(`${m.target} = ${eases ? `mix(${va}, ${vb}, k)` : `(k < 0.5 ? ${va} : ${vb})`};`)
+      }
+      return out.join(' ')
+    }
+    const wrap = times[0] + 1 - times[n - 1]
+    lines.push(`    if (ph < ${num(times[0])}) { ${segment(n - 1, 0, `ph + ${num(1 - times[n - 1])}`, wrap)} }`)
+    for (let i = 1; i < n; i++) lines.push(`    else if (ph < ${num(times[i])}) { ${segment(i - 1, i, `ph - ${num(times[i - 1])}`, times[i] - times[i - 1])} }`)
+    lines.push(`    else { ${segment(n - 1, 0, `ph - ${num(times[n - 1])}`, wrap)} }`)
+    lines.push('  }')
+  }
+  return { names, lines }
+}
+
+/** An array with `values` placed at `from` (so same() can compare one element of a uniform array). */
+const padTo = (values: number[], from: number) => {
+  const a = new Array(from + values.length).fill(0)
+  values.forEach((v, i) => (a[from + i] = v))
+  return a
 }
 
 /** The same shader for shadertoy.com: mainImage, iResolution, iTime, iMouse. */

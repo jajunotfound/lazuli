@@ -42,3 +42,14 @@ export function animateStack(s: Readonly<Stack>, t: number): Stack {
 }
 
 export const hasKeys = (s: Readonly<Stack>) => !!s.keys && Object.values(s.keys).some((k) => k.length > 0)
+
+/** Seconds in one keyframe loop: the motion loop when set, else 6. */
+export const keyLoop = (s: Readonly<Stack>) => (s.motion.loop > 0 ? s.motion.loop : 6)
+
+/** Where the keyframes are (0–1) at a given animation time (seconds × speed). */
+export function keyPhase(s: Readonly<Stack>, time: number): number {
+  const span = keyLoop(s) * s.motion.speed
+  if (!(span > 0)) return 0
+  const p = (time / span) % 1
+  return p < 0 ? p + 1 : p
+}

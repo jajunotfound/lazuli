@@ -66,8 +66,10 @@ so melted shapes color as one liquid form. A group lands on the layers below lik
    (`light()`, `contours()`, `glow()`, written only when on). Deferred: on-canvas gradient handles.
 5. **Motion:** loop timeline with keyframes.
    **Started 2026-11-14 (brought forward):** timeline under the canvas, ◆ Key, scrub, play/pause,
-   auto-key while paused; keys live in the stack (`keys`, `animateStack`). Not yet: export of
-   animation, per-key easing.
+   auto-key while paused; keys live in the stack (`keys`, `animateStack`).
+   **Export done 2026-11-15:** the engine, `<lazuli-bg>` and `snapshot()` play keys (`keyPhase`); the
+   exported GLSL / Shadertoy / HTML ease keyed values inside the shader (`keyedCode` in `export.ts`),
+   matching the engine at any moment (6 GPU checks in `tools/regress/export.html`). Not yet: per-key easing.
 6. **Code view:** side editor (Code | Properties) with scrubbable numbers; Code layers.
    **Started 2026-11-14 (brought forward):** Code mode is a workspace (dock hides). The left pane
    is a CodeMirror editor over Lazuli's shape language (`canvasCode.ts`: ellipse / box / polygon,

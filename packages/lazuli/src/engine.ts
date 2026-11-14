@@ -1,4 +1,5 @@
 import { resolveConfig, type LazuliInput } from './config'
+import { animateStack, hasKeys, keyPhase } from './animate'
 import { createRenderer, type Renderer } from './renderer'
 import type { LazuliConfig } from './schema'
 import { configToStack, stackToConfig, type Stack } from './stack'
@@ -211,6 +212,8 @@ export function createLazuli(element: HTMLElement, input: LazuliInput = {}): Laz
 
   function draw() {
     if (!renderer) return
+    // Keyframed layers: the stack as it is at this point of the loop.
+    if (stack && hasKeys(stack)) renderer.setStack(animateStack(stack, keyPhase(stack, time)))
     const drawn = renderer.draw({ time, mouse: [mouse.x, mouse.y], vel: [vel.x, vel.y], active, dpr })
     if (drawn) dirty = false
   }

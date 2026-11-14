@@ -77,5 +77,5 @@ export {
 export { compileStack, type CompiledStack } from './compile'
 export { exportShader, exportShadertoy, exportHtml } from './export'
 export { presetStack, presetHasLayers } from './presetStack'
-export { animateStack, keyAt, hasKeys } from './animate'
+export { animateStack, keyAt, hasKeys, keyLoop, keyPhase } from './animate'
 export type { DrawnKey } from './stack'
