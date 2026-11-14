@@ -143,7 +143,7 @@ button {
 
 /* With the code panel open, the canvas centers in the space right of it. */
 .stage[data-editor] {
-  padding-left: 488px;
+  padding-left: 512px;
 }
 
 /* Before the entrance reveals it: the preview grows out of where Lazuli sank. */
@@ -177,6 +177,47 @@ button {
   overflow: hidden;
   background: var(--surface);
   box-shadow: 0 0 0 1px var(--border);
+}
+
+/* Canvas | Code, centered above the frame. */
+.modes {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  z-index: 2;
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  transform: translateX(-50%);
+}
+
+.modes button {
+  height: 28px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--ink-60);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.modes button:hover {
+  color: var(--ink-90);
+}
+
+.modes button[aria-pressed='true'] {
+  background: var(--row);
+  color: var(--ink-90);
+}
+
+/* The frame moves right by half the code panel's extra space (512 − 304) / 2; the switch follows. */
+.stage[data-editor] .modes {
+  left: calc(50% + 104px);
 }
 
 /* ---- Timeline ------------------------------------------------------------- */
@@ -266,8 +307,9 @@ button {
   position: fixed;
   top: 16px;
   bottom: 16px;
-  left: 96px;
-  z-index: var(--z-toolbar);
+  /* Clear of the dock even when its icons magnify (up to ~104px wide), and under it. */
+  left: 120px;
+  z-index: calc(var(--z-toolbar) - 1);
   display: flex;
   flex-direction: column;
   width: 376px;

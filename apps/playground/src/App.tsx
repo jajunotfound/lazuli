@@ -12,7 +12,7 @@ import type { Mood } from './components/Mascot'
 import { PresetGrid } from './components/PresetsPanel'
 import { Toolbar, type ToolbarItem } from './components/Toolbar'
 import { AboutButton, WelcomeCard } from './components/Welcome'
-import { CodeIcon, EllipseIcon, ExportIcon, HideIcon, LayersIcon, MoveIcon, PenIcon, PresetsIcon, RectIcon, ShowIcon } from './icons'
+import { EllipseIcon, ExportIcon, HideIcon, LayersIcon, MoveIcon, PenIcon, PresetsIcon, RectIcon, ShowIcon } from './icons'
 import { moved } from './geom'
 import { patchLayer, SCENE_ID } from './layerEdit'
 import { hasSeenWelcome, markMet, markWelcomeSeen, readUrlStack, shouldMeet, writeUrlStack, type PanelId } from './state'
@@ -280,7 +280,6 @@ export function App() {
       ) },
     ],
     [
-      { kind: 'action', id: 'code', label: 'Code', icon: CodeIcon, shortcut: 'C', pressed: editorOpen, onClick: () => setEditorOpen((o) => !o) },
       { kind: 'action', id: 'export', label: 'Export', icon: ExportIcon, onClick: () => setCodeOpen(true) },
       { kind: 'action', id: 'hide', label: 'Hide controls', icon: HideIcon, onClick: toggleControls, shortcut: 'H' },
     ],
@@ -296,6 +295,16 @@ export function App() {
           if (welcomeOpen && !meeting) closeWelcome()
         }}
       >
+        {panels && (
+          <div className="modes" role="group" aria-label="View">
+            <button type="button" aria-pressed={!editorOpen} onClick={() => setEditorOpen(false)}>
+              Canvas
+            </button>
+            <button type="button" aria-pressed={editorOpen} onClick={() => setEditorOpen(true)} title="Code (C)">
+              Code
+            </button>
+          </div>
+        )}
         <div className="stage__area">
           <div className="canvas-col">
             <div className="frame" ref={setStage}>
