@@ -480,11 +480,60 @@ button {
 .code-panel__body {
   flex: 1;
   min-height: 0;
-  overflow: auto;
-  padding: 12px 0;
+  overflow: hidden;
+  padding: 0;
   background: var(--code-bg);
   color: var(--ink-90);
   font: 12px/2 var(--font-mono);
+}
+
+.code-editor {
+  height: 100%;
+}
+
+.code-panel__body[hidden] {
+  display: none;
+}
+
+/* An empty canvas says what to do, quietly, and stays out of the way of drawing. */
+.frame__empty {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  color: var(--ink-40);
+  font-size: 14px;
+  text-align: center;
+  pointer-events: none;
+}
+
+.frame__empty kbd {
+  display: inline-block;
+  min-width: 20px;
+  margin: 0 2px;
+  padding: 1px 6px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--ink-60);
+  font: 600 12px var(--font-sans);
+}
+
+.panel__new {
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink-80);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.panel__new:hover {
+  background: var(--row);
 }
 
 .code-panel__props {

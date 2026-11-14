@@ -151,9 +151,12 @@ test('add: index out of range is rejected', () => {
   assert.equal(err(base(), { op: 'add', layer: 'shape', type: 'waves', index: 5 }), 'bad_index')
 })
 
-test('delete: not the last shape, not the Color map or Background', () => {
+test('delete: any shape (an empty canvas is allowed), not the Color map or Background', () => {
   const s = base()
-  assert.equal(err(s, { op: 'delete', id: 'shape-1' }), 'last_shape')
+  const empty = ok(s, { op: 'delete', id: 'shape-1' })
+  assert.equal(empty.shapes.length, 0)
+  assert.equal(stackKey(empty), '|grain')
+  assert.deepEqual(decodeStack(encodeStack(empty)), empty)
   assert.equal(err(s, { op: 'delete', id: 'color' }), 'required_layer')
   assert.equal(err(s, { op: 'delete', id: 'background' }), 'required_layer')
   assert.equal(err(s, { op: 'delete', id: 'nope' }), 'not_found')

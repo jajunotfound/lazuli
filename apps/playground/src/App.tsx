@@ -15,7 +15,7 @@ import { AboutButton, WelcomeCard } from './components/Welcome'
 import { EllipseIcon, ExportIcon, HideIcon, LayersIcon, MoveIcon, PenIcon, PresetsIcon, RectIcon, ShowIcon } from './icons'
 import { moved } from './geom'
 import { patchLayer, SCENE_ID } from './layerEdit'
-import { hasSeenWelcome, markMet, markWelcomeSeen, readUrlStack, shouldMeet, writeUrlStack, type PanelId } from './state'
+import { blankStack, hasSeenWelcome, markMet, markWelcomeSeen, readUrlStack, shouldMeet, writeUrlStack, type PanelId } from './state'
 import { useMediaQuery } from './useMediaQuery'
 
 interface History {
@@ -37,7 +37,7 @@ export function App() {
   const [hist, setHist] = useState<History>(() => ({ past: [], present: initial.stack, future: [], tag: null, at: 0 }))
   const stack = hist.present
   const [preset, setPreset] = useState<PresetId | null>(initial.preset)
-  const [selected, setSelected] = useState<string>(() => initial.stack.shapes[0].id)
+  const [selected, setSelected] = useState<string>(() => initial.stack.shapes[0]?.id ?? initial.stack.background.id)
 
   const [stage, setStage] = useState<HTMLDivElement | null>(null)
   const engine = useRef<LazuliInstance | null>(null)
@@ -78,7 +78,7 @@ export function App() {
   useEffect(() => {
     if (selected === SCENE_ID) return
     const ids = new Set([stack.color.id, stack.background.id, stack.cursor?.id, ...stack.textures.map((t) => t.id), ...stack.shapes.flatMap((s) => [s.id, ...s.warps.map((w) => w.id)])])
-    if (!ids.has(selected)) setSelected(stack.shapes[0].id)
+    if (!ids.has(selected)) setSelected(stack.shapes[0]?.id ?? stack.background.id)
   }, [stack, selected])
 
   // ---- engine ------------------------------------------------------------
@@ -180,11 +180,21 @@ export function App() {
       const next = presetStack(id)
       setPreset(id)
       commit(next)
-      setSelected(next.shapes[0].id)
+      setSelected(next.shapes[0]?.id ?? next.background.id)
       setOpenPanel(null)
     },
     [commit],
   )
+
+  /** Clear everything (preset included) and start from an empty canvas. */
+  const newCanvas = useCallback(() => {
+    const blank = blankStack()
+    setPreset(null)
+    commit(blank)
+    setSelected(blank.background.id)
+    setOpenPanel(null)
+    setTool('ellipse')
+  }, [commit])
 
   const shuffle = useCallback(() => {
     const seed = Math.round(Math.random() * 1e8) / 10
@@ -274,6 +284,9 @@ export function App() {
         <div className="panel panel--presets">
           <div className="panel__head">
             <h2 className="panel__title">Start from a preset</h2>
+            <button type="button" className="panel__new" onClick={newCanvas}>
+              New canvas
+            </button>
           </div>
           <PresetGrid stack={stack} preset={preset} onPick={pickPreset} />
         </div>
@@ -310,6 +323,13 @@ export function App() {
         <div className="stage__area">
           <div className="canvas-col">
             <div className="frame" ref={setStage}>
+              {panels && !stack.shapes.some((x) => x.visible) && (
+                <div className="frame__empty">
+                  <p>
+                    Pick <kbd>P</kbd> Pen, <kbd>O</kbd> Ellipse or <kbd>R</kbd> Rectangle and draw.
+                  </p>
+                </div>
+              )}
               {panels && <CanvasEditor stack={view} moving={playing && hasKeys(stack) ? Object.keys(stack.keys ?? {}) : []} selected={selected} tool={tool} onSelect={setSelected} setTool={setTool} onOp={onOp} />}
             </div>
             {panels && <Timeline stack={stack} selected={selected} engine={engine} live={live} time={timeRef} playing={playingRef} onKeys={(keys) => commit({ ...stack, keys })} onPlaying={setPlaying} />}
@@ -322,7 +342,7 @@ export function App() {
 
       {panels && editorOpen && (
         <>
-          <CodePanel stack={stack} onOp={onOp} properties={<Inspector embedded stack={stack} selected={selected} onPatch={onPatch} onOp={onOp} canDo={canDo} />} />
+          <CodePanel stack={stack} onApply={(next) => commit(next, 'code-edit')} properties={<Inspector embedded stack={stack} selected={selected} onPatch={onPatch} onOp={onOp} canDo={canDo} />} />
           <div className="code-topbar">
             {modes}
             <button type="button" className="button-primary" onClick={() => setCodeOpen(true)}>

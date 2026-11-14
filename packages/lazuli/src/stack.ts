@@ -98,7 +98,7 @@ export interface Stack {
   color: ColorLayer
   /** The stack-wide pointer warp: moves every shape. */
   cursor: CursorWarp | null
-  /** Front first: generated shapes (at most MAX_SHAPES) and drawn ones (at most MAX_DRAWN). */
+  /** Front first: generated shapes (at most MAX_SHAPES) and drawn ones (at most MAX_DRAWN). May be empty. */
   shapes: ShapeEntry[]
   background: BackgroundLayer
   motion: LazuliConfig['motion']
@@ -358,7 +358,7 @@ export function applyOp(input: Readonly<Stack>, op: StackOp): StackResult {
       const p = found.place
       if (p.list === 'color' || p.list === 'background') return fail('required_layer')
       if (p.list === 'shapes') {
-        if (s.shapes.length <= 1) return fail('last_shape')
+        // An empty canvas is fine: the background shows until you draw something.
         s.shapes.splice(p.index, 1)
       } else if (p.list === 'textures') s.textures.splice(p.index, 1)
       else if (p.list === 'warps') s.shapes[p.shape].warps.splice(p.index, 1)
@@ -503,7 +503,7 @@ export function decodeStack(text: string): Stack | null {
   try {
     const bin = atob(text.replace(/-/g, '+').replace(/_/g, '/'))
     const json = JSON.parse(new TextDecoder().decode(Uint8Array.from(bin, (ch) => ch.charCodeAt(0))))
-    if (json?.v !== 1 || !Array.isArray(json.shapes) || !json.shapes.length || !json.color || !json.background) return null
+    if (json?.v !== 1 || !Array.isArray(json.shapes) || !json.color || !json.background) return null
     const { v: _v, ...stack } = json
     return stack as Stack
   } catch {

@@ -1,133 +1,29 @@
-import type { DrawnLayer, Geometry, Stack, StackOp } from 'lazuli-bg'
-import { useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
+import type { Stack } from 'lazuli-bg'
+import { useRef, useState, type ReactNode } from 'react'
 import { CheckIcon, CopyIcon } from '../icons'
+import { CodeEditor } from './CodeEditor'
 
 interface CodePanelProps {
   stack: Stack
-  onOp(op: StackOp, tag?: string): void
+  /** A valid edit in the code: the stack it describes. */
+  onApply(next: Stack): void
   /** The selected layer's settings, shown in the Properties tab. */
   properties: ReactNode
 }
 
-type NumKey = 'x' | 'y' | 'a' | 'b' | 'r' | 'angle' | 'melt' | 'soft'
-
-// Pixels of drag per unit, per kind of number.
-const SCRUB: Record<NumKey, number> = { x: 400, y: 400, a: 400, b: 400, r: 600, angle: 60, melt: 200, soft: 200 }
-const RANGE: Record<NumKey, [number, number]> = { x: [-4, 4], y: [-4, 4], a: [0.01, 4], b: [0.01, 4], r: [0, 4], angle: [-6.3, 6.3], melt: [0, 1], soft: [0, 1] }
-
-const f2 = (v: number) => v.toFixed(2)
-
-/** Apply one changed number to a drawn layer as a stack op. */
-function opFor(layer: DrawnLayer, k: NumKey, v: number): StackOp {
-  if (k === 'melt') return { op: 'reshape', id: layer.id, melt: v }
-  if (k === 'soft') return { op: 'reshape', id: layer.id, soft: v }
-  const g = layer.geom
-  let geom: Geometry = g
-  if (g.kind === 'ellipse') geom = { ...g, ...({ x: { x: v }, y: { y: v }, a: { rx: v }, b: { ry: v }, angle: { angle: v } } as Record<string, Partial<typeof g>>)[k] }
-  else if (g.kind === 'rect') geom = { ...g, ...({ x: { x: v }, y: { y: v }, a: { w: v }, b: { h: v }, r: { radius: v }, angle: { angle: v } } as Record<string, Partial<typeof g>>)[k] }
-  return { op: 'reshape', id: layer.id, geom }
-}
-
-/**
- * Your canvas as code, beside it: the drawn shapes as distance functions, how each joins the
- * one below, then the palette. Numbers you can drag are highlighted; dragging one changes the
- * layer, so the canvas, the inspector and this text stay in step. Export has the full shader.
- */
-export function CodePanel({ stack, onOp, properties }: CodePanelProps) {
-  const [copied, setCopied] = useState(false)
+/** The code workspace's left pane: the canvas as editable code, and the selected layer's Properties. */
+export function CodePanel({ stack, onApply, properties }: CodePanelProps) {
   const [tab, setTab] = useState<'code' | 'props'>('code')
-  const scrub = useRef<{ layer: DrawnLayer; k: NumKey; x: number; v: number } | null>(null)
-  const body = useRef<HTMLDivElement>(null)
-
-  const visible = stack.shapes.filter((x) => x.visible)
-  const drawn = visible.filter((x): x is DrawnLayer => x.kind === 'drawn')
-  const back = [...drawn].reverse() // back to front, the order they're joined in
-
-  const kw = (t: string) => <span className="tk-kw">{t}</span>
-  const fn = (t: string) => <span className="tk-fn">{t}</span>
-  const cm = (t: string) => <span className="tk-cm">{t}</span>
-  const st = (t: string) => <span className="tk-st">{t}</span>
-  const num = (layer: DrawnLayer, k: NumKey, v: number) => (
-    <span className="tk-num" data-id={layer.id} data-k={k} title="Drag sideways">
-      {f2(v)}
-    </span>
-  )
-
-  const call = (l: DrawnLayer): ReactNode => {
-    const g = l.geom
-    // Warps nest front-outermost: the front warp bends last, e.g. swirl(noise(p)).
-    const p = l.warps.filter((w) => w.visible).reduceRight<ReactNode>((acc, w) => <>{fn(w.type)}({acc})</>, 'p')
-    if (g.kind === 'ellipse') {
-      return (
-        <>
-          {fn('ellipse')}({p}, {kw('vec2')}({num(l, 'x', g.x)}, {num(l, 'y', g.y)}), {kw('vec2')}({num(l, 'a', g.rx)}, {num(l, 'b', g.ry)}){g.angle ? <>, {num(l, 'angle', g.angle)}</> : null})
-        </>
-      )
-    }
-    if (g.kind === 'rect') {
-      return (
-        <>
-          {fn('box')}({p}, {kw('vec2')}({num(l, 'x', g.x)}, {num(l, 'y', g.y)}), {kw('vec2')}({num(l, 'a', g.w)}, {num(l, 'b', g.h)}), {num(l, 'r', g.radius)})
-        </>
-      )
-    }
-    return (
-      <>
-        {fn('polygon')}({p}, {st(`${g.points.length} points`)})
-      </>
-    )
-  }
-  const join = { merge: 'melt', add: 'melt', cut: 'cut', intersect: 'intersect' } as const
-
-  const lines: ReactNode[] = [cm('// Your canvas as code. Drag a highlighted number sideways.'), '']
-  if (back.length) {
-    lines.push(<>{kw('float')} {fn('field')}({kw('vec2')} p) {'{'}</>)
-    back.forEach((l, i) => {
-      lines.push(i === 0 ? <>  {kw('float')} d = {call(l)}; {cm(`// ${l.name}`)}</> : <>  d = {fn(join[l.combine])}(d, {call(l)}, {num(l, 'melt', l.melt)}); {cm(`// ${l.name}`)}</>)
-    })
-    lines.push(<>  {kw('return')} d;</>, '}', '')
-    const front = drawn[0]
-    lines.push(<>{kw('vec4')} {fn('color')}({kw('vec2')} p) {'{'}</>)
-    lines.push(<>  {kw('float')} d = {fn('field')}(p);</>)
-    lines.push(<>  {kw('return')} {fn('palette')}(d, {num(front, 'soft', front.soft)}); {cm('// softness')}</>)
-    lines.push('}')
-  } else {
-    lines.push(cm('// No drawn shapes yet: pick Pen, Ellipse or Rectangle and draw on the canvas.'))
-  }
-  lines.push('')
-  lines.push(<>{cm('// palette')} {stack.color.settings.palette.map((c, i) => <span key={c + i}>{i ? ' → ' : ''}{st(c)}</span>)}</>)
-  const bg = stack.background.settings
-  lines.push(<>{cm('// background')} {bg.type === 'solid' ? st(bg.color) : bg.type === 'gradient' ? bg.gradient.map((c, i) => <span key={c + i}>{i ? ' → ' : ''}{st(c)}</span>) : cm('transparent')}</>)
-  const generated = visible.filter((x) => x.kind === 'shape')
-  if (generated.length) lines.push(cm(`// plus ${generated.map((x) => x.name).join(', ')} (built-in shapes, in the full shader)`))
-
-  const onDown = (e: ReactPointerEvent) => {
-    const el = (e.target as HTMLElement).closest<HTMLElement>('.tk-num')
-    if (!el) return
-    const layer = drawn.find((x) => x.id === el.dataset.id)
-    if (!layer) return
-    const k = el.dataset.k as NumKey
-    scrub.current = { layer, k, x: e.clientX, v: parseFloat(el.textContent ?? '0') }
-    body.current?.setPointerCapture(e.pointerId)
-    e.preventDefault()
-  }
-  const onMove = (e: ReactPointerEvent) => {
-    const s = scrub.current
-    if (!s) return
-    const [lo, hi] = RANGE[s.k]
-    const v = Math.min(hi, Math.max(lo, s.v + (e.clientX - s.x) / SCRUB[s.k]))
-    // Re-read the layer so a drag on one number doesn't undo another change.
-    const layer = stack.shapes.find((x): x is DrawnLayer => x.id === s.layer.id && x.kind === 'drawn') ?? s.layer
-    onOp(opFor(layer, s.k, v), `code:${s.layer.id}:${s.k}`)
-  }
+  const [copied, setCopied] = useState(false)
+  const text = useRef<() => string>(() => '')
 
   const copy = async () => {
     try {
-      await navigator.clipboard.writeText(body.current?.innerText ?? '')
+      await navigator.clipboard.writeText(text.current())
       setCopied(true)
       setTimeout(() => setCopied(false), 1600)
     } catch {
-      // Clipboard blocked: the text is still selectable.
+      // Clipboard blocked: the text can still be selected in the editor.
     }
   }
 
@@ -135,7 +31,7 @@ export function CodePanel({ stack, onOp, properties }: CodePanelProps) {
     <aside className="code-panel" aria-label="Code">
       <div className="code-panel__intro">
         <h2 className="code-panel__title">Code</h2>
-        <p className="code-panel__sub">Your canvas, written as a shader.</p>
+        <p className="code-panel__sub">Your canvas, written as a shader. Type to change it.</p>
       </div>
       <div className="code-panel__tabs">
         <div className="tabs-pill" role="tablist" aria-label="Code panel">
@@ -148,20 +44,13 @@ export function CodePanel({ stack, onOp, properties }: CodePanelProps) {
         </div>
         <span className="code-panel__file">canvas.glsl</span>
       </div>
-      {tab === 'code' ? (
-        <div className="code-panel__body" ref={body} onPointerDown={onDown} onPointerMove={onMove} onPointerUp={() => (scrub.current = null)}>
-          {lines.map((l, i) => (
-            <div className="code-line" key={i}>
-              <span className="code-line__n">{i + 1}</span>
-              <span className="code-line__t">{l}</span>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div className="code-panel__props">{properties}</div>
-      )}
+      {/* Kept mounted so undo history and the cursor survive a trip to Properties. */}
+      <div className="code-panel__body" hidden={tab !== 'code'}>
+        <CodeEditor stack={stack} onApply={onApply} textRef={text} />
+      </div>
+      {tab === 'props' && <div className="code-panel__props">{properties}</div>}
       <div className="code-panel__foot">
-        <span>GLSL · Drag a highlighted number to change the canvas. Export has the full shader.</span>
+        <span>Edits apply as you type. Alt-drag a number to slide it.</span>
         {tab === 'code' && (
           <button type="button" className="code-panel__copy" onClick={copy}>
             {copied ? <CheckIcon width={14} height={14} /> : <CopyIcon width={14} height={14} />}

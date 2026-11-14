@@ -52,7 +52,7 @@ so melted shapes color as one liquid form. A group lands on the layers below lik
    **Done 2026-11-14:** criteria 1–6 pass (parity 0/255; 4 drawn GPU checks; drawn export matches).
 2. **Canvas:** one centered 16:9 frame (sizes dropped at the user's request; was 16:9 · Square · Phone · Fill), dock tools Move / Pen / Ellipse /
    Rectangle, selection handles, melt handle between shapes.
-   **Done 2026-11-14:** blank start (two melting ellipses); V/P/O/R tools, Shift+R shuffle, arrows
+   **Done 2026-11-14:** blank start (now an empty canvas with a hint; Presets › New canvas clears); V/P/O/R tools, Shift+R shuffle, arrows
    nudge; drag to draw, click points to pen (close on the first point, Enter or double-click);
    move, corner resize, path point drag, melt handle; inspector Melt / Softness / Rotation / Corner.
 3. **Fields and bending:** text, noise, cells, gradient sources; repeat, kaleidoscope, twist.
@@ -62,8 +62,10 @@ so melted shapes color as one liquid form. A group lands on the layers below lik
    auto-key while paused; keys live in the stack (`keys`, `animateStack`). Not yet: export of
    animation, per-key easing.
 6. **Code view:** side editor (Code | Properties) with scrubbable numbers; Code layers.
-   **Started 2026-11-14 (brought forward):** `CodePanel` shows the canvas as code, numbers scrub
-   (position, size, corner, rotation, melt, softness). Not yet: typing edits, Code layers.
+   **Started 2026-11-14 (brought forward):** Code mode is a workspace (dock hides). The left pane
+   is a CodeMirror editor over Lazuli's shape language (`canvasCode.ts`: ellipse / box / polygon,
+   melt / cut / intersect, palette, background): valid edits apply as you type, errors underline
+   and keep the last good canvas, Alt-drag slides numbers. Not yet: Code layers (free GLSL).
 7. **Examples:** today's looks rebuilt as files made with the tool; presets become examples.
 
 ## Type
