@@ -1,3 +1,14 @@
+# Handoff: 2026-11-14, latest (option 3: draw, then shape the field)
+
+Plan of record now: `docs/plans/draw-builder.md`. Options page (direction chosen):
+https://claude.ai/artifact/RbtHBZsYipJXT1hi3g1emW (`design/lazuli-options.html`).
+- Done: M1 draw engine (drawn layers in `stack.ts`, field groups in `compile.ts`), M2 canvas
+  (`apps/playground/src/components/CanvasEditor.tsx`, `geom.ts`, framed stage with sizes).
+- Type: Manrope, even px sizes only (14 body).
+- Next: M3 fields and bending (text, noise, cells, gradient; repeat, kaleidoscope, twist).
+
+---
+
 # Handoff: 2026-11-14, later (pivot: Lazuli is a visual shader builder)
 
 Read `docs/plans/layer-builder.md` first; it is the plan of record. The user decided:

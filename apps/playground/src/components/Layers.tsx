@@ -139,7 +139,11 @@ export function Layers({ stack, selected, onSelect, onOp, canDo, header }: Layer
             </Popover.Trigger>
             <Popover.Portal>
               <Popover.Content className="popover menu add-menu" side="bottom" align="end" sideOffset={6} collisionPadding={12}>
-                <AddGroup title="Shape">
+                <AddGroup title="Draw">
+                  <AddItem label="Ellipse" op={{ op: 'add', layer: 'drawn', geom: { kind: 'ellipse', x: 0, y: 0, rx: 0.16, ry: 0.16, angle: 0 } }} canDo={canDo} onOp={onOp} close={() => setAddOpen(false)} />
+                  <AddItem label="Rectangle" op={{ op: 'add', layer: 'drawn', geom: { kind: 'rect', x: 0, y: 0, w: 0.18, h: 0.12, radius: 0.02, angle: 0 } }} canDo={canDo} onOp={onOp} close={() => setAddOpen(false)} />
+                </AddGroup>
+                <AddGroup title="Generated shape">
                   {SHAPES.map((t) => (
                     <AddItem key={t} label={SHAPE_LABELS[t]} op={{ op: 'add', layer: 'shape', type: t }} canDo={canDo} onOp={onOp} close={() => setAddOpen(false)} />
                   ))}
@@ -178,7 +182,7 @@ export function Layers({ stack, selected, onSelect, onOp, canDo, header }: Layer
         {row(stack.color, { id: stack.color.id, name: stack.color.name, kind: 'color' })}
         {stack.cursor && row(stack.cursor, { id: stack.cursor.id, name: stack.cursor.name, kind: 'cursor', hideable: true, visible: stack.cursor.visible })}
         {stack.shapes.map((s) => [
-          row(s, { id: s.id, name: s.name, kind: 'shape', hideable: true, visible: s.visible, meta: s.id === backmost ? undefined : s.combine === 'merge' ? undefined : COMBINE_LABEL[s.combine] }),
+          row(s, { id: s.id, name: s.name, kind: s.kind === 'drawn' ? s.geom.kind : 'shape', hideable: true, visible: s.visible, meta: s.id === backmost ? undefined : s.combine === 'merge' ? undefined : COMBINE_LABEL[s.combine] }),
           ...s.warps.map((w) => row(w, { id: w.id, name: w.name, kind: 'warp', depth: 1, hideable: true, visible: w.visible })),
         ])}
         {row(stack.background, { id: stack.background.id, name: stack.background.name, kind: 'background' })}
@@ -240,6 +244,9 @@ function LayerIcon({ kind }: { kind: string }) {
     shape: <path d="M8 2.8c2.6 0 5 1.6 5 4.5 0 3.3-2.6 5.9-5.6 5.9-2.5 0-4.4-1.8-4.4-4.4C3 5.6 5.2 2.8 8 2.8Z" />,
     warp: <path d="M8 8.2a.6.6 0 1 1 .6-.6M8.6 7.6A2 2 0 1 0 6 8a3.2 3.2 0 1 0 5.2-2.6A4.5 4.5 0 1 0 12 12" />,
     background: <rect x="2.5" y="2.5" width="11" height="11" rx="2" />,
+    ellipse: <ellipse cx="8" cy="8" rx="5.5" ry="4" />,
+    rect: <rect x="3" y="4.5" width="10" height="7" rx="1.5" />,
+    path: <path d="M8 2.5l5 4-2 6.5H5L3 6.5l5-4Z" />,
   }
   return (
     <svg className="layer__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">

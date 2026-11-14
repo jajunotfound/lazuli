@@ -19,6 +19,7 @@
   --ink-hover: rgb(var(--ink) / 0.04);
 
   --surface: #ffffff;
+  --ground-canvas: #eceef2;
   --border: #e5e5e5;
   --divider: #efefef;
   --row: #f4f4f5;
@@ -134,7 +135,8 @@ button {
 .stage {
   position: fixed;
   inset: 0;
-  touch-action: none;
+  padding: 64px 320px 64px 112px;
+  background: var(--ground-canvas);
   transition: opacity 1300ms var(--ease-out), transform 1300ms var(--ease-out);
 }
 
@@ -143,6 +145,147 @@ button {
   opacity: 0;
   transform: scale(0.94);
   transition: none;
+}
+
+/* The frame keeps its shape and fits the space between the dock and the inspector. */
+.stage__fit {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  container-type: size;
+}
+
+.frame {
+  position: relative;
+  width: min(100cqw, 100cqh * var(--r));
+  aspect-ratio: var(--r);
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--surface);
+  box-shadow: 0 0 0 1px var(--border);
+}
+
+.stage[data-size='fill'] {
+  padding: 0;
+}
+
+.stage[data-size='fill'] .frame {
+  width: 100%;
+  height: 100%;
+  aspect-ratio: auto;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.sizes {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  z-index: 2;
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  transform: translateX(-50%);
+}
+
+.sizes button {
+  height: 28px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--ink-60);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.sizes button:hover {
+  color: var(--ink-90);
+}
+
+.sizes button[aria-pressed='true'] {
+  background: var(--row);
+  color: var(--ink-90);
+}
+
+/* ---- The editing overlay on the frame --------------------------------------- */
+
+.canvas-editor {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.canvas-editor[data-tool='pen'],
+.canvas-editor[data-tool='ellipse'],
+.canvas-editor[data-tool='rect'] {
+  cursor: crosshair;
+}
+
+.ce-outline,
+.ce-hover,
+.ce-draft {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1;
+}
+
+.ce-hover {
+  stroke-opacity: 0.5;
+}
+
+.ce-draft {
+  stroke-dasharray: 4 3;
+}
+
+.ce-handle {
+  fill: #fff;
+  stroke: var(--accent);
+  stroke-width: 1;
+  cursor: nwse-resize;
+}
+
+.ce-handle[data-handle='vertex'] {
+  cursor: move;
+}
+
+.ce-link {
+  stroke: var(--accent);
+  stroke-dasharray: 3 4;
+  opacity: 0.6;
+}
+
+.ce-melt {
+  fill: #fff;
+  stroke: var(--accent);
+  stroke-width: 1.5;
+  cursor: ew-resize;
+}
+
+.ce-melt-label {
+  fill: var(--accent);
+  font: 600 10px var(--font-sans);
+  pointer-events: none;
+}
+
+.ce-pen-point {
+  fill: #fff;
+  stroke: var(--accent);
+}
+
+.ce-pen-start {
+  fill: var(--accent);
+  stroke: #fff;
 }
 
 /* ==========================================================================
@@ -1701,6 +1844,10 @@ button {
    ========================================================================== */
 
 @media (max-width: 640px) {
+  .stage {
+    padding: 64px 12px 120px;
+  }
+
   .layers {
     top: calc(12px + env(safe-area-inset-top));
     left: 12px;

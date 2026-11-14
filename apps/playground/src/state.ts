@@ -1,4 +1,6 @@
 import {
+  applyOp,
+  type StackOp,
   configToStack,
   decodeStack,
   encodeStack,
@@ -110,9 +112,25 @@ export function toQuery(c: Config, preset: PresetId | null): string {
   return s ? `?${s}` : ''
 }
 
-/** The stack in the URL (`?s=…`), else old-style settings as a one-shape stack. */
+/** A fresh start: two drawn shapes melting together, nothing pre-made. */
+export function blankStack(): Stack {
+  let s = configToStack(resolveConfig({ texture: { type: 'grain', intensity: 20 } }))
+  const ops: StackOp[] = [
+    { op: 'add', layer: 'drawn', geom: { kind: 'ellipse', x: 0.16, y: -0.06, rx: 0.12, ry: 0.12, angle: 0 } },
+    { op: 'add', layer: 'drawn', geom: { kind: 'ellipse', x: -0.1, y: 0.04, rx: 0.22, ry: 0.17, angle: 0.3 } },
+    { op: 'delete', id: 'shape-1' },
+  ]
+  for (const op of ops) {
+    const r = applyOp(s, op)
+    if (r.ok) s = r.stack
+  }
+  return s
+}
+
+/** The stack in the URL (`?s=…`), else old-style settings as a one-shape stack, else a blank start. */
 export function readUrlStack(): { stack: Stack; preset: PresetId | null } {
   const q = new URLSearchParams(location.search)
+  if ([...q.keys()].filter((k) => k !== 'meet').length === 0) return { stack: blankStack(), preset: null }
   const s = q.get('s')
   const decoded = s ? decodeStack(s) : null
   const p = q.get('p')

@@ -1,6 +1,7 @@
 import * as Tooltip from '@radix-ui/react-tooltip'
 import { applyOp, createLazuli, findLayer, presetStack, stackToConfig, type LazuliInput, type LazuliInstance, type PresetId, type Stack, type StackOp } from 'lazuli-bg'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import { CanvasEditor, type DrawTool } from './components/CanvasEditor'
 import { CodeDialog } from './components/CodeDialog'
 import { Entrance } from './components/Entrance'
 import { Inspector } from './components/Inspector'
@@ -9,10 +10,20 @@ import type { Mood } from './components/Mascot'
 import { PresetGrid } from './components/PresetsPanel'
 import { Toolbar, type ToolbarItem } from './components/Toolbar'
 import { AboutButton, WelcomeCard } from './components/Welcome'
-import { BackgroundIcon, CodeIcon, ColorsIcon, HideIcon, LayersIcon, MotionIcon, PresetsIcon, ShapesIcon, ShowIcon, TextureIcon } from './icons'
+import { BackgroundIcon, CodeIcon, ColorsIcon, EllipseIcon, HideIcon, LayersIcon, MotionIcon, MoveIcon, PenIcon, PresetsIcon, RectIcon, ShapesIcon, ShowIcon, TextureIcon } from './icons'
+import { moved } from './geom'
 import { patchLayer, SCENE_ID } from './layerEdit'
 import { hasSeenWelcome, markMet, markWelcomeSeen, readUrlStack, shouldMeet, writeUrlStack, type PanelId } from './state'
 import { useMediaQuery } from './useMediaQuery'
+
+type FrameSize = 'wide' | 'square' | 'phone' | 'fill'
+/** Frame shapes to preview in: what the shader will fill on a page. Fill is the whole window. */
+const SIZES: Record<FrameSize, { label: string; ratio: number }> = {
+  wide: { label: '16:9', ratio: 16 / 9 },
+  square: { label: 'Square', ratio: 1 },
+  phone: { label: 'Phone', ratio: 9 / 19.5 },
+  fill: { label: 'Fill', ratio: 16 / 9 },
+}
 
 interface History {
   past: Stack[]
@@ -38,6 +49,8 @@ export function App() {
   const [stage, setStage] = useState<HTMLDivElement | null>(null)
   const engine = useRef<LazuliInstance | null>(null)
   const [openPanel, setOpenPanel] = useState<PanelId | null>(null)
+  const [tool, setTool] = useState<DrawTool>('move')
+  const [size, setSize] = useState<FrameSize>('wide')
   const [codeOpen, setCodeOpen] = useState(false)
   const [meeting, setMeeting] = useState(shouldMeet)
   const [revealed, setRevealed] = useState(() => !meeting)
@@ -128,13 +141,13 @@ export function App() {
   const canDo = useCallback((op: StackOp) => applyOp(stack, op).ok, [stack])
 
   const onOp = useCallback(
-    (op: StackOp) => {
+    (op: StackOp, tag?: string) => {
       const r = applyOp(stack, op)
       if (!r.ok) {
         setMood('oops', 1600)
         return
       }
-      commit(r.stack, op.op === 'tune' ? `tune:${op.id}:${op.strength === undefined ? 'size' : 'strength'}` : null)
+      commit(r.stack, tag ?? (op.op === 'tune' ? `tune:${op.id}:${op.strength === undefined ? 'size' : 'strength'}` : null))
       // Select what was just made.
       if (op.op === 'add' || op.op === 'duplicate') {
         const before = new Set(JSON.stringify(stack).match(/"id":"[^"]+"/g))
@@ -210,8 +223,21 @@ export function App() {
         e.preventDefault()
         return onOp({ op: 'delete', id: selected })
       }
+      // Nudge the selected drawn shape: arrows, Shift for bigger steps.
+      const sel = stack.shapes.find((x) => x.id === selected)
+      if (sel?.kind === 'drawn' && e.key.startsWith('Arrow')) {
+        e.preventDefault()
+        const step = e.shiftKey ? 0.05 : 0.005
+        const dx = e.key === 'ArrowLeft' ? -step : e.key === 'ArrowRight' ? step : 0
+        const dy = e.key === 'ArrowDown' ? -step : e.key === 'ArrowUp' ? step : 0
+        return onOp({ op: 'reshape', id: sel.id, geom: moved(sel.geom, dx, dy) }, `nudge:${sel.id}`)
+      }
       const key = e.key.toLowerCase()
-      if (key === 'r') shuffle()
+      if (key === 'r' && e.shiftKey) shuffle()
+      else if (key === 'v') setTool('move')
+      else if (key === 'p') setTool('pen')
+      else if (key === 'o') setTool('ellipse')
+      else if (key === 'r') setTool('rect')
       else if (key === 'h') toggleControls()
     }
     window.addEventListener('keydown', onKey)
@@ -233,6 +259,12 @@ export function App() {
     setOpenPanel(null)
   }
   const groups: ToolbarItem[][] = [
+    [
+      { kind: 'action', id: 'tool-move', label: 'Move', icon: MoveIcon, shortcut: 'V', pressed: tool === 'move', onClick: () => setTool('move') },
+      { kind: 'action', id: 'tool-pen', label: 'Pen', icon: PenIcon, shortcut: 'P', pressed: tool === 'pen', onClick: () => setTool('pen') },
+      { kind: 'action', id: 'tool-ellipse', label: 'Ellipse', icon: EllipseIcon, shortcut: 'O', pressed: tool === 'ellipse', onClick: () => setTool('ellipse') },
+      { kind: 'action', id: 'tool-rect', label: 'Rectangle', icon: RectIcon, shortcut: 'R', pressed: tool === 'rect', onClick: () => setTool('rect') },
+    ],
     [
       { kind: 'panel', id: 'presets', label: 'Presets', icon: PresetsIcon, content: (
         <div className="panel panel--presets">
@@ -261,13 +293,27 @@ export function App() {
     <Tooltip.Provider delayDuration={300} skipDelayDuration={200}>
       <div
         className="stage"
-        ref={setStage}
+        data-size={size}
         data-veiled={!revealed || undefined}
         onPointerDown={() => {
           if (welcomeOpen && !meeting) closeWelcome()
         }}
-        aria-hidden="true"
-      />
+      >
+        <div className="stage__fit">
+          <div className="frame" ref={setStage} style={{ '--r': SIZES[size].ratio } as CSSProperties}>
+            {panels && <CanvasEditor stack={stack} selected={selected} tool={tool} onSelect={setSelected} setTool={setTool} onOp={onOp} />}
+          </div>
+        </div>
+        {panels && (
+          <div className="sizes" role="group" aria-label="Frame size">
+            {(Object.keys(SIZES) as FrameSize[]).map((k) => (
+              <button key={k} type="button" aria-pressed={size === k} onClick={() => setSize(k)}>
+                {SIZES[k].label}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
 
       <Toolbar groups={groups} open={openPanel} setOpen={setOpenPanel} compact={compact} magnify={!reducedMotion && !coarse} hidden={!panels} canvas={stage} />
 

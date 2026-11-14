@@ -14,7 +14,7 @@ interface InspectorProps {
   stack: Stack
   selected: string
   onPatch(patch: LazuliInput): void
-  onOp(op: StackOp): void
+  onOp(op: StackOp, tag?: string): void
   canDo(op: StackOp): boolean
 }
 
@@ -33,7 +33,8 @@ export function Inspector({ stack, selected, onPatch, onOp, canDo }: InspectorPr
   const paths = layerPaths(layer, view)
   const title = layer === 'scene' ? 'Motion' : layer.name
   const isShape = layer !== 'scene' && layer.kind === 'shape'
-  const backmost = isShape && stack.shapes.filter((x) => x.visible).slice(-1)[0]?.id === selected
+  const drawn = layer !== 'scene' && layer.kind === 'drawn' ? layer : null
+  const backmost = (isShape || !!drawn) && stack.shapes.filter((x) => x.visible).slice(-1)[0]?.id === selected
   const removable = layer !== 'scene' && canDo({ op: 'delete', id: selected })
   const duplicable = layer !== 'scene' && canDo({ op: 'duplicate', id: selected })
 
@@ -47,7 +48,7 @@ export function Inspector({ stack, selected, onPatch, onOp, canDo }: InspectorPr
         )}
         <div className="inspector__acts">
           {isShape && (
-            <IconAction label="New arrangement (R)" onClick={() => onPatch({ seed: Math.round(Math.random() * 1e8) / 10 })}>
+            <IconAction label="New arrangement (Shift R)" onClick={() => onPatch({ seed: Math.round(Math.random() * 1e8) / 10 })}>
               <path d="M2 4h3.5c1.5 0 2.3.6 3.2 2l1.6 2.6c.9 1.4 1.7 2 3.2 2H14M2 12h3.5c1.5 0 2.3-.6 3.2-2M12 2l2 2-2 2M12 8.6l2 2-2 2" />
             </IconAction>
           )}
@@ -66,13 +67,41 @@ export function Inspector({ stack, selected, onPatch, onOp, canDo }: InspectorPr
       </div>
 
       <div className="inspector__body">
-        {isShape && !backmost && (
+        {(isShape || drawn) && !backmost && (
           <SelectField
             label="Combine"
             value={(layer as { combine: CombineMode }).combine}
             options={COMBINE}
             onChange={(v) => onOp({ op: 'combine', id: selected, combine: v as CombineMode })}
           />
+        )}
+        {drawn && (
+          <>
+            <NumberField label="Melt" value={Math.round(drawn.melt * 100)} min={0} max={100} step={1} format={(v) => String(Math.round(v))} onChange={(v) => onOp({ op: 'reshape', id: selected, melt: v / 100 }, `melt:${selected}`)} />
+            <NumberField label="Softness" value={Math.round(drawn.soft * 100)} min={0} max={100} step={1} format={(v) => String(Math.round(v))} onChange={(v) => onOp({ op: 'reshape', id: selected, soft: v / 100 }, `soft:${selected}`)} />
+            {drawn.geom.kind !== 'path' && (
+              <NumberField
+                label="Rotation"
+                value={Math.round((drawn.geom.angle * 180) / Math.PI)}
+                min={-180}
+                max={180}
+                step={1}
+                format={(v) => `${Math.round(v)}°`}
+                onChange={(v) => drawn.geom.kind !== 'path' && onOp({ op: 'reshape', id: selected, geom: { ...drawn.geom, angle: (v * Math.PI) / 180 } }, `turn:${selected}`)}
+              />
+            )}
+            {drawn.geom.kind === 'rect' && (
+              <NumberField
+                label="Corner"
+                value={Math.round(drawn.geom.radius * 1000)}
+                min={0}
+                max={Math.round(Math.min(drawn.geom.w, drawn.geom.h) * 1000)}
+                step={1}
+                format={(v) => String(Math.round(v))}
+                onChange={(v) => drawn.geom.kind === 'rect' && onOp({ op: 'reshape', id: selected, geom: { ...drawn.geom, radius: v / 1000 } }, `corner:${selected}`)}
+              />
+            )}
+          </>
         )}
         {paths.map((p) => (
           <Field key={p} path={p} view={view} set={onPatch} />

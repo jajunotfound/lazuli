@@ -52,6 +52,9 @@ so melted shapes color as one liquid form. A group lands on the layers below lik
    **Done 2026-11-14:** criteria 1–6 pass (parity 0/255; 4 drawn GPU checks; drawn export matches).
 2. **Canvas:** framed canvas (16:9 · Square · Phone · Fill), dock tools Move / Pen / Ellipse /
    Rectangle, selection handles, melt handle between shapes.
+   **Done 2026-11-14:** blank start (two melting ellipses); V/P/O/R tools, Shift+R shuffle, arrows
+   nudge; drag to draw, click points to pen (close on the first point, Enter or double-click);
+   move, corner resize, path point drag, melt handle; inspector Melt / Softness / Rotation / Corner.
 3. **Fields and bending:** text, noise, cells, gradient sources; repeat, kaleidoscope, twist.
 4. **Color and light:** on-canvas gradient, contours, glow, light as height.
 5. **Motion:** loop timeline with keyframes.

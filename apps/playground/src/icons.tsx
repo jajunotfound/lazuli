@@ -152,3 +152,28 @@ export const LayersIcon = (p: IconProps) => (
     <path {...stroke} d="M11 6h9.5M11 12h9.5M11 18h9.5" />
   </Svg>
 )
+
+// Drawing tools.
+export const MoveIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path {...stroke} d="M6 4l12 6-5.5 1.8L10 18 6 4Z" />
+  </Svg>
+)
+export const PenIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path {...stroke} d="M12 19l7-7 2.5 2.5-7 7L12 19Z" />
+    <path {...stroke} d="M18 13l-1.5-7.5L3 2l3.5 13.5L14 17l4-4Z" />
+    <path {...stroke} d="M3 2l7.6 7.6" />
+    <circle {...stroke} cx="11" cy="11" r="2" />
+  </Svg>
+)
+export const EllipseIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <ellipse {...stroke} cx="12" cy="12" rx="8.5" ry="6.5" />
+  </Svg>
+)
+export const RectIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <rect {...stroke} x="4" y="6" width="16" height="12" rx="2" />
+  </Svg>
+)
