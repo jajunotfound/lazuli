@@ -39,7 +39,7 @@ Port the reference's structure, not its dark palette:
 
 ### Next
 
-1. Trim the parameter list to the background-maker scope (proposal for the user to approve).
+1. Trim the parameter list to the background-maker scope: proposal in `docs/SCOPE.md`, waiting for approval.
 2. Redesign the panel in Paper in the new structure; user reviews.
 3. Implement; remove the frames canvas and image source from the playground.
 
