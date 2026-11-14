@@ -1,0 +1,162 @@
+<!doctype html>
+<!-- Exported code against the engine: the standalone HTML page and the Shadertoy shader must
+     render what snapshot() renders (within 2/255), and the GLSL must compile on WebGL1.
+     Run with: node tools/regress/stacks.mjs export -->
+<meta charset="utf-8" />
+<body style="margin:0">
+<script type="module">
+  import { snapshot } from '/packages/lazuli/dist/capture.js'
+  import { applyOp, configToStack, exportHtml, exportShader, exportShadertoy, resolveConfig } from '/packages/lazuli/dist/lazuli.js'
+
+  const W = 320, H = 200
+  const ops = (s, list) => list.reduce((acc, op) => {
+    const r = applyOp(acc, op)
+    if (!r.ok) throw new Error(`${op.op}: ${r.error}`)
+    return r.stack
+  }, s)
+  // Frozen (speed 0) so every renderer sees the same moment.
+  const still = (input) => configToStack(resolveConfig({ ...input, motion: { speed: 0 } }))
+  const stacks = {
+    default: still({}),
+    'waves+halftone': still({ shape: 'waves', texture: { type: 'halftone' } }),
+    'transparent': still({ background: { type: 'transparent' }, texture: { type: 'none' } }),
+    'gradient bg': still({ background: { type: 'gradient', kind: 'radial', gradient: ['#ffffff', '#cfe0ff'] } }),
+    'layers+warps': ops(still({ texture: { type: 'none' } }), [
+      { op: 'add', layer: 'shape', type: 'rings' },
+      { op: 'combine', id: 'shape-2', combine: 'cut' },
+      { op: 'add', layer: 'shape', type: 'blobs' },
+      { op: 'add', layer: 'warp', type: 'swirl', parent: 'shape-1' },
+      { op: 'add', layer: 'warp', type: 'noise', parent: 'shape-2' },
+      { op: 'add', layer: 'texture', type: 'grain' },
+    ]),
+  }
+
+  async function pixels(src) {
+    const bmp = await createImageBitmap(src)
+    const c = new OffscreenCanvas(bmp.width, bmp.height)
+    const g = c.getContext('2d')
+    g.drawImage(bmp, 0, 0)
+    return g.getImageData(0, 0, bmp.width, bmp.height).data
+  }
+  let worst = ''
+  let lastOver = 0
+  // Screening textures sample the pattern at cell centers: a pixel on a cell edge can land in
+  // the next cell when the compiler folds written-in constants differently from uniforms.
+  // Those flips are allowed for halftone/dither, up to 0.1% of values; everything else is exact.
+  const passes = (d, stack) => d <= 2 || (stack.textures.some((t) => t.visible && ['halftone', 'dither'].includes(t.settings.type)) && lastOver <= 0.001)
+  const maxDiff = (a, b) => {
+    if (a.length !== b.length) return (worst = `size ${a.length} vs ${b.length}`), 255
+    // Premultiplied: PNGs store straight color, which magnifies rounding where alpha is tiny.
+    const pm = (p, i) => (i % 4 === 3 ? p[i] : (p[i] * p[i - (i % 4) + 3]) / 255)
+    let m = 0, at = 0, over = 0
+    for (let i = 0; i < a.length; i++) {
+      const d = Math.abs(pm(a, i) - pm(b, i))
+      if (d > 2) over++
+      if (d > m) (m = d), (at = i)
+    }
+    const px = at - (at % 4)
+    worst = `${over} of ${a.length} values > 2; worst at px ${px / 4}: got ${[...a.slice(px, px + 4)]} want ${[...b.slice(px, px + 4)]}`
+    lastOver = over / a.length
+    return Math.round(m)
+  }
+
+  function compiles(gl, src) {
+    const s = gl.createShader(gl.FRAGMENT_SHADER)
+    gl.shaderSource(s, src)
+    gl.compileShader(s)
+    return gl.getShaderParameter(s, gl.COMPILE_STATUS) ? true : gl.getShaderInfoLog(s)
+  }
+
+  // The exported page in an iframe: draw t = 0 and read its canvas in the same task.
+  function runHtml(html) {
+    return new Promise((resolve, reject) => {
+      const f = Object.assign(document.createElement('iframe'), { width: W, height: H, srcdoc: html })
+      f.style.border = '0'
+      f.onload = () => requestAnimationFrame(() => {
+        try {
+          const canvas = f.contentDocument.getElementById('lazuli')
+          canvas.lazuliDraw(0)
+          // Same task as the draw: the buffer isn't cleared yet (toBlob would read it later).
+          const url = canvas.toDataURL('image/png')
+          const ratio = canvas.width / canvas.clientWidth
+          f.remove()
+          fetch(url).then((r) => r.blob()).then((b) => resolve({ blob: b, ratio }), reject)
+        } catch (e) {
+          reject(e)
+        }
+      })
+      document.body.append(f)
+    })
+  }
+
+  // Shadertoy's wrapper: GLSL ES 3.00 with iResolution / iTime / iMouse, then mainImage.
+  function runShadertoy(code) {
+    const canvas = Object.assign(document.createElement('canvas'), { width: W, height: H })
+    const gl = canvas.getContext('webgl2', { premultipliedAlpha: true, preserveDrawingBuffer: true })
+    const vs = '#version 300 es\nin vec2 p; void main() { gl_Position = vec4(p, 0.0, 1.0); }'
+    const fs = `#version 300 es\nprecision highp float;\nuniform vec3 iResolution; uniform float iTime; uniform vec4 iMouse;\nout vec4 lazuliOut;\n${code}\nvoid main() { mainImage(lazuliOut, gl_FragCoord.xy); }`
+    const ok = compiles(gl, fs)
+    if (ok !== true) throw new Error(`shadertoy: ${ok}`)
+    const prog = gl.createProgram()
+    for (const [type, src] of [[gl.VERTEX_SHADER, vs], [gl.FRAGMENT_SHADER, fs]]) {
+      const s = gl.createShader(type)
+      gl.shaderSource(s, src)
+      gl.compileShader(s)
+      gl.attachShader(prog, s)
+    }
+    gl.bindAttribLocation(prog, 0, 'p')
+    gl.linkProgram(prog)
+    gl.useProgram(prog)
+    gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer())
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW)
+    gl.enableVertexAttribArray(0)
+    gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0)
+    gl.uniform3f(gl.getUniformLocation(prog, 'iResolution'), W, H, 1)
+    gl.uniform1f(gl.getUniformLocation(prog, 'iTime'), 0)
+    gl.uniform4f(gl.getUniformLocation(prog, 'iMouse'), 0, 0, 0, 0)
+    gl.viewport(0, 0, W, H)
+    gl.drawArrays(gl.TRIANGLES, 0, 3)
+    return new Promise((r) => canvas.toBlob(r))
+  }
+
+  window.done = (async () => {
+    const out = []
+    const run = async (name, check) => {
+      try {
+        const note = await check()
+        out.push({ case: name, ok: note === true, note: note === true ? '' : String(note) })
+      } catch (e) {
+        out.push({ case: name, ok: false, note: String(e.message ?? e) })
+      }
+    }
+    const gl1 = document.createElement('canvas').getContext('webgl')
+    for (const [name, stack] of Object.entries(stacks)) {
+      const ref = await snapshot({}, { width: W, height: H, pixelRatio: 1, time: 0, stack }).then(pixels)
+      await run(`glsl:${name} compiles (WebGL1)`, async () => compiles(gl1, exportShader(stack)))
+      await run(`html:${name} matches`, async () => {
+        const { blob, ratio } = await runHtml(exportHtml(stack))
+        const at = await snapshot({}, { width: W * ratio, height: H * ratio, pixelRatio: ratio, time: 0, stack }).then(pixels)
+        const d = maxDiff(await pixels(blob), at)
+        return passes(d, stack) || `max ${d}/255 ${worst}`
+      })
+      await run(`shadertoy:${name} matches`, async () => {
+        const d = maxDiff(await runShadertoy(exportShadertoy(stack)).then(pixels), ref)
+        return passes(d, stack) || `max ${d}/255 ${worst}`
+      })
+    }
+    await run('element: stack attribute', async () => {
+      await import('/packages/lazuli/dist/element.js')
+      const { encodeStack } = await import('/packages/lazuli/dist/lazuli.js')
+      const host = Object.assign(document.createElement('div'), { style: 'position:relative;width:160px;height:100px' })
+      const el = document.createElement('lazuli-bg')
+      el.setAttribute('stack', encodeStack(stacks['layers+warps']))
+      host.append(el)
+      document.body.append(host)
+      const got = JSON.stringify(el.instance?.stack)
+      host.remove()
+      return got === JSON.stringify(stacks['layers+warps']) || 'element drew a different stack'
+    })
+    return out
+  })()
+</script>
+</body>

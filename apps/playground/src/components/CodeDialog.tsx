@@ -1,38 +1,39 @@
 import type { Mood } from './Mascot'
 import * as Dialog from '@radix-ui/react-dialog'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { elementSnippet, htmlFile, jsSnippet } from '../exportCode'
+import { elementSnippet, glslFile, htmlFile, jsSnippet, shadertoyFile } from '../exportCode'
 import { CheckIcon, CloseIcon, CopyIcon } from '../icons'
-import type { Config } from '../state'
+import type { Stack } from 'lazuli-bg'
 import { Segmented } from './Segmented'
 
-const TABS = [{ label: 'HTML file' }, { label: 'Web component' }, { label: 'JavaScript' }] as const
+const TABS = [{ label: 'HTML file' }, { label: 'Web component' }, { label: 'JavaScript' }, { label: 'GLSL' }, { label: 'Shadertoy' }] as const
 type Tab = (typeof TABS)[number]['label']
 
 const DESCRIPTIONS: Record<Tab, string> = {
-  'HTML file': 'A standalone file you can drop into any website or embed.',
+  'HTML file': 'A standalone page: your shader and a few lines of WebGL. No library.',
   'Web component': 'Install the package, then use the element anywhere.',
   JavaScript: 'Install the package and create the background from code.',
+  GLSL: 'The fragment shader with your settings written in. Set time, size and pointer.',
+  Shadertoy: 'Paste into a new shader on shadertoy.com. Drag to push the shapes.',
 }
 
 interface CodeDialogProps {
   open: boolean
   onOpenChange(open: boolean): void
-  config: Config
+  stack: Stack
   /** Lazuli reacts: happy when the code is copied. */
   onMood?(mood: Mood | null, ms?: number): void
 }
 
-export function CodeDialog({ open, onOpenChange, config, onMood }: CodeDialogProps) {
+export function CodeDialog({ open, onOpenChange, stack, onMood }: CodeDialogProps) {
   const [tab, setTab] = useState<Tab>('HTML file')
   const [copied, setCopied] = useState(false)
   const codeRef = useRef<HTMLPreElement>(null)
 
   const code = useMemo(() => {
-    if (tab === 'HTML file') return { shown: htmlFile(config, true), full: htmlFile(config) }
-    if (tab === 'Web component') return { shown: elementSnippet(config), full: elementSnippet(config) }
-    return { shown: jsSnippet(config), full: jsSnippet(config) }
-  }, [tab, config])
+    const text = tab === 'HTML file' ? htmlFile(stack) : tab === 'Web component' ? elementSnippet(stack) : tab === 'JavaScript' ? jsSnippet(stack) : tab === 'GLSL' ? glslFile(stack) : shadertoyFile(stack)
+    return { shown: text, full: text }
+  }, [tab, stack])
 
   useEffect(() => {
     if (!copied) return

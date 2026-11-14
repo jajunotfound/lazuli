@@ -77,6 +77,26 @@ bg.destroy() // removes listeners, observers and the GL context
 `element` is a `<canvas>`). Resizing is handled with a `ResizeObserver`, so it works in any
 container, not just full-screen.
 
+### Layer stacks and exported code
+
+The playground builds a **layer stack**: up to four shapes (Merge, Add, Cut, Intersect), warps on
+each shape (Swirl, Noise, Ripple, Cursor), a color map, textures and a background. The engine draws
+one with `setStack`, and the stack exports as code you own:
+
+```js
+import { createLazuli, decodeStack, exportShader, exportShadertoy, exportHtml } from 'lazuli-bg'
+
+const bg = createLazuli(el)
+bg.setStack(decodeStack(encoded))   // or <lazuli-bg stack="…"> on the element
+
+exportShader(bg.stack)     // GLSL ES 1.00 with every setting written in as a constant
+exportShadertoy(bg.stack)  // the same shader for shadertoy.com (mainImage, iTime, iMouse)
+exportHtml(bg.stack)       // a standalone page: the shader and a small WebGL loop, no library
+```
+
+The exported shader keeps six live inputs: `u_res`, `u_time` (seconds × speed), `u_dpr`,
+`u_mouse`, `u_vel`, `u_active`.
+
 ### A still frame
 
 ```js

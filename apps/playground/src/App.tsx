@@ -294,7 +294,7 @@ export function App() {
       {!meeting &&
         (welcomeOpen ? <WelcomeCard config={config} onClose={closeWelcome} /> : <AboutButton onClick={() => setWelcomeOpen(true)} mood={mood} reduced={reducedMotion} />)}
 
-      <CodeDialog open={codeOpen} onOpenChange={setCodeOpen} config={config} onMood={setMood} />
+      <CodeDialog open={codeOpen} onOpenChange={setCodeOpen} stack={stack} onMood={setMood} />
     </Tooltip.Provider>
   )
 }

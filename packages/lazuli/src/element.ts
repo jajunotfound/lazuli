@@ -1,11 +1,12 @@
 import { fromFlat, LEGACY_KEYS, resolveConfig, type LazuliInput } from './config'
 import { createLazuli, type LazuliInstance } from './engine'
 import { isPreset } from './presets'
+import { decodeStack } from './stack'
 import { DEFAULT_CONFIG, getPath, PARAMS } from './schema'
 
 export const TAG_NAME = 'lazuli-bg'
 
-const ATTRS = [...new Set([...PARAMS.map((d) => d.attr), ...LEGACY_KEYS, 'config', 'preset'])]
+const ATTRS = [...new Set([...PARAMS.map((d) => d.attr), ...LEGACY_KEYS, 'config', 'preset', 'stack'])]
 
 // Base class is resolved lazily so importing this module on a server (no DOM) doesn't throw.
 const Base = (typeof HTMLElement === 'undefined' ? class {} : HTMLElement) as typeof HTMLElement
@@ -17,7 +18,8 @@ const Base = (typeof HTMLElement === 'undefined' ? class {} : HTMLElement) as ty
  * PARAMS), plus `config='{…json…}'` for a whole config at once. The v1 names
  * (`core`, `edge`, `ground`, `count`, `size`, `softness`, `texture`, `speed`,
  * `cursor`, `strength`) still work. `preset="silk"` starts from a preset.
- * Precedence: individual attribute > `config` > `preset` > defaults.
+ * Precedence: `stack` (a whole layer stack, from the export) > individual attribute > `config` >
+ * `preset` > defaults.
  * `reduced-motion="ignore"` opts out of slowing down for users who prefer
  * reduced motion.
  */
@@ -50,6 +52,15 @@ export class LazuliElement extends Base {
   connectedCallback() {
     if (this.#instance) return
     this.#instance = createLazuli(this.#surface, this.#readAttributes())
+    this.#applyStack()
+  }
+
+  /** `stack="…"` (from Lazuli's export) draws a layer stack and wins over the other attributes. */
+  #applyStack(): boolean {
+    const v = this.getAttribute('stack')
+    const stack = v ? decodeStack(v) : null
+    if (stack) this.#instance?.setStack(stack)
+    return !!stack
   }
 
   disconnectedCallback() {
@@ -59,6 +70,12 @@ export class LazuliElement extends Base {
 
   attributeChangedCallback(name: string, _old: string | null, value: string | null) {
     if (!this.#instance) return
+    if (name === 'stack') {
+      if (!this.#applyStack()) this.#instance.set(resolveConfig(this.#readAttributes()))
+      return
+    }
+    // A stack attribute describes everything; the flat attributes only apply without one.
+    if (this.getAttribute('stack') && decodeStack(this.getAttribute('stack')!)) return
     if (name === 'config' || name === 'preset') {
       this.#instance.set(resolveConfig(this.#readAttributes()))
       return

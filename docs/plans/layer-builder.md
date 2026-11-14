@@ -166,7 +166,10 @@ Milestone 2 showed that most shapes aren't one field: Milestone 3 has to pick ho
    per shape (loop seamlessly); the cursor can sit on one shape. 4 shapes + 2 warps + grain: 6.1 ms
    at 1920×1080 on the M1 (criterion 6).
 6. **Export.** Standalone GLSL, Shadertoy, HTML, `<lazuli-bg>` stack. Demo: paste into Shadertoy.
-   Criterion 7.
+   Criterion 7. **Done 2026-11-14:** GLSL (WebGL1),
+   Shadertoy and standalone HTML match `snapshot()` within 2/255 (`node tools/regress/stacks.mjs
+   export`); `<lazuli-bg stack>`. Exception: halftone/dither may flip up to 0.1% of values at cell
+   edges, because written-in constants round a hair differently from uniforms.
 7. **Presets as stacks.** Rebuild the nine presets; freeze them.
 
 ## Risks

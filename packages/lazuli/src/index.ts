@@ -69,3 +69,4 @@ export {
   type WarpType,
 } from './stack'
 export { compileStack, type CompiledStack } from './compile'
+export { exportShader, exportShadertoy, exportHtml } from './export'

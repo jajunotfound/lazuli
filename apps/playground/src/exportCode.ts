@@ -1,62 +1,51 @@
-import { diffConfig, toFlat } from 'lazuli-bg'
-import engineSource from 'lazuli-bg/global?raw'
-import { version } from 'lazuli-bg/package.json'
-import type { Config } from './state'
+import { compileStack, configToStack, diffConfig, encodeStack, exportHtml, exportShader, exportShadertoy, stackToConfig, toFlat, type Stack } from 'lazuli-bg'
 
 const PACKAGE = 'lazuli-bg'
 
-/** Only what differs from the defaults and has an effect, so the snippet stays short. */
-function elementTag(c: Config, indent: string): string {
-  const attrs = toFlat(c, 'attr').map(([k, v]) => `${k}="${v}"`)
+/** True when the stack is just one shape the flat settings can say (shorter snippets). */
+function isFlat(s: Stack): boolean {
+  const flat = configToStack(stackToConfig(s))
+  return JSON.stringify(compileStack(flat)) === JSON.stringify(compileStack(s))
+}
+
+/** The element tag: flat attributes for a simple stack, else the whole stack in one attribute. */
+function elementTag(s: Stack, indent: string): string {
+  if (!isFlat(s)) return `${indent}<lazuli-bg stack="${encodeStack(s)}"></lazuli-bg>`
+  const attrs = toFlat(stackToConfig(s), 'attr').map(([k, v]) => `${k}="${v}"`)
   if (attrs.length === 0) return `${indent}<lazuli-bg></lazuli-bg>`
   return `${indent}<lazuli-bg\n${attrs.map((a) => `${indent}  ${a}`).join('\n')}\n${indent}></lazuli-bg>`
 }
 
-const ENGINE_PLACEHOLDER = `/* Lazuli engine (${Math.round(engineSource.length / 1024)} kB), included in full when you copy */`
-
-/**
- * A complete HTML document: the element with the current settings baked in and
- * the engine inlined, so it works offline and needs nothing else.
- * `preview` swaps the minified engine for a one-line note so it stays readable.
- */
-export function htmlFile(c: Config, preview = false): string {
-  // Escape any "</script" so the inlined source can't end the tag early.
-  const inlined = engineSource.trim().replace(/<\/script/gi, '<\\/script')
-  const engine = preview ? ENGINE_PLACEHOLDER : `/*! lazuli-bg ${version} · MIT */\n${inlined}`
-  // <html>, <head> and <body> are optional in HTML, which keeps the settings near the top.
-  return `<!doctype html>
-<!-- Lazuli background (lazuli-bg ${version}): works offline, no dependencies. -->
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Lazuli background</title>
-
-${elementTag(c, '')}
-
-<style>
-  html, body { margin: 0; height: 100%; }
-  /* <lazuli-bg> fills its nearest positioned ancestor, behind content. */
-  body { position: relative; isolation: isolate; }
-</style>
-
-<script>
-${engine}
-</script>
-`
+/** A standalone page: the shader with its settings written in and a small WebGL loop. */
+export function htmlFile(s: Stack): string {
+  return exportHtml(s)
 }
 
-export function elementSnippet(c: Config): string {
+export function elementSnippet(s: Stack): string {
   return `npm install ${PACKAGE}
 
 // In your app's entry file
 import '${PACKAGE}/element'
 
 <!-- In your markup, inside a positioned container -->
-${elementTag(c, '')}
+${elementTag(s, '')}
 `
 }
 
-export function jsSnippet(c: Config): string {
-  const options = toSource(diffConfig(c), '')
+export function jsSnippet(s: Stack): string {
+  if (!isFlat(s)) {
+    return `npm install ${PACKAGE}
+
+import { createLazuli, decodeStack } from '${PACKAGE}'
+
+// Fills the element (give it position: relative) and sits behind its content.
+const background = createLazuli(document.querySelector('#hero'))
+background.setStack(decodeStack('${encodeStack(s)}'))
+
+// Later: background.shuffle(), background.destroy()
+`
+  }
+  const options = toSource(diffConfig(stackToConfig(s)), '')
   return `npm install ${PACKAGE}
 
 import { createLazuli } from '${PACKAGE}'
@@ -67,6 +56,9 @@ const background = createLazuli(document.querySelector('#hero'), ${options})
 // Later: background.set({ … }), background.shuffle(), background.destroy()
 `
 }
+
+export const glslFile = (s: Stack) => exportShader(s)
+export const shadertoyFile = (s: Stack) => exportShadertoy(s)
 
 /** Object literal in JS style: unquoted keys, single quotes, short arrays on one line. */
 function toSource(v: unknown, indent: string): string {

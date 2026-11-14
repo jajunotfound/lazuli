@@ -24,7 +24,11 @@ Read `docs/plans/layer-builder.md` first; it is the plan of record. The user dec
   popover panels deleted.
 - Milestone 5 done: `WARPS` GLSL in compile.ts (`warp_i` per shape, `u_warp_i_j` vec4), `tune` op,
   cursor on a shape (`add cursor` with `parent`; global push off then).
-- Next: Milestone 6 (code export).
+- Dock restored (user: "the side dock was the beauty of lazuli"): Presets + Layers open beside it,
+  Shape/Color/Texture/Background/Motion jump to their layer in the right inspector.
+- Milestone 6 done: `src/export.ts` (exportShader / exportShadertoy / exportHtml), element `stack`
+  attribute, Get code tabs HTML · Web component · JavaScript · GLSL · Shadertoy.
+- Next: Milestone 7 (presets as stacks).
 
 ---
 
