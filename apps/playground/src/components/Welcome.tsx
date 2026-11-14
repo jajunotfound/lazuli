@@ -26,7 +26,7 @@ export function WelcomeCard({ config, onClose }: { config: Config; onClose(): vo
             </button>
           </div>
           <p className="welcome__text">
-            Generate soft, interactive shader backgrounds, then export the code.{' '}
+            Draw soft, living shaders. Take the code anywhere.{' '}
             <span className="welcome__links">
               <a href={AUTHOR_URL} target="_blank" rel="noreferrer">
                 Made by jaju
@@ -81,7 +81,7 @@ function Preview({ config }: { config: Config }) {
   return (
     <div className="welcome__preview">
       <div className="welcome__preview-stage" ref={ref} style={stage} />
-      <p className="welcome__caption">Hover or tap to see it react.</p>
+      <p className="welcome__caption">Move over it.</p>
     </div>
   )
 }

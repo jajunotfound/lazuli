@@ -50,7 +50,7 @@ export function Inspector({ stack, selected, onPatch, onOp, canDo, embedded }: I
         )}
         <div className="inspector__acts">
           {isShape && (
-            <IconAction label="New arrangement (Shift R)" onClick={() => onPatch({ seed: Math.round(Math.random() * 1e8) / 10 })}>
+            <IconAction label="Shuffle (⇧R)" onClick={() => onPatch({ seed: Math.round(Math.random() * 1e8) / 10 })}>
               <path d="M2 4h3.5c1.5 0 2.3.6 3.2 2l1.6 2.6c.9 1.4 1.7 2 3.2 2H14M2 12h3.5c1.5 0 2.3-.6 3.2-2M12 2l2 2-2 2M12 8.6l2 2-2 2" />
             </IconAction>
           )}

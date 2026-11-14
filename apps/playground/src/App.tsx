@@ -283,7 +283,7 @@ export function App() {
       { kind: 'panel', id: 'presets', label: 'Presets', icon: PresetsIcon, content: (
         <div className="panel panel--presets">
           <div className="panel__head">
-            <h2 className="panel__title">Start from a preset</h2>
+            <h2 className="panel__title">Presets</h2>
             <button type="button" className="panel__new" onClick={newCanvas}>
               New canvas
             </button>

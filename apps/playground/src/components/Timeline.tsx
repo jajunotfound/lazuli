@@ -105,8 +105,8 @@ export function Timeline({ stack, selected, engine, live, time, playing, onKeys,
         <span className="timeline__head" ref={head} />
       </div>
       <span className="timeline__t">Loop {loop}s</span>
-      <button type="button" className="timeline__add" onClick={toggleKey} disabled={!sel} title={sel ? (atKey ? 'Remove this keyframe' : `Key ${sel.name} here`) : 'Select a drawn shape to key it'}>
-        {atKey ? 'Remove key' : '◆ Key'}
+      <button type="button" className="timeline__add" onClick={toggleKey} disabled={!sel} title={sel ? (atKey ? 'Remove keyframe' : `Save ${sel.name} at this moment`) : 'Select a shape to animate it'}>
+        {atKey ? 'Remove keyframe' : '◆ Add keyframe'}
       </button>
     </div>
   )

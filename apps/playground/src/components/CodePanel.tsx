@@ -31,7 +31,7 @@ export function CodePanel({ stack, onApply, properties }: CodePanelProps) {
     <aside className="code-panel" aria-label="Code">
       <div className="code-panel__intro">
         <h2 className="code-panel__title">Code</h2>
-        <p className="code-panel__sub">Your canvas, written as a shader. Type to change it.</p>
+        <p className="code-panel__sub">The shader behind your canvas.</p>
       </div>
       <div className="code-panel__tabs">
         <div className="tabs-pill" role="tablist" aria-label="Code panel">
@@ -50,7 +50,7 @@ export function CodePanel({ stack, onApply, properties }: CodePanelProps) {
       </div>
       {tab === 'props' && <div className="code-panel__props">{properties}</div>}
       <div className="code-panel__foot">
-        <span>Edits apply as you type. Alt-drag a number to slide it.</span>
+        <span>Updates live · ⌥ drag a number to scrub</span>
         {tab === 'code' && (
           <button type="button" className="code-panel__copy" onClick={copy}>
             {copied ? <CheckIcon width={14} height={14} /> : <CopyIcon width={14} height={14} />}

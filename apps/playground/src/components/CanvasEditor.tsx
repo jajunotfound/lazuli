@@ -180,7 +180,7 @@ export function CanvasEditor({ stack, moving = [], selected, tool, onSelect, set
       onPointerUp={onUp}
       onPointerLeave={() => setHover(null)}
       onDoubleClick={() => tool === 'pen' && closePen(pen.slice(0, -1))}
-      aria-label="Canvas: draw and edit shapes"
+      aria-label="Canvas"
     >
       {hovered && outline(hovered.geom, 'ce-hover')}
       {sel && tool === 'move' && (

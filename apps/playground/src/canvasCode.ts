@@ -24,24 +24,24 @@ const drawnBackToFront = (s: Stack) => s.shapes.filter((x): x is DrawnLayer => x
 
 export function writeCode(s: Stack): string {
   const back = drawnBackToFront(s)
-  const out = ['// Your canvas as code. Type to change it; Alt-drag a number to slide it.', '']
+  const out: string[] = []
   out.push('float field(vec2 p) {')
   back.forEach((l, i) => {
     const note = `// ${l.name}${l.visible ? '' : ' (hidden)'}`
     out.push(i === 0 ? `  float d = ${shapeCode(l)}; ${note}` : `  d = ${JOIN[l.combine]}(d, ${shapeCode(l)}, ${n(l.melt)}); ${note}`)
   })
-  if (!back.length) out.push('  float d = 1e9; // nothing drawn yet')
+  if (!back.length) out.push('  float d = 1e9; // draw something to begin')
   out.push('  return d;', '}', '')
   out.push('vec4 color(vec2 p) {')
-  out.push(`  return palette(field(p), ${n(back[back.length - 1]?.soft ?? 0.3)}); // softness`)
+  out.push(`  return palette(field(p), ${n(back[back.length - 1]?.soft ?? 0.3)}); // edge softness`)
   out.push('}', '')
   const light = s.color.light ?? { amount: 0, shine: 0.5 }
-  out.push(`light(${n(light.amount)}, ${n(light.shine)}); // 0 = flat color, 1 = chrome; then shine`)
+  out.push(`light(${n(light.amount)}, ${n(light.shine)}); // depth, shine`)
   out.push(`palette(${s.color.settings.palette.join(', ')});`)
   const bg = s.background.settings
   out.push(`background(${bg.type === 'solid' ? bg.color : bg.type === 'gradient' ? bg.gradient.join(', ') : 'none'});`)
   const generated = s.shapes.filter((x) => x.kind === 'shape')
-  if (generated.length) out.push('', `// plus ${generated.map((x) => x.name).join(', ')}: built-in shapes (delete this line to remove them)`)
+  if (generated.length) out.push('', `// + ${generated.map((x) => x.name).join(', ')} from the preset. Delete this line to drop them.`)
   return out.join('\n')
 }
 
@@ -68,7 +68,7 @@ export interface ParsedCode {
   palette?: string[]
   background?: string[] | 'none'
   light?: { amount: number; shine: number }
-  /** Built-in (generated) shapes stay only while the "// plus …" line is in the text. */
+  /** Built-in (generated) shapes stay only while the "// + … from the preset" line is in the text. */
   keepBuiltIn: boolean
 }
 
@@ -109,23 +109,23 @@ function v2(s: string): [number, number] | null {
 /** A shape expression → geometry, or an error message. */
 function readShape(expr: string): { geom: Geometry; source: string } | string {
   const m = /\b(ellipse|box|polygon)\s*\(/.exec(expr)
-  if (!m) return 'Expected ellipse(…), box(…) or polygon(…)'
+  if (!m) return 'Try ellipse(), box() or polygon()'
   const open = m.index + m[0].length - 1
   const body = inside(expr, open)
-  if (body === null) return 'A parenthesis is not closed'
+  if (body === null) return 'Missing a closing parenthesis'
   const args = splitArgs(body).slice(1) // the first argument is the point, p
   const source = expr.slice(m.index, open + body.length + 2)
   if (m[1] === 'ellipse') {
     const [c, r, a] = [v2(args[0] ?? ''), v2(args[1] ?? ''), args[2] === undefined ? 0 : num(args[2])]
     if (!c || !r || a === null) return 'ellipse(p, vec2(x, y), vec2(width, height), turn?)'
     const geom = cleanGeometry({ kind: 'ellipse', x: c[0], y: c[1], rx: r[0], ry: r[1], angle: a })
-    return geom ? { geom, source } : 'That ellipse is out of range'
+    return geom ? { geom, source } : 'That ellipse is too big or too far out'
   }
   if (m[1] === 'box') {
     const [c, h, r, a] = [v2(args[0] ?? ''), v2(args[1] ?? ''), args[2] === undefined ? 0 : num(args[2]), args[3] === undefined ? 0 : num(args[3])]
     if (!c || !h || r === null || a === null) return 'box(p, vec2(x, y), vec2(width, height), corner?, turn?)'
     const geom = cleanGeometry({ kind: 'rect', x: c[0], y: c[1], w: h[0], h: h[1], radius: r, angle: a })
-    return geom ? { geom, source } : 'That box is out of range'
+    return geom ? { geom, source } : 'That box is too big or too far out'
   }
   const pts = args.map(v2)
   if (pts.some((x) => !x)) return 'polygon(p, vec2(x, y), vec2(x, y), …)'
@@ -136,7 +136,7 @@ function readShape(expr: string): { geom: Geometry; source: string } | string {
 const HEX = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i
 
 export function readCode(text: string): { code: ParsedCode } | { error: CodeError } {
-  const code: ParsedCode = { shapes: [], keepBuiltIn: /^\s*\/\/ plus /m.test(text) }
+  const code: ParsedCode = { shapes: [], keepBuiltIn: /^\s*\/\/ \+ /m.test(text) }
   const lines = text.split('\n')
   for (let i = 0; i < lines.length; i++) {
     const raw = lines[i]
@@ -147,7 +147,7 @@ export function readCode(text: string): { code: ParsedCode } | { error: CodeErro
     if (/^float d = 1e9;$/.test(line)) continue
     let m: RegExpExecArray | null
     if ((m = /^float d = (.*);$/.exec(line))) {
-      if (code.shapes.length) return fail('Only the first shape starts with "float d ="; join the rest with melt, cut or intersect')
+      if (code.shapes.length) return fail('Only the first shape uses "float d =". Join the rest with melt, cut or intersect.')
       const s = readShape(m[1])
       if (typeof s === 'string') return fail(s)
       code.shapes.push({ ...s, join: 'merge', melt: 0.5, name: comment.replace(/\s*\(hidden\)$/, '') || undefined, hidden: /\(hidden\)/.test(comment) })
@@ -159,26 +159,26 @@ export function readCode(text: string): { code: ParsedCode } | { error: CodeErro
       const s = readShape(args[1])
       if (typeof s === 'string') return fail(s)
       const melt = num(args[2])
-      if (melt === null || melt < 0 || melt > 1) return fail('The amount is a number from 0 to 1')
-      if (!code.shapes.length) return fail('Start with "float d = shape;" before joining')
+      if (melt === null || melt < 0 || melt > 1) return fail('Use a value from 0 to 1')
+      if (!code.shapes.length) return fail('Add a first shape before joining')
       code.shapes.push({ ...s, join: FROM_JOIN[m[1]], melt, name: comment.replace(/\s*\(hidden\)$/, '') || undefined, hidden: /\(hidden\)/.test(comment) })
       continue
     }
     if ((m = /^return palette\(field\(p\),\s*(.*)\);$/.exec(line))) {
       const soft = num(m[1])
-      if (soft === null || soft < 0 || soft > 1) return fail('Softness is a number from 0 to 1')
+      if (soft === null || soft < 0 || soft > 1) return fail('Use a value from 0 to 1')
       code.soft = soft
       continue
     }
     if ((m = /^light\((.*)\);$/.exec(line))) {
       const [a, b] = splitArgs(m[1]).map(num)
-      if (a === null || a === undefined || a < 0 || a > 1 || (b !== undefined && (b === null || b < 0 || b > 1))) return fail('light(amount, shine): numbers from 0 to 1')
+      if (a === null || a === undefined || a < 0 || a > 1 || (b !== undefined && (b === null || b < 0 || b > 1))) return fail('Use values from 0 to 1')
       code.light = { amount: a, shine: b ?? 0.5 }
       continue
     }
     if ((m = /^palette\((.*)\);$/.exec(line))) {
       const stops = splitArgs(m[1])
-      if (stops.length < 2 || stops.length > 5 || stops.some((c) => !HEX.test(c))) return fail('palette(#hex, #hex, …): 2 to 5 colors')
+      if (stops.length < 2 || stops.length > 5 || stops.some((c) => !HEX.test(c))) return fail('Use 2 to 5 hex colors')
       code.palette = stops.map((c) => c.toLowerCase())
       continue
     }
@@ -186,10 +186,10 @@ export function readCode(text: string): { code: ParsedCode } | { error: CodeErro
       const stops = splitArgs(m[1])
       if (stops.length === 1 && stops[0] === 'none') code.background = 'none'
       else if (stops.length >= 1 && stops.length <= 3 && stops.every((c) => HEX.test(c))) code.background = stops.map((c) => c.toLowerCase())
-      else return fail('background(#hex), background(#hex, #hex) or background(none)')
+      else return fail('Use one or two hex colors, or none')
       continue
     }
-    return fail('Lazuli doesn’t understand this line')
+    return fail('Lazuli can’t read this line')
   }
   return { code }
 }

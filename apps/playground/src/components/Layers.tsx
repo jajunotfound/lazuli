@@ -143,7 +143,7 @@ export function Layers({ stack, selected, onSelect, onOp, canDo, header }: Layer
                   <AddItem label="Ellipse" op={{ op: 'add', layer: 'drawn', geom: { kind: 'ellipse', x: 0, y: 0, rx: 0.16, ry: 0.16, angle: 0 } }} canDo={canDo} onOp={onOp} close={() => setAddOpen(false)} />
                   <AddItem label="Rectangle" op={{ op: 'add', layer: 'drawn', geom: { kind: 'rect', x: 0, y: 0, w: 0.18, h: 0.12, radius: 0.02, angle: 0 } }} canDo={canDo} onOp={onOp} close={() => setAddOpen(false)} />
                 </AddGroup>
-                <AddGroup title="Generated shape">
+                <AddGroup title="Built-in">
                   {SHAPES.map((t) => (
                     <AddItem key={t} label={SHAPE_LABELS[t]} op={{ op: 'add', layer: 'shape', type: t }} canDo={canDo} onOp={onOp} close={() => setAddOpen(false)} />
                   ))}
@@ -153,7 +153,7 @@ export function Layers({ stack, selected, onSelect, onOp, canDo, header }: Layer
                     <AddItem key={t.type} label={t.label} op={{ op: 'add', layer: 'texture', type: t.type }} canDo={canDo} onOp={onOp} close={() => setAddOpen(false)} />
                   ))}
                 </AddGroup>
-                <AddGroup title={selShape ? `Warp on ${findLayer(stack, selShape)?.layer.name}` : 'Warp (select a shape)'}>
+                <AddGroup title={selShape ? `Warp ${findLayer(stack, selShape)?.layer.name}` : 'Warp · select a shape first'}>
                   {WARPS.map((w) => (
                     <AddItem
                       key={w.type}
@@ -164,9 +164,9 @@ export function Layers({ stack, selected, onSelect, onOp, canDo, header }: Layer
                       close={() => setAddOpen(false)}
                     />
                   ))}
-                  <AddItem label="Cursor, this shape only" op={selShape ? { op: 'add', layer: 'cursor', parent: selShape } : null} canDo={canDo} onOp={onOp} close={() => setAddOpen(false)} />
+                  <AddItem label="Cursor on this shape" op={selShape ? { op: 'add', layer: 'cursor', parent: selShape } : null} canDo={canDo} onOp={onOp} close={() => setAddOpen(false)} />
                 </AddGroup>
-                <AddGroup title="Every shape">
+                <AddGroup title="Whole canvas">
                   <AddItem label="Cursor" op={{ op: 'add', layer: 'cursor' }} canDo={canDo} onOp={onOp} close={() => setAddOpen(false)} />
                 </AddGroup>
               </Popover.Content>

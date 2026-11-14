@@ -10,11 +10,11 @@ const TABS = [{ label: 'HTML file' }, { label: 'Web component' }, { label: 'Java
 type Tab = (typeof TABS)[number]['label']
 
 const DESCRIPTIONS: Record<Tab, string> = {
-  'HTML file': 'A standalone page: your shader and a few lines of WebGL. No library.',
-  'Web component': 'Install the package, then use the element anywhere.',
-  JavaScript: 'Install the package and create the background from code.',
-  GLSL: 'The fragment shader with your settings written in. Set time, size and pointer.',
-  Shadertoy: 'Paste into a new shader on shadertoy.com. Drag to push the shapes.',
+  'HTML file': 'One file, no dependencies. Open it anywhere.',
+  'Web component': 'Drop it into any site with one tag.',
+  JavaScript: 'For apps that set things up in code.',
+  GLSL: 'The raw shader, ready for your own renderer.',
+  Shadertoy: 'Paste it into a new Shadertoy.',
 }
 
 interface CodeDialogProps {
@@ -58,7 +58,7 @@ export function CodeDialog({ open, onOpenChange, stack, onMood }: CodeDialogProp
         <Dialog.Content className="code-dialog">
           <div className="code-dialog__head">
             <div>
-              <Dialog.Title className="code-dialog__title">Get code</Dialog.Title>
+              <Dialog.Title className="code-dialog__title">Export</Dialog.Title>
               <Dialog.Description className="code-dialog__desc">{DESCRIPTIONS[tab]}</Dialog.Description>
             </div>
             <Dialog.Close className="code-dialog__close" aria-label="Close">
