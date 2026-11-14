@@ -42,3 +42,30 @@ export { normalizeHex } from './color'
 export { PRESETS, PRESET_IDS, isPreset, type PresetId } from './presets'
 export { LazuliElement, defineLazuliElement, TAG_NAME } from './element'
 export { layoutFromSeed, type Blob } from './layout'
+export {
+  applyOp,
+  configToStack,
+  decodeStack,
+  encodeStack,
+  findLayer,
+  stackKey,
+  stackToConfig,
+  MAX_SHAPES,
+  MAX_TEXTURES,
+  MAX_WARPS_PER_SHAPE,
+  type BackgroundLayer,
+  type ColorLayer,
+  type CombineMode,
+  type CursorWarp,
+  type FieldWarp,
+  type Layer,
+  type ShapeLayer,
+  type Stack,
+  type StackError,
+  type StackOp,
+  type StackResult,
+  type TextureLayer,
+  type WarpLayer,
+  type WarpType,
+} from './stack'
+export { compileStack, type CompiledStack } from './compile'

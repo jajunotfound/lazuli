@@ -6,7 +6,7 @@ Tune colors, shapes, texture, motion and cursor response in the playground, then
 
 ![Lazuli demo](./docs/demo.gif) <!-- TODO: record a demo GIF -->
 
-- **Tiny:** about 5 kB gzipped, zero dependencies, raw WebGL (WebGL2 with a WebGL1 fallback).
+- **Small:** about 19 kB gzipped for the script-tag build, zero dependencies, raw WebGL (WebGL2 with a WebGL1 fallback).
 - **Drop-in:** a `<lazuli-bg>` web component, a JS API, or a single script tag.
 - **Considerate:** pauses offscreen and in hidden tabs, slows down for `prefers-reduced-motion`,
   caps pixel ratio at 2, and falls back to a flat ground color without WebGL.

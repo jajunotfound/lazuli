@@ -134,12 +134,26 @@ Rejected:
   **Groups** come later: each group gets its own Color map, shapes melt inside a group and groups
   stack. Nothing in this pass blocks them.
 
+## Findings
+
+Milestone 2 showed that most shapes aren't one field: Milestone 3 has to pick how shapes combine.
+
+- **Only Blobs are one field colored once.** Waves, Bands, Rings, Dots and Plate color each ribbon
+  or ring and stack them. Combining at the color level (Add, Cut, Intersect by alpha) works for
+  every shape as it is; a liquid Merge needs a field, which only Blobs give without reworking each
+  shape.
+- **What Milestone 2 leaves for later:** shapes stack with plain over-compositing; only the front
+  texture draws; warps on a shape aren't compiled yet; a multi-shape stack reaches `<lazuli-bg>`
+  as one encoded `stack` attribute in Milestone 6.
+- **Size:** the script-tag build grew from 16 to 19 kB gzipped (the stack and compiler).
+
 ## Milestones
 
 1. **Strip.** Remove image/video export, the image source and the frames canvas; one preview.
    Demo: the playground with code-only export. Criteria 1. **Done 2026-11-14.**
 2. **Compiler, one shape.** Stack model, reducer, compiler; today's config converts to a stack and
-   renders the same. Demo: presets look unchanged on the new engine. Criteria 2, 3, 4, 5.
+   renders the same. Demo: presets look unchanged on the new engine. Criteria 2, 3, 4, 5. **Done 2026-11-14:** 56 of
+   56 renders pixel-identical (`tools/regress/compare.mjs`), 36 tests pass.
 3. **Many shapes.** Combine modes, per-layer seeds and uniforms. Demo: two blobs merged with rings
    cut out. Criterion 6.
 4. **Layers panel.** List (add, delete, reorder, hide, duplicate) + inspector. Demo: build a stack

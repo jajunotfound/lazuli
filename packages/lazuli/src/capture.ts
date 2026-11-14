@@ -5,6 +5,7 @@
 import { resolveConfig, type LazuliInput } from './config'
 import type { LazuliInstance } from './engine'
 import { createRenderer } from './renderer'
+import type { Stack } from './stack'
 
 export interface SnapshotOptions {
   /** Output size in pixels. Defaults to the instance's canvas size × `scale`. */
@@ -16,6 +17,8 @@ export interface SnapshotOptions {
   time?: number
   /** Device pixels per CSS pixel the image stands for. Defaults to `scale`. */
   pixelRatio?: number
+  /** Render this layer stack instead of the config (which then only sets the size defaults). */
+  stack?: Stack
 }
 
 /**
@@ -41,13 +44,18 @@ export async function snapshot(source: LazuliInstance | LazuliInput, opts: Snaps
     renderer.destroy()
     throw new Error(`[lazuli] ${width}×${height} is larger than this GPU can render (${max[0]}×${max[1]}).`)
   }
-  renderer.draw({
+  if (opts.stack) renderer.setStack(opts.stack)
+  const drawn = renderer.draw({
     time: opts.time ?? instance?.time ?? 0,
     mouse: [0.5, 0.5],
     vel: [0, 0],
     active: 0,
     dpr: opts.pixelRatio ?? (opts.width ? width / cssW : scale),
   })
+  if (!drawn) {
+    renderer.destroy()
+    throw new Error('[lazuli] The shader could not be built, so the image cannot be rendered.')
+  }
   try {
     return await new Promise<Blob>((resolve, reject) =>
       canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('[lazuli] The image could not be encoded.'))), 'image/png'),

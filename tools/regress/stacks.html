@@ -1,0 +1,80 @@
+<!doctype html>
+<!-- Compiles and renders multi-shape stacks with the current build: every shape type twice (the
+     per-layer renaming), mixed stacks up to four shapes, and a stack with every shape hidden.
+     Run with tools/regress/stacks.mjs. -->
+<meta charset="utf-8" />
+<script type="module">
+  import { snapshot } from '/packages/lazuli/dist/capture.js'
+  import { applyOp, configToStack, resolveConfig } from '/packages/lazuli/dist/lazuli.js'
+
+  const W = 320, H = 200
+  const opts = (stack) => ({ width: W, height: H, pixelRatio: W / 1280, time: 2, stack })
+  const base = (type) => configToStack(resolveConfig({ shape: { type }, texture: { type: 'none' } }))
+  const add = (s, type) => {
+    const r = applyOp(s, { op: 'add', layer: 'shape', type })
+    if (!r.ok) throw new Error(r.error)
+    return r.stack
+  }
+
+  async function pixels(blob) {
+    const bmp = await createImageBitmap(blob)
+    const c = new OffscreenCanvas(bmp.width, bmp.height)
+    const g = c.getContext('2d')
+    g.drawImage(bmp, 0, 0)
+    return g.getImageData(0, 0, bmp.width, bmp.height).data
+  }
+  const differs = (a, b) => a.some((v, i) => Math.abs(v - b[i]) > 2)
+
+  window.done = (async () => {
+    const out = []
+    const run = async (name, check) => {
+      try {
+        const note = await check()
+        out.push({ case: name, ok: note === true, note: note === true ? '' : note })
+      } catch (e) {
+        out.push({ case: name, ok: false, note: String(e.message ?? e) })
+      }
+    }
+
+    // Two of the same type: the second shape must compile and change the image.
+    for (const t of ['blobs', 'waves', 'bands', 'rings', 'dots', 'nodal']) {
+      await run(`twice:${t}`, async () => {
+        const one = base(t)
+        const two = add(one, t)
+        two.shapes[0].seed = 424242
+        const [a, b] = await Promise.all([snapshot({}, opts(one)).then(pixels), snapshot({}, opts(two)).then(pixels)])
+        return differs(a, b) || 'second shape changed nothing'
+      })
+    }
+
+    await run('mixed:blobs+waves', async () => {
+      const s = add(base('blobs'), 'waves')
+      const [a, b] = await Promise.all([snapshot({}, opts(base('blobs'))).then(pixels), snapshot({}, opts(s)).then(pixels)])
+      return differs(a, b) || 'waves changed nothing'
+    })
+
+    await run('mixed:four', async () => {
+      let s = base('blobs')
+      for (const t of ['waves', 'rings', 'nodal']) s = add(s, t)
+      await snapshot({}, opts(s))
+      return s.shapes.length === 4 || `expected 4 shapes, got ${s.shapes.length}`
+    })
+
+    await run('hidden:all', async () => {
+      const s = base('blobs')
+      s.shapes[0].visible = false
+      const p = await snapshot({}, opts(s)).then(pixels)
+      // Background only: plain white.
+      for (let i = 0; i < p.length; i += 4) if (p[i] < 250 || p[i + 1] < 250 || p[i + 2] < 250) return 'pixels other than the background'
+      return true
+    })
+
+    await run('texture:halftone+2 shapes', async () => {
+      const s = add(configToStack(resolveConfig({ texture: { type: 'halftone' } })), 'rings')
+      await snapshot({}, opts(s))
+      return true
+    })
+
+    return out
+  })()
+</script>

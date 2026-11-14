@@ -27,25 +27,26 @@ const flat = (colors: string[], n: number) => {
   return out
 }
 
-/** Layouts are cached per seed (and satellite); they only change on shuffle. */
-let layoutCache: { key: string; packed: ReturnType<typeof packLayout> } | null = null
+/** Layouts are cached per seed (and satellite); they only change on shuffle. A few at once, one per shape layer. */
+const layoutCache = new Map<string, ReturnType<typeof packLayout>>()
 function blobLayout(seed: number, satellite: boolean) {
   const key = `${seed}|${satellite}`
-  if (layoutCache?.key !== key) layoutCache = { key, packed: packLayout(layoutFromSeed(seed, { satellite })) }
-  return layoutCache.packed
+  let packed = layoutCache.get(key)
+  if (!packed) {
+    if (layoutCache.size >= 8) layoutCache.delete(layoutCache.keys().next().value!)
+    packed = packLayout(layoutFromSeed(seed, { satellite }))
+    layoutCache.set(key, packed)
+  }
+  return packed
 }
 
 const deg = (v: number) => (v * Math.PI) / 180
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t
 
-export function toUniforms(c: LazuliConfig): UniformValues {
+/** Uniforms shared by the whole shader: cursor, motion, palette, background, texture. */
+export function globalUniforms(c: LazuliConfig): UniformValues {
   const bg = c.background
   const bgColors = bg.type === 'gradient' ? bg.gradient : [bg.color]
-  const layout = blobLayout(c.seed, c.blobs.satellite)
-  const { waves: w, bands: k, rings: r, dots: o, nodal: n } = c
-  const kSeed = noiseOffsetFromSeed(c.seed)
-  // n = m is blank everywhere; step to the next mode.
-  const nodalM = n.m === n.n ? (n.n < 12 ? n.n + 1 : n.n - 1) : n.m
   const tex = c.texture
   return {
     u_pull: c.cursor.mode === 'off' ? 0 : (c.cursor.mode === 'pull' ? -1 : 1) * (c.cursor.strength / 100),
@@ -87,7 +88,20 @@ export function toUniforms(c: LazuliConfig): UniformValues {
     u_texMatrix: ['bayer4', 'bayer8', 'ign'].indexOf(tex.matrix),
     u_texLevels: tex.levels,
     u_texFibers: tex.fibers / 100,
+  }
+}
 
+/**
+ * Uniforms of the shape chunks (names as the chunks declare them; compile.ts suffixes them per
+ * layer). They depend on the shape settings, the seed and the motion direction.
+ */
+export function shapeUniforms(c: LazuliConfig): UniformValues {
+  const layout = blobLayout(c.seed, c.blobs.satellite)
+  const { waves: w, bands: k, rings: r, dots: o, nodal: n } = c
+  const kSeed = noiseOffsetFromSeed(c.seed)
+  // n = m is blank everywhere; step to the next mode.
+  const nodalM = n.m === n.n ? (n.n < 12 ? n.n + 1 : n.n - 1) : n.m
+  return {
     u_count: c.blobs.count,
     u_size: (c.blobs.size / 100) * SIZE_SCALE,
     u_soft: SOFT_MIN + (c.blobs.softness / 100) * SOFT_SPAN,
@@ -140,6 +154,11 @@ export function toUniforms(c: LazuliConfig): UniformValues {
     u_nScale: n.scale / 100,
     u_nRegions: n.style === 'regions' ? 1 : 0,
   }
+}
+
+/** Every uniform for a one-shape config, under the chunks' own names. */
+export function toUniforms(c: LazuliConfig): UniformValues {
+  return { ...globalUniforms(c), ...shapeUniforms(c) }
 }
 
 /** CSS equivalent of the background, painted behind the canvas until the first frame (and without WebGL). */

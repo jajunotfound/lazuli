@@ -10,7 +10,13 @@ Read `docs/plans/layer-builder.md` first; it is the plan of record. The user dec
   Claude Doc: https://claude.ai/artifact/R4xjCRqqkEja5aeBGtw9WC (keep both in sync).
 - Milestone 1 (Strip) done: one full-screen preview, Get code has HTML / Web component / JS only,
   image source + frames canvas + video recorder removed; `snapshot()` kept for preset thumbnails.
-- Next: Milestone 2 (compiler, one shape).
+- Milestone 2 done: `src/stack.ts` (model, rules, URL encoding, structure key), `src/compile.ts`
+  (per-layer renamed shape chunks, shapes stacked back to front), renderer `setStack`, snapshot
+  `stack` option. Checks: `python3 -m http.server 5398` at the repo root, then
+  `node tools/regress/compare.mjs` (pixel parity vs `tools/regress/ref`, the pre-stack engine) and
+  `node tools/regress/stacks.mjs` (multi-shape stacks compile and draw). `pnpm test` in
+  packages/lazuli.
+- Next: Milestone 3 (many shapes: combine modes). See the plan's Findings first.
 
 ---
 

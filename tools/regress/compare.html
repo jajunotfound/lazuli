@@ -1,0 +1,52 @@
+<!doctype html>
+<!-- Renders every case with the frozen reference engine (tools/regress/ref, the engine before the
+     layer stack) and the current build, at fixed times, and reports the largest per-channel
+     difference. Run with tools/regress/compare.mjs. -->
+<meta charset="utf-8" />
+<script type="module">
+  import { snapshot as refShot } from './ref/capture.js'
+  import { snapshot as curShot } from '/packages/lazuli/dist/capture.js'
+  import { PRESET_IDS, presetConfig } from '/packages/lazuli/dist/lazuli.js'
+
+  const W = 480, H = 300
+  const none = { texture: { type: 'none' } }
+  const cases = [
+    ...PRESET_IDS.map((id) => [`preset:${id}`, presetConfig(id)]),
+    ...['blobs', 'waves', 'bands', 'rings', 'dots', 'nodal'].map((t) => [`shape:${t}`, { shape: { type: t }, ...none }]),
+    ...['grain', 'noise', 'paper', 'halftone', 'dither'].map((t) => [`texture:${t}`, { texture: { type: t, intensity: 80 } }]),
+    ['cycle:blobs', { color: { mapping: 'cycle', palette: ['#ff7a59', '#5b7cfa', '#3cc6a0'] }, ...none }],
+    ['cycle:waves', { shape: { type: 'waves' }, color: { mapping: 'cycle', palette: ['#ff7a59', '#5b7cfa', '#3cc6a0'] }, ...none }],
+    ['steps', { color: { steps: 4, palette: ['#ffd35c', '#ff8a3d', '#e84a5f'] }, ...none }],
+    ['blend:multiply', { color: { blend: 'multiply' }, background: { type: 'gradient', gradient: ['#fff1e0', '#e0f0ff'] }, ...none }],
+    ['bg:radial', { background: { type: 'gradient', kind: 'radial', gradient: ['#ffffff', '#cfe0ff', '#7fa0e0'], centerX: 30, centerY: 60 }, ...none }],
+    ['bg:transparent', { background: { type: 'transparent' }, ...none }],
+    ['loop', { motion: { loop: 6 }, shape: { type: 'rings' }, ...none }],
+    ['seed', { seed: 12345, blobs: { count: 6, stretch: 160, merge: 40 }, ...none }],
+  ]
+
+  async function pixels(blob) {
+    const bmp = await createImageBitmap(blob)
+    const c = new OffscreenCanvas(bmp.width, bmp.height)
+    const g = c.getContext('2d')
+    g.drawImage(bmp, 0, 0)
+    return g.getImageData(0, 0, bmp.width, bmp.height).data
+  }
+
+  window.done = (async () => {
+    const out = []
+    for (const [name, config] of cases) {
+      for (const time of [0, 5]) {
+        const opts = { width: W, height: H, pixelRatio: W / 1280, time }
+        const [a, b] = await Promise.all([refShot(config, opts).then(pixels), curShot(config, opts).then(pixels)])
+        let max = 0, over = 0
+        for (let i = 0; i < a.length; i++) {
+          const d = Math.abs(a[i] - b[i])
+          if (d > max) max = d
+          if (d > 2) over++
+        }
+        out.push({ case: `${name}@${time}`, max, over })
+      }
+    }
+    return out
+  })()
+</script>

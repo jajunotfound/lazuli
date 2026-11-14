@@ -1,9 +1,11 @@
 // The GL side of Lazuli, shared by the live engine and offline snapshots (thumbnails):
 // one context, a cache of compiled shader variants, and uniform upload by name.
 
+import { stackFragment, stackUniforms } from './compile'
 import type { LazuliConfig } from './schema'
-import { fragmentShader, variantKey, VERTEX_SHADER } from './shader'
-import { toUniforms, type UniformValue, type UniformValues } from './uniforms'
+import { VERTEX_SHADER } from './shader'
+import { configToStack, stackKey, type Stack } from './stack'
+import type { UniformValue, UniformValues } from './uniforms'
 
 type GL = WebGLRenderingContext | WebGL2RenderingContext
 
@@ -21,6 +23,8 @@ export interface Renderer {
   readonly gl: GL
   /** Apply a config: recompute uniforms, and start compiling its shader variant if needed. */
   setConfig(config: LazuliConfig): void
+  /** Apply a layer stack. The program is cached by the stack's structure; values only re-upload. */
+  setStack(stack: Stack): void
   /** Draw one frame at the canvas's current buffer size. Returns false if no program is ready yet. */
   draw(frame: FrameState): boolean
   /** True while the wanted variant is still compiling (the previous one keeps drawing). */
@@ -127,9 +131,12 @@ export function createRenderer(canvas: HTMLCanvasElement | OffscreenCanvas, conf
   const renderer: Renderer = {
     gl,
     setConfig(c) {
-      values = toUniforms(c)
-      const key = variantKey(c.shape.type, c.texture.type)
-      const p = cache.get(key) ?? build(key, fragmentShader(c.shape.type, c.texture.type))
+      renderer.setStack(configToStack(c))
+    },
+    setStack(stack) {
+      values = stackUniforms(stack)
+      const key = stackKey(stack)
+      const p = cache.get(key) ?? build(key, stackFragment(stack))
       wanted = p
       if (finish(p)) use(p)
       else if (current) upload(current, values)

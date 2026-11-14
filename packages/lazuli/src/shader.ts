@@ -620,20 +620,17 @@ void main() {
 }
 `
 
-const SHAPES: Record<ShapeType, string> = {
-  blobs: BLOBS,
-  waves: SHAPE_COMMON + WAVES,
-  bands: SHAPE_COMMON + BANDS,
-  rings: SHAPE_COMMON + RINGS,
-  dots: SHAPE_COMMON + DOTS,
-  nodal: SHAPE_COMMON + NODAL,
-}
+/** Each shape's own chunk. Shapes other than blobs also need SHAPE_COMMON, included once. */
+export const SHAPE_CHUNKS: Record<ShapeType, string> = { blobs: BLOBS, waves: WAVES, bands: BANDS, rings: RINGS, dots: DOTS, nodal: NODAL }
+export const NEEDS_COMMON: Record<ShapeType, boolean> = { blobs: false, waves: true, bands: true, rings: true, dots: true, nodal: true }
+export { SHAPE_COMMON }
+
 const TEXTURES: Record<TextureType, string> = { none: '', grain: GRAIN, noise: NOISE, paper: PAPER, dither: DITHER, halftone: HALFTONE }
 
-export function variantKey(shape: ShapeType, texture: TextureType): string {
-  return `${shape}|${texture}`
-}
-
-export function fragmentShader(shape: ShapeType, texture: TextureType): string {
-  return [HEADER, PALETTE, SHAPES[shape], PATTERN, TEXTURES[texture], MAIN].join('\n')
+/**
+ * A whole fragment shader around generated shape code. `shapes` must define
+ * `vec4 shapeColor(vec2 p, float t)`; compile.ts writes it from a stack.
+ */
+export function assembleShader(shapes: string, texture: TextureType): string {
+  return [HEADER, PALETTE, shapes, PATTERN, TEXTURES[texture], MAIN].join('\n')
 }

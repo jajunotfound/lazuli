@@ -1,0 +1,354 @@
+// The layer stack: what a Lazuli shader is built from. A stack compiles to one fragment shader
+// (compile.ts). Its shape is fixed so illegal stacks can't be written down: Textures in front,
+// then the one Color map, the optional stack-wide Cursor, the Shapes (each with its own Warps),
+// and the Background last. Lists are frontmost first, like a Figma layers panel.
+//
+// Today's flat config (schema.ts) is still the public API: configToStack / stackToConfig
+// convert between the two, and every config is a one-shape stack.
+
+import { cloneConfig, DEFAULT_CONFIG, type CursorMode, type LazuliConfig, type ShapeType, type TextureType } from './schema'
+
+export type ShapeSettings = Pick<LazuliConfig, 'blobs' | 'waves' | 'bands' | 'rings' | 'dots' | 'nodal'>
+export type CombineMode = 'merge' | 'add' | 'cut' | 'intersect'
+export type WarpType = 'cursor' | 'swirl' | 'noise' | 'ripple'
+export type ScreenTexture = 'halftone' | 'dither'
+
+interface LayerBase {
+  id: string
+  name: string
+  visible: boolean
+}
+
+export interface ShapeLayer extends LayerBase {
+  kind: 'shape'
+  type: ShapeType
+  /** Layout seed for this shape. */
+  seed: number
+  /** How this shape combines with the shapes below it (milestone 3). */
+  combine: CombineMode
+  /** Settings for every shape type, so switching type and back restores them. */
+  settings: ShapeSettings
+  /** Front first. At most MAX_WARPS_PER_SHAPE. */
+  warps: WarpLayer[]
+}
+
+export interface CursorWarp extends LayerBase {
+  kind: 'warp'
+  type: 'cursor'
+  mode: Exclude<CursorMode, 'off'>
+  strength: number
+  radius: number
+  smear: number
+  follow: number
+}
+
+export interface FieldWarp extends LayerBase {
+  kind: 'warp'
+  type: Exclude<WarpType, 'cursor'>
+  strength: number
+  size: number
+}
+
+export type WarpLayer = CursorWarp | FieldWarp
+
+export interface TextureLayer extends LayerBase {
+  kind: 'texture'
+  settings: LazuliConfig['texture'] & { type: Exclude<TextureType, 'none'> }
+}
+
+export interface ColorLayer extends LayerBase {
+  kind: 'color'
+  settings: LazuliConfig['color']
+}
+
+export interface BackgroundLayer extends LayerBase {
+  kind: 'background'
+  settings: LazuliConfig['background']
+}
+
+export type Layer = ShapeLayer | WarpLayer | TextureLayer | ColorLayer | BackgroundLayer
+
+export interface Stack {
+  /** Front first. At most MAX_TEXTURES, at most one screen texture (halftone, dither). */
+  textures: TextureLayer[]
+  color: ColorLayer
+  /** The stack-wide pointer warp: moves every shape. */
+  cursor: CursorWarp | null
+  /** Front first. 1 to MAX_SHAPES. */
+  shapes: ShapeLayer[]
+  background: BackgroundLayer
+  motion: LazuliConfig['motion']
+  quality: LazuliConfig['quality']
+}
+
+export const MAX_SHAPES = 4
+export const MAX_TEXTURES = 3
+export const MAX_WARPS_PER_SHAPE = 2
+export const SCREEN_TEXTURES: readonly TextureType[] = ['halftone', 'dither']
+
+const clone = <T>(v: T): T => structuredClone(v)
+
+// ---- config ⇄ stack ---------------------------------------------------------
+
+const SHAPE_KEYS = ['blobs', 'waves', 'bands', 'rings', 'dots', 'nodal'] as const
+
+const LABELS: Record<ShapeType, string> = { blobs: 'Blobs', waves: 'Waves', bands: 'Bands', rings: 'Rings', dots: 'Dots', nodal: 'Plate' }
+const TEXTURE_LABELS: Record<TextureType, string> = { none: 'None', grain: 'Grain', noise: 'Noise', paper: 'Paper', halftone: 'Halftone', dither: 'Dither' }
+
+/** A config is a one-shape stack. Ids are fixed, so the same config gives the same stack. */
+export function configToStack(c: Readonly<LazuliConfig>): Stack {
+  const settings = Object.fromEntries(SHAPE_KEYS.map((k) => [k, clone(c[k])])) as ShapeSettings
+  const t = c.texture
+  return {
+    textures: t.type === 'none' ? [] : [{ id: 'texture-1', kind: 'texture', name: TEXTURE_LABELS[t.type], visible: true, settings: clone(t) as TextureLayer['settings'] }],
+    color: { id: 'color', kind: 'color', name: 'Color map', visible: true, settings: clone(c.color) },
+    cursor:
+      c.cursor.mode === 'off'
+        ? null
+        : { id: 'cursor', kind: 'warp', type: 'cursor', name: 'Cursor', visible: true, mode: c.cursor.mode, strength: c.cursor.strength, radius: c.cursor.radius, smear: c.cursor.smear, follow: c.cursor.follow },
+    shapes: [{ id: 'shape-1', kind: 'shape', type: c.shape.type, name: LABELS[c.shape.type], visible: true, seed: c.seed, combine: 'merge', settings, warps: [] }],
+    background: { id: 'background', kind: 'background', name: 'Background', visible: true, settings: clone(c.background) },
+    motion: clone(c.motion),
+    quality: c.quality,
+  }
+}
+
+/**
+ * The config a stack would be if it had one shape: its front visible shape, front visible
+ * texture and visible cursor. Used where the flat config is still the API (attributes, URL,
+ * code export) until those learn stacks.
+ */
+export function stackToConfig(s: Readonly<Stack>): LazuliConfig {
+  const c = cloneConfig(DEFAULT_CONFIG)
+  const shape = s.shapes.find((x) => x.visible) ?? s.shapes[0]
+  for (const k of SHAPE_KEYS) (c as unknown as Record<string, unknown>)[k] = clone(shape.settings[k])
+  c.shape = { type: shape.type }
+  c.seed = shape.seed
+  const tex = s.textures.find((x) => x.visible)
+  c.texture = tex ? clone(tex.settings) : { ...c.texture, type: 'none' }
+  c.color = clone(s.color.settings)
+  const cur = s.cursor?.visible ? s.cursor : null
+  c.cursor = cur ? { mode: cur.mode, strength: cur.strength, radius: cur.radius, smear: cur.smear, follow: cur.follow } : { ...c.cursor, mode: 'off' }
+  c.background = clone(s.background.settings)
+  c.motion = clone(s.motion)
+  c.quality = s.quality
+  return c
+}
+
+// ---- structure key ------------------------------------------------------------
+
+/**
+ * What decides the shader program: which shapes and textures are drawn, in order. Values
+ * (sliders, colors, seeds) never change it, so editing them only re-uploads uniforms.
+ */
+export function stackKey(s: Readonly<Stack>): string {
+  const shapes = s.shapes.filter((x) => x.visible).map((x) => x.type)
+  const tex = s.textures.find((x) => x.visible)?.settings.type ?? 'none'
+  return `${shapes.join(',')}|${tex}`
+}
+
+// ---- operations ---------------------------------------------------------------
+
+export type StackOp =
+  | { op: 'add'; layer: 'shape'; type: ShapeType; index?: number }
+  | { op: 'add'; layer: 'texture'; type: Exclude<TextureType, 'none'>; index?: number }
+  | { op: 'add'; layer: 'warp'; type: Exclude<WarpType, 'cursor'>; parent: string; index?: number }
+  | { op: 'add'; layer: 'cursor' }
+  | { op: 'delete'; id: string }
+  | { op: 'move'; id: string; index: number }
+  | { op: 'hide'; id: string; visible: boolean }
+  | { op: 'duplicate'; id: string }
+
+export type StackError =
+  | 'not_found'
+  | 'shape_limit'
+  | 'texture_limit'
+  | 'screen_limit'
+  | 'warp_limit'
+  | 'cursor_limit'
+  | 'last_shape'
+  | 'required_layer'
+  | 'fixed_layer'
+  | 'bad_index'
+  | 'cannot_hide'
+  | 'cannot_duplicate'
+
+export type StackResult = { ok: true; stack: Stack } | { ok: false; error: StackError }
+
+const fail = (error: StackError): StackResult => ({ ok: false, error })
+
+/** Where a layer sits: which list holds it (and the shape that owns it, for a warp). */
+type Place =
+  | { list: 'textures'; index: number }
+  | { list: 'shapes'; index: number }
+  | { list: 'warps'; index: number; shape: number }
+  | { list: 'color' }
+  | { list: 'cursor' }
+  | { list: 'background' }
+
+export function findLayer(s: Readonly<Stack>, id: string): { layer: Layer; place: Place } | null {
+  if (s.color.id === id) return { layer: s.color, place: { list: 'color' } }
+  if (s.background.id === id) return { layer: s.background, place: { list: 'background' } }
+  if (s.cursor?.id === id) return { layer: s.cursor, place: { list: 'cursor' } }
+  const t = s.textures.findIndex((x) => x.id === id)
+  if (t >= 0) return { layer: s.textures[t], place: { list: 'textures', index: t } }
+  for (let i = 0; i < s.shapes.length; i++) {
+    if (s.shapes[i].id === id) return { layer: s.shapes[i], place: { list: 'shapes', index: i } }
+    const w = s.shapes[i].warps.findIndex((x) => x.id === id)
+    if (w >= 0) return { layer: s.shapes[i].warps[w], place: { list: 'warps', index: w, shape: i } }
+  }
+  return null
+}
+
+function allIds(s: Readonly<Stack>): Set<string> {
+  const ids = new Set([s.color.id, s.background.id, ...s.textures.map((x) => x.id)])
+  if (s.cursor) ids.add(s.cursor.id)
+  for (const sh of s.shapes) {
+    ids.add(sh.id)
+    for (const w of sh.warps) ids.add(w.id)
+  }
+  return ids
+}
+
+/** The next free id like `shape-3`. */
+function nextId(s: Readonly<Stack>, prefix: string): string {
+  const ids = allIds(s)
+  let n = 1
+  while (ids.has(`${prefix}-${n}`)) n++
+  return `${prefix}-${n}`
+}
+
+const screens = (s: Readonly<Stack>) => s.textures.filter((x) => SCREEN_TEXTURES.includes(x.settings.type)).length
+
+function insertAt<T>(list: T[], item: T, index = 0): boolean {
+  if (index < 0 || index > list.length || !Number.isInteger(index)) return false
+  list.splice(index, 0, item)
+  return true
+}
+
+/**
+ * Apply one operation. Returns a new stack, or the rule it breaks; the input is never changed.
+ * Rules: shapes 1–4; textures 0–3 with at most one screen texture; warps 0–2 per shape and one
+ * cursor per stack; the Color map and Background can't be deleted, moved or hidden; layers
+ * reorder only among their own kind (a warp within its shape).
+ */
+export function applyOp(input: Readonly<Stack>, op: StackOp): StackResult {
+  const s = clone(input) as Stack
+  switch (op.op) {
+    case 'add': {
+      if (op.layer === 'shape') {
+        if (s.shapes.length >= MAX_SHAPES) return fail('shape_limit')
+        const base = s.shapes[0]
+        const settings = Object.fromEntries(SHAPE_KEYS.map((k) => [k, clone(DEFAULT_CONFIG[k])])) as ShapeSettings
+        const id = nextId(s, 'shape')
+        const layer: ShapeLayer = { id, kind: 'shape', type: op.type, name: LABELS[op.type], visible: true, seed: base ? base.seed + s.shapes.length * 7919 : DEFAULT_CONFIG.seed, combine: 'merge', settings, warps: [] }
+        return insertAt(s.shapes, layer, op.index) ? { ok: true, stack: s } : fail('bad_index')
+      }
+      if (op.layer === 'texture') {
+        if (s.textures.length >= MAX_TEXTURES) return fail('texture_limit')
+        if (SCREEN_TEXTURES.includes(op.type) && screens(s) >= 1) return fail('screen_limit')
+        const layer: TextureLayer = { id: nextId(s, 'texture'), kind: 'texture', name: TEXTURE_LABELS[op.type], visible: true, settings: { ...clone(DEFAULT_CONFIG.texture), type: op.type } }
+        return insertAt(s.textures, layer, op.index) ? { ok: true, stack: s } : fail('bad_index')
+      }
+      if (op.layer === 'cursor') {
+        if (s.cursor) return fail('cursor_limit')
+        const d = DEFAULT_CONFIG.cursor
+        s.cursor = { id: nextId(s, 'cursor'), kind: 'warp', type: 'cursor', name: 'Cursor', visible: true, mode: d.mode === 'off' ? 'push' : d.mode, strength: d.strength, radius: d.radius, smear: d.smear, follow: d.follow }
+        return { ok: true, stack: s }
+      }
+      const parent = s.shapes.find((x) => x.id === op.parent)
+      if (!parent) return fail('not_found')
+      if (parent.warps.length >= MAX_WARPS_PER_SHAPE) return fail('warp_limit')
+      const warp: FieldWarp = { id: nextId(s, 'warp'), kind: 'warp', type: op.type, name: op.type[0].toUpperCase() + op.type.slice(1), visible: true, strength: 50, size: 50 }
+      return insertAt(parent.warps, warp, op.index) ? { ok: true, stack: s } : fail('bad_index')
+    }
+
+    case 'delete': {
+      const found = findLayer(s, op.id)
+      if (!found) return fail('not_found')
+      const p = found.place
+      if (p.list === 'color' || p.list === 'background') return fail('required_layer')
+      if (p.list === 'shapes') {
+        if (s.shapes.length <= 1) return fail('last_shape')
+        s.shapes.splice(p.index, 1)
+      } else if (p.list === 'textures') s.textures.splice(p.index, 1)
+      else if (p.list === 'warps') s.shapes[p.shape].warps.splice(p.index, 1)
+      else s.cursor = null
+      return { ok: true, stack: s }
+    }
+
+    case 'move': {
+      const found = findLayer(s, op.id)
+      if (!found) return fail('not_found')
+      const p = found.place
+      const list = p.list === 'shapes' ? s.shapes : p.list === 'textures' ? s.textures : p.list === 'warps' ? s.shapes[p.shape].warps : null
+      if (!list || !('index' in p)) return fail('fixed_layer')
+      if (!Number.isInteger(op.index) || op.index < 0 || op.index >= list.length) return fail('bad_index')
+      const [item] = list.splice(p.index, 1)
+      ;(list as Layer[]).splice(op.index, 0, item)
+      return { ok: true, stack: s }
+    }
+
+    case 'hide': {
+      const found = findLayer(s, op.id)
+      if (!found) return fail('not_found')
+      if (found.place.list === 'color' || found.place.list === 'background') return fail('cannot_hide')
+      found.layer.visible = op.visible
+      return { ok: true, stack: s }
+    }
+
+    case 'duplicate': {
+      const found = findLayer(s, op.id)
+      if (!found) return fail('not_found')
+      const p = found.place
+      if (p.list === 'shapes') {
+        if (s.shapes.length >= MAX_SHAPES) return fail('shape_limit')
+        const src = s.shapes[p.index]
+        const copy: ShapeLayer = { ...clone(src), id: nextId(s, 'shape'), name: `${src.name} copy` }
+        const taken = allIds(s)
+        taken.add(copy.id)
+        copy.warps = copy.warps.map((w) => {
+          let n = 1
+          while (taken.has(`warp-${n}`)) n++
+          taken.add(`warp-${n}`)
+          return { ...w, id: `warp-${n}` }
+        })
+        s.shapes.splice(p.index, 0, copy)
+        return { ok: true, stack: s }
+      }
+      if (p.list === 'warps') {
+        const shape = s.shapes[p.shape]
+        if (shape.warps.length >= MAX_WARPS_PER_SHAPE) return fail('warp_limit')
+        const src = shape.warps[p.index]
+        if (src.type === 'cursor') return fail('cursor_limit')
+        shape.warps.splice(p.index, 0, { ...clone(src), id: nextId(s, 'warp'), name: `${src.name} copy` })
+        return { ok: true, stack: s }
+      }
+      if (p.list === 'cursor') return fail('cursor_limit')
+      return fail('cannot_duplicate')
+    }
+  }
+}
+
+// ---- URL / attribute encoding --------------------------------------------------
+
+/** A stack as a URL-safe string (base64url of its JSON). */
+export function encodeStack(s: Readonly<Stack>): string {
+  const bytes = new TextEncoder().encode(JSON.stringify({ v: 1, ...s }))
+  let bin = ''
+  for (const b of bytes) bin += String.fromCharCode(b)
+  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+}
+
+/** The stack from encodeStack, or null if the string isn't one. */
+export function decodeStack(text: string): Stack | null {
+  try {
+    const bin = atob(text.replace(/-/g, '+').replace(/_/g, '/'))
+    const json = JSON.parse(new TextDecoder().decode(Uint8Array.from(bin, (ch) => ch.charCodeAt(0))))
+    if (json?.v !== 1 || !Array.isArray(json.shapes) || !json.shapes.length || !json.color || !json.background) return null
+    const { v: _v, ...stack } = json
+    return stack as Stack
+  } catch {
+    return null
+  }
+}
