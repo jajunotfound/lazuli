@@ -127,7 +127,7 @@ export function stackToConfig(s: Readonly<Stack>): LazuliConfig {
   const tex = s.textures.find((x) => x.visible)
   c.texture = tex ? clone(tex.settings) : { ...c.texture, type: 'none' }
   c.color = clone(s.color.settings)
-  const cur = s.cursor?.visible ? s.cursor : null
+  const cur = s.cursor?.visible ? s.cursor : shapeCursor(s)
   c.cursor = cur ? { mode: cur.mode, strength: cur.strength, radius: cur.radius, smear: cur.smear, follow: cur.follow } : { ...c.cursor, mode: 'off' }
   c.background = clone(s.background.settings)
   c.motion = clone(s.motion)
@@ -144,7 +144,12 @@ export function stackToConfig(s: Readonly<Stack>): LazuliConfig {
  */
 export function stackKey(s: Readonly<Stack>): string {
   // The backmost shape's combine mode has nothing below it, so it doesn't count.
-  const shapes = s.shapes.filter((x) => x.visible).map((x, i, all) => (i < all.length - 1 ? `${x.type}:${x.combine}` : x.type))
+  const shapes = s.shapes
+    .filter((x) => x.visible)
+    .map((x, i, all) => {
+      const warps = x.warps.filter((w) => w.visible).map((w) => w.type)
+      return `${x.type}${i < all.length - 1 ? `:${x.combine}` : ''}${warps.length ? `[${warps.join('+')}]` : ''}`
+    })
   const tex = s.textures.find((x) => x.visible)?.settings.type ?? 'none'
   return `${shapes.join(',')}|${tex}`
 }
@@ -155,13 +160,14 @@ export type StackOp =
   | { op: 'add'; layer: 'shape'; type: ShapeType; index?: number }
   | { op: 'add'; layer: 'texture'; type: Exclude<TextureType, 'none'>; index?: number }
   | { op: 'add'; layer: 'warp'; type: Exclude<WarpType, 'cursor'>; parent: string; index?: number }
-  | { op: 'add'; layer: 'cursor' }
+  | { op: 'add'; layer: 'cursor'; parent?: string }
   | { op: 'delete'; id: string }
   | { op: 'move'; id: string; index: number }
   | { op: 'hide'; id: string; visible: boolean }
   | { op: 'duplicate'; id: string }
   | { op: 'combine'; id: string; combine: CombineMode }
   | { op: 'rename'; id: string; name: string }
+  | { op: 'tune'; id: string; strength?: number; size?: number }
 
 export type StackError =
   | 'not_found'
@@ -224,6 +230,21 @@ function nextId(s: Readonly<Stack>, prefix: string): string {
   return `${prefix}-${n}`
 }
 
+/** A stack has at most one cursor: stack-wide, or on one shape. */
+export function hasCursor(s: Readonly<Stack>): boolean {
+  return !!s.cursor || s.shapes.some((x) => x.warps.some((w) => w.type === 'cursor'))
+}
+
+/** The visible cursor on a shape, if the stack-wide one isn't in use. */
+export function shapeCursor(s: Readonly<Stack>): CursorWarp | null {
+  for (const x of s.shapes) {
+    if (!x.visible) continue
+    const w = x.warps.find((w): w is CursorWarp => w.type === 'cursor' && w.visible)
+    if (w) return w
+  }
+  return null
+}
+
 const screens = (s: Readonly<Stack>) => s.textures.filter((x) => SCREEN_TEXTURES.includes(x.settings.type)).length
 
 function insertAt<T>(list: T[], item: T, index = 0): boolean {
@@ -257,9 +278,18 @@ export function applyOp(input: Readonly<Stack>, op: StackOp): StackResult {
         return insertAt(s.textures, layer, op.index) ? { ok: true, stack: s } : fail('bad_index')
       }
       if (op.layer === 'cursor') {
-        if (s.cursor) return fail('cursor_limit')
+        if (hasCursor(s)) return fail('cursor_limit')
         const d = DEFAULT_CONFIG.cursor
-        s.cursor = { id: nextId(s, 'cursor'), kind: 'warp', type: 'cursor', name: 'Cursor', visible: true, mode: d.mode === 'off' ? 'push' : d.mode, strength: d.strength, radius: d.radius, smear: d.smear, follow: d.follow }
+        const cursor: CursorWarp = { id: nextId(s, 'cursor'), kind: 'warp', type: 'cursor', name: 'Cursor', visible: true, mode: d.mode === 'off' ? 'push' : d.mode, strength: d.strength, radius: d.radius, smear: d.smear, follow: d.follow }
+        if (op.parent === undefined) {
+          s.cursor = cursor
+          return { ok: true, stack: s }
+        }
+        // On one shape: only that shape follows the pointer.
+        const shape = s.shapes.find((x) => x.id === op.parent)
+        if (!shape) return fail('not_found')
+        if (shape.warps.length >= MAX_WARPS_PER_SHAPE) return fail('warp_limit')
+        shape.warps.unshift(cursor)
         return { ok: true, stack: s }
       }
       const parent = s.shapes.find((x) => x.id === op.parent)
@@ -313,7 +343,8 @@ export function applyOp(input: Readonly<Stack>, op: StackOp): StackResult {
         const copy: ShapeLayer = { ...clone(src), id: nextId(s, 'shape'), name: `${src.name} copy` }
         const taken = allIds(s)
         taken.add(copy.id)
-        copy.warps = copy.warps.map((w) => {
+        // One cursor per stack: the copy doesn't take it.
+        copy.warps = copy.warps.filter((w) => w.type !== 'cursor').map((w) => {
           let n = 1
           while (taken.has(`warp-${n}`)) n++
           taken.add(`warp-${n}`)
@@ -339,6 +370,17 @@ export function applyOp(input: Readonly<Stack>, op: StackOp): StackResult {
       if (!found) return fail('not_found')
       if (found.layer.kind !== 'shape') return fail('wrong_kind')
       found.layer.combine = op.combine
+      return { ok: true, stack: s }
+    }
+
+    case 'tune': {
+      const found = findLayer(s, op.id)
+      if (!found) return fail('not_found')
+      const l = found.layer
+      if (l.kind !== 'warp' || l.type === 'cursor') return fail('wrong_kind')
+      const clamp = (v: number) => Math.min(100, Math.max(0, v))
+      if (op.strength !== undefined && Number.isFinite(op.strength)) l.strength = clamp(op.strength)
+      if (op.size !== undefined && Number.isFinite(op.size)) l.size = clamp(op.size)
       return { ok: true, stack: s }
     }
 

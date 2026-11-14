@@ -160,6 +160,9 @@ export function Layers({ stack, selected, onSelect, onOp, canDo, header }: Layer
                       close={() => setAddOpen(false)}
                     />
                   ))}
+                  <AddItem label="Cursor, this shape only" op={selShape ? { op: 'add', layer: 'cursor', parent: selShape } : null} canDo={canDo} onOp={onOp} close={() => setAddOpen(false)} />
+                </AddGroup>
+                <AddGroup title="Every shape">
                   <AddItem label="Cursor" op={{ op: 'add', layer: 'cursor' }} canDo={canDo} onOp={onOp} close={() => setAddOpen(false)} />
                 </AddGroup>
               </Popover.Content>

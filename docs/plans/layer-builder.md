@@ -162,7 +162,9 @@ Milestone 2 showed that most shapes aren't one field: Milestone 3 has to pick ho
    by hand. Criterion 8. **Done 2026-11-14:** layers list (add menu
    greys out what the rules forbid, drag or Alt+↑/↓ to reorder, hide, duplicate, delete, rename),
    Figma-style inspector, undo/redo, stack in the URL (`?s=`).
-5. **Warps.** Swirl, Noise, Ripple; Cursor moves into the stack. Demo: swirl on one shape only.
+5. **Warps.** Swirl, Noise, Ripple; Cursor moves into the stack. Demo: swirl on one shape only. **Done 2026-11-14:** Swirl, Noise, Ripple
+   per shape (loop seamlessly); the cursor can sit on one shape. 4 shapes + 2 warps + grain: 6.1 ms
+   at 1920×1080 on the M1 (criterion 6).
 6. **Export.** Standalone GLSL, Shadertoy, HTML, `<lazuli-bg>` stack. Demo: paste into Shadertoy.
    Criterion 7.
 7. **Presets as stacks.** Rebuild the nine presets; freeze them.

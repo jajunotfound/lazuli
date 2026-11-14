@@ -256,3 +256,43 @@ test('combine and rename', () => {
   assert.equal(err(s, { op: 'rename', id: 'shape-1', name: '   ' }), 'bad_name')
   assert.equal(err(s, { op: 'rename', id: 'nope', name: 'x' }), 'not_found')
 })
+
+// ---- warps (milestone 5) ------------------------------------------------------
+
+test('warps compile per shape with their own settings', () => {
+  let s = ok(base(), { op: 'add', layer: 'warp', type: 'swirl', parent: 'shape-1' })
+  s = ok(s, { op: 'add', layer: 'warp', type: 'ripple', parent: 'shape-1' })
+  s = ok(s, { op: 'tune', id: 'warp-1', strength: 80, size: 20 })
+  const { fragment, uniforms } = compileStack(s)
+  assert.ok(fragment.includes('vec2 warp_0(vec2 p, float t)'))
+  assert.ok(fragment.includes('shapeColor_0(warp_0(p, t), t)'))
+  // Backmost warp first: the ripple (added second, front) bends last.
+  assert.ok(fragment.indexOf('swirlWarp(p, u_warp_0_1') < fragment.indexOf('rippleWarp(p, u_warp_0_0'))
+  assert.equal((uniforms.u_warp_0_1 as number[])[0], 0.8 * 6)
+  assert.equal(stackKey(s), 'blobs[ripple+swirl]|grain')
+  const hidden = ok(s, { op: 'hide', id: 'warp-1', visible: false })
+  assert.equal(stackKey(hidden), 'blobs[ripple]|grain')
+})
+
+test('tune clamps and only applies to field warps', () => {
+  const s = ok(base(), { op: 'add', layer: 'warp', type: 'noise', parent: 'shape-1' })
+  const t = ok(s, { op: 'tune', id: 'warp-1', strength: 140, size: -5 })
+  const w = t.shapes[0].warps[0] as import('../src/stack').FieldWarp
+  assert.deepEqual([w.strength, w.size], [100, 0])
+  assert.equal(err(s, { op: 'tune', id: 'shape-1', strength: 10 }), 'wrong_kind')
+  assert.equal(err(s, { op: 'tune', id: 'cursor', strength: 10 }), 'wrong_kind')
+})
+
+test('a cursor on one shape: one cursor per stack, and only that shape follows the pointer', () => {
+  const noCursor = ok(ok(base(), { op: 'delete', id: 'cursor' }), { op: 'add', layer: 'shape', type: 'waves' })
+  const s = ok(noCursor, { op: 'add', layer: 'cursor', parent: 'shape-1' })
+  assert.equal(s.shapes[1].warps[0].type, 'cursor')
+  assert.equal(err(s, { op: 'add', layer: 'cursor' }), 'cursor_limit')
+  assert.equal(err(s, { op: 'duplicate', id: 'cursor-1' }), 'cursor_limit')
+  const dup = ok(s, { op: 'duplicate', id: 'shape-1' })
+  assert.equal(dup.shapes.flatMap((x) => x.warps).filter((w) => w.type === 'cursor').length, 1, 'a copied shape leaves the cursor behind')
+  const u = stackUniforms(s)
+  assert.equal(u.u_pull, 0, 'no stack-wide push')
+  assert.ok((u.u_warp_1_0 as number[])[0] > 0, 'the shape’s own push')
+  assert.equal(stackToConfig(s).cursor.follow, 50, 'the engine still follows the pointer')
+})

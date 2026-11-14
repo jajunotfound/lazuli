@@ -108,6 +108,49 @@
       return differs(a, b) || 'merged blobs look like stacked blobs'
     })
 
+    // Warps: each one bends its shape; they loop seamlessly; a cursor can live on one shape.
+    const warped = (type, strength = 70) => {
+      const r = applyOp(base('waves'), { op: 'add', layer: 'warp', type, parent: 'shape-1' })
+      if (!r.ok) throw new Error(r.error)
+      const t = applyOp(r.stack, { op: 'tune', id: 'warp-1', strength })
+      if (!t.ok) throw new Error(t.error)
+      return t.stack
+    }
+    const plain = await shot(base('waves'))
+    for (const type of ['swirl', 'noise', 'ripple']) {
+      await run(`warp:${type} bends`, async () => differs(await shot(warped(type)), plain) || `${type} changed nothing`)
+      await run(`warp:${type} loops`, async () => {
+        const s = warped(type)
+        s.motion = { ...s.motion, loop: 6, speed: 0.5 }
+        const period = 6 * 0.5
+        const [a, b] = await Promise.all([snapshot({}, { ...opts(s), time: 0 }).then(pixels), snapshot({}, { ...opts(s), time: period }).then(pixels)])
+        let max = 0
+        for (let i = 0; i < a.length; i++) max = Math.max(max, Math.abs(a[i] - b[i]))
+        return max <= 2 || `seam ${max}/255`
+      })
+    }
+    await run('warp:cursor on a shape', async () => {
+      let s = base('blobs')
+      for (const op of [{ op: 'delete', id: 'cursor' }, { op: 'add', layer: 'shape', type: 'rings' }, { op: 'add', layer: 'cursor', parent: 'shape-1' }]) {
+        const r = applyOp(s, op)
+        if (!r.ok) throw new Error(r.error)
+        s = r.stack
+      }
+      await shot(s)
+      return true
+    })
+    await run('warp:two per shape, four shapes', async () => {
+      let s = base('blobs')
+      for (const t of ['waves', 'rings', 'nodal']) s = add(s, t)
+      for (const [id, type] of [['shape-1', 'swirl'], ['shape-1', 'noise'], ['shape-2', 'ripple'], ['shape-3', 'swirl']]) {
+        const r = applyOp(s, { op: 'add', layer: 'warp', type, parent: id })
+        if (!r.ok) throw new Error(r.error)
+        s = r.stack
+      }
+      await shot(s)
+      return true
+    })
+
     return out
   })()
 </script>

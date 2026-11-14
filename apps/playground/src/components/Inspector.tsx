@@ -79,7 +79,12 @@ export function Inspector({ stack, selected, onPatch, onOp, canDo, actions }: In
         {paths.map((p) => (
           <Field key={p} path={p} view={view} set={onPatch} />
         ))}
-        {layer !== 'scene' && layer.kind === 'warp' && layer.type !== 'cursor' && <p className="inspector__note">Warp settings arrive with warps.</p>}
+        {layer !== 'scene' && layer.kind === 'warp' && layer.type !== 'cursor' && (
+          <>
+            <NumberField label="Strength" value={layer.strength} min={0} max={100} step={1} format={(v) => String(Math.round(v))} onChange={(v) => onOp({ op: 'tune', id: selected, strength: v })} />
+            <NumberField label="Size" value={layer.size} min={0} max={100} step={1} format={(v) => String(Math.round(v))} onChange={(v) => onOp({ op: 'tune', id: selected, size: v })} />
+          </>
+        )}
       </div>
     </aside>
   )

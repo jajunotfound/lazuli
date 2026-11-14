@@ -132,7 +132,7 @@ export function App() {
         setMood('oops', 1600)
         return
       }
-      commit(r.stack)
+      commit(r.stack, op.op === 'tune' ? `tune:${op.id}:${op.strength === undefined ? 'size' : 'strength'}` : null)
       // Select what was just made.
       if (op.op === 'add' || op.op === 'duplicate') {
         const before = new Set(JSON.stringify(stack).match(/"id":"[^"]+"/g))

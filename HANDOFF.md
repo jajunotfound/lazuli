@@ -22,7 +22,9 @@ Read `docs/plans/layer-builder.md` first; it is the plan of record. The user dec
 - Milestone 4 done: playground state is a Stack (`App.tsx` with undo history), `Layers.tsx`,
   `Inspector.tsx` (compact fields), `layerEdit.ts` (layer ⇄ schema controls). Old toolbar and
   popover panels deleted.
-- Next: Milestone 5 (warps).
+- Milestone 5 done: `WARPS` GLSL in compile.ts (`warp_i` per shape, `u_warp_i_j` vec4), `tune` op,
+  cursor on a shape (`add cursor` with `parent`; global push off then).
+- Next: Milestone 6 (code export).
 
 ---
 
