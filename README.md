@@ -3,7 +3,7 @@
 Soft, animated shader backgrounds for the web. Lazuli renders fluid blobs, ribbons, bands, rings,
 dot grids and Chladni plate patterns with a WebGL fragment shader. They drift, merge like liquid
 and bend around the cursor. Tune shape, color, texture, background, motion and cursor in the
-playground, then export code, a PNG or a video.
+playground, then export the code.
 
 ![Lazuli demo](./docs/demo.gif) <!-- TODO: record a demo GIF -->
 
@@ -77,19 +77,16 @@ bg.destroy() // removes listeners, observers and the GL context
 `element` is a `<canvas>`). Resizing is handled with a `ResizeObserver`, so it works in any
 container, not just full-screen.
 
-### Images and video
+### A still frame
 
 ```js
-import { snapshot, record } from 'lazuli-bg/capture'
+import { snapshot } from 'lazuli-bg/capture'
 
 const png = await snapshot(bg, { scale: 2 }) // Blob, the current frame
-const mp4 = await record(bg, { width: 1920, height: 1080, fps: 30, format: 'mp4' }) // or 'webm'
 ```
 
-Both render offline on their own context at a fixed time step, so the live background isn't
-disturbed and video never drops frames. Set `motion.loop` (seconds) and `record` produces whole,
-seamless loops. Video needs WebCodecs (Chrome 94+, Safari 16.4+, Firefox 130+). A transparent
-background stays transparent in PNGs and renders over black in video.
+It renders offline on its own context, so the live background isn't disturbed. A transparent
+background stays transparent.
 
 ## Parameters
 

@@ -8,7 +8,9 @@ Read `docs/plans/layer-builder.md` first; it is the plan of record. The user dec
 - The trimmed-panel work is parked, unfinished, on local branch `wip-trim-panel` (62984d9).
 - Decided: Cursor is a Warp layer; one Color map per stack, Groups later. Plan doc also lives as a
   Claude Doc: https://claude.ai/artifact/R4xjCRqqkEja5aeBGtw9WC (keep both in sync).
-- Next: Milestone 1 (Strip).
+- Milestone 1 (Strip) done: one full-screen preview, Get code has HTML / Web component / JS only,
+  image source + frames canvas + video recorder removed; `snapshot()` kept for preset thumbnails.
+- Next: Milestone 2 (compiler, one shape).
 
 ---
 

@@ -49,7 +49,7 @@ own.
 | `schema.ts` | Parameter table. Its per-shape groups become per-layer-kind parameter tables. |
 | `tools/regress` | Pixel diff against references; used to prove the compiler matches today's engine. |
 | `packages/lazuli/test` | `node --test` for config logic; stack reducer and compiler tests go here. |
-| `src/capture.ts`, `src/mux/` | PNG / MP4 / WebM. Deleted. |
+| `src/capture.ts`, `src/mux/` | MP4 / WebM recorder and muxers deleted; the PNG `snapshot()` stays for thumbnails. |
 | `apps/playground` | `Frames`, `FramePanel`, image source, the Image and Video tabs in `CodeDialog`: removed. Schema-driven `Control` rows: replaced by the inspector. |
 
 ## Domain model
@@ -116,8 +116,9 @@ Rejected:
 
 ## Assumptions
 
-- **A1** Image and video export are removed from the npm package too (`capture.ts`, `mux/`), not just
-  hidden in the playground. Nothing outside this repo uses them (never published to npm).
+- **A1** Video export is removed from the npm package too (`record`, `mux/`), and image export is gone
+  from the UI. The still renderer `snapshot()` stays in `lazuli-bg/capture` to draw preset thumbnails
+  (and layer previews later). Changed during Milestone 1.
 - **A2** The frames canvas goes; the mascot and welcome stay as they are.
 - **A3** Four shapes is enough for v1, and it keeps the fragment uniform count inside WebGL1's
   limits on low-end phones.
@@ -136,7 +137,7 @@ Rejected:
 ## Milestones
 
 1. **Strip.** Remove image/video export, the image source and the frames canvas; one preview.
-   Demo: the playground with code-only export. Criteria 1.
+   Demo: the playground with code-only export. Criteria 1. **Done 2026-11-14.**
 2. **Compiler, one shape.** Stack model, reducer, compiler; today's config converts to a stack and
    renders the same. Demo: presets look unchanged on the new engine. Criteria 2, 3, 4, 5.
 3. **Many shapes.** Combine modes, per-layer seeds and uniforms. Demo: two blobs merged with rings

@@ -620,27 +620,7 @@ void main() {
 }
 `
 
-// An image as the source (setImage): its darkness is the field the palette maps onto, so the
-// highlights take the background, the mid-tones the first stop and the shadows the deepest one.
-// Cover-fit like CSS object-fit: cover; softness blurs through the mipmaps.
-const IMAGE = /* glsl */ `
-uniform sampler2D u_img; uniform float u_imgAspect; uniform float u_imgSoft;
-
-vec4 shapeColor(vec2 p, float t) {
-  float aspect = u_res.x / u_res.y;
-  vec2 uv = vec2(p.x / aspect, p.y);
-  vec2 fit = aspect > u_imgAspect ? vec2(1.0, u_imgAspect / aspect) : vec2(aspect / u_imgAspect, 1.0);
-  uv = clamp((uv - 0.5) * fit + 0.5, 0.0, 1.0);
-  vec3 c = texture2D(u_img, uv, u_imgSoft).rgb;
-  float d = 1.0 - dot(c, vec3(0.2126, 0.7152, 0.0722));
-  return shade(smoothstep(0.04, 0.4, d), (d - 0.25) / 0.6);
-}
-`
-
-export type SourceType = ShapeType | 'image'
-
-const SHAPES: Record<SourceType, string> = {
-  image: IMAGE,
+const SHAPES: Record<ShapeType, string> = {
   blobs: BLOBS,
   waves: SHAPE_COMMON + WAVES,
   bands: SHAPE_COMMON + BANDS,
@@ -650,10 +630,10 @@ const SHAPES: Record<SourceType, string> = {
 }
 const TEXTURES: Record<TextureType, string> = { none: '', grain: GRAIN, noise: NOISE, paper: PAPER, dither: DITHER, halftone: HALFTONE }
 
-export function variantKey(shape: SourceType, texture: TextureType): string {
+export function variantKey(shape: ShapeType, texture: TextureType): string {
   return `${shape}|${texture}`
 }
 
-export function fragmentShader(shape: SourceType, texture: TextureType): string {
+export function fragmentShader(shape: ShapeType, texture: TextureType): string {
   return [HEADER, PALETTE, SHAPES[shape], PATTERN, TEXTURES[texture], MAIN].join('\n')
 }
