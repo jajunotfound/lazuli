@@ -247,3 +247,12 @@ test('combine modes change the program; the backmost shape’s does not', () => 
   back.shapes[1].combine = 'cut'
   assert.equal(stackKey(back), stackKey(s))
 })
+
+test('combine and rename', () => {
+  const s = base()
+  assert.equal(ok(s, { op: 'combine', id: 'shape-1', combine: 'cut' }).shapes[0].combine, 'cut')
+  assert.equal(err(s, { op: 'combine', id: 'color', combine: 'cut' }), 'wrong_kind')
+  assert.equal(ok(s, { op: 'rename', id: 'shape-1', name: '  Hero blob ' }).shapes[0].name, 'Hero blob')
+  assert.equal(err(s, { op: 'rename', id: 'shape-1', name: '   ' }), 'bad_name')
+  assert.equal(err(s, { op: 'rename', id: 'nope', name: 'x' }), 'not_found')
+})

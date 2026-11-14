@@ -1,38 +1,43 @@
+import * as Popover from '@radix-ui/react-popover'
 import * as Tooltip from '@radix-ui/react-tooltip'
-import { createLazuli, presetConfig, randomSeed, resolveConfig, type LazuliInstance, type PresetId } from 'lazuli-bg'
+import { applyOp, configToStack, createLazuli, findLayer, presetConfig, stackToConfig, type LazuliInput, type LazuliInstance, type PresetId, type Stack, type StackOp } from 'lazuli-bg'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { CodeDialog } from './components/CodeDialog'
 import { Entrance } from './components/Entrance'
+import { Inspector } from './components/Inspector'
+import { Layers } from './components/Layers'
 import type { Mood } from './components/Mascot'
-import { PresetsPanel } from './components/PresetsPanel'
-import { CursorPanel, MotionPanel, SchemaPanel } from './components/panels'
-import { Toolbar, type ToolbarItem } from './components/Toolbar'
+import { PresetGrid } from './components/PresetsPanel'
 import { AboutButton, WelcomeCard } from './components/Welcome'
-import { BackgroundIcon, CodeIcon, ColorsIcon, CursorIcon, HideIcon, MotionIcon, PresetsIcon, ShapesIcon, ShowIcon, TextureIcon } from './icons'
-import {
-  hasSeenWelcome,
-  markMet,
-  markWelcomeSeen,
-  readUrlState,
-  sectionDefaults,
-  shouldMeet,
-  writeUrlState,
-  type Config,
-  type PanelId,
-  type Patch,
-  type SectionId,
-} from './state'
+import { CodeIcon, HideIcon, PresetsIcon, ShowIcon } from './icons'
+import { patchLayer, SCENE_ID } from './layerEdit'
+import { hasSeenWelcome, markMet, markWelcomeSeen, readUrlStack, shouldMeet, writeUrlStack } from './state'
 import { useMediaQuery } from './useMediaQuery'
 
-// One shader, one full-screen preview. The toolbar edits it; Get code exports it.
+interface History {
+  past: Stack[]
+  present: Stack
+  future: Stack[]
+  /** Edits with the same tag in quick succession (a slider drag) are one undo step. */
+  tag: string | null
+  at: number
+}
+
+const MERGE_MS = 600
+const MAX_UNDO = 100
+
+// One shader built from a layer stack: layers on the left, the selected layer on the right,
+// the live preview filling the screen behind both.
 export function App() {
-  const [initial] = useState(readUrlState)
-  const [config, setConfig] = useState<Config>(initial.config)
+  const [initial] = useState(readUrlStack)
+  const [hist, setHist] = useState<History>(() => ({ past: [], present: initial.stack, future: [], tag: null, at: 0 }))
+  const stack = hist.present
   const [preset, setPreset] = useState<PresetId | null>(initial.preset)
+  const [selected, setSelected] = useState<string>(() => initial.stack.shapes[0].id)
 
   const [stage, setStage] = useState<HTMLDivElement | null>(null)
   const engine = useRef<LazuliInstance | null>(null)
-  const [openPanel, setOpenPanel] = useState<PanelId | null>(null)
+  const [presetsOpen, setPresetsOpen] = useState(false)
   const [codeOpen, setCodeOpen] = useState(false)
   const [meeting, setMeeting] = useState(shouldMeet)
   const [revealed, setRevealed] = useState(() => !meeting)
@@ -41,23 +46,38 @@ export function App() {
   // Reduced-motion users get a near-still pattern until they pick a speed themselves.
   const [speedTouched, setSpeedTouched] = useState(false)
 
-  const compact = useMediaQuery('(max-width: 640px)')
   const reducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)')
-  const coarse = useMediaQuery('(pointer: coarse)')
+  const config = useMemo(() => stackToConfig(stack), [stack])
+
+  // ---- history -----------------------------------------------------------
+  const commit = useCallback((next: Stack, tag: string | null = null) => {
+    setHist((h) => {
+      const now = performance.now()
+      const merge = tag !== null && tag === h.tag && now - h.at < MERGE_MS
+      return { past: merge ? h.past : [...h.past, h.present].slice(-MAX_UNDO), present: next, future: [], tag, at: now }
+    })
+  }, [])
+  const undo = useCallback(() => setHist((h) => (h.past.length ? { past: h.past.slice(0, -1), present: h.past[h.past.length - 1], future: [h.present, ...h.future], tag: null, at: 0 } : h)), [])
+  const redo = useCallback(() => setHist((h) => (h.future.length ? { past: [...h.past, h.present], present: h.future[0], future: h.future.slice(1), tag: null, at: 0 } : h)), [])
+
+  // Keep the selection on a layer that exists (undo can remove it).
+  useEffect(() => {
+    if (selected === SCENE_ID) return
+    const ids = new Set([stack.color.id, stack.background.id, stack.cursor?.id, ...stack.textures.map((t) => t.id), ...stack.shapes.flatMap((s) => [s.id, ...s.warps.map((w) => w.id)])])
+    if (!ids.has(selected)) setSelected(stack.shapes[0].id)
+  }, [stack, selected])
 
   // ---- engine ------------------------------------------------------------
-  const live = useCallback(
-    (c: Config): Config => (speedTouched ? { ...c, motion: { ...c.motion, reducedMotion: 'ignore' } } : c),
-    [speedTouched],
-  )
+  const live = useCallback((s: Stack): Stack => (speedTouched ? { ...s, motion: { ...s.motion, reducedMotion: 'ignore' } } : s), [speedTouched])
   const liveRef = useRef(live)
   liveRef.current = live
-  const configRef = useRef(config)
-  configRef.current = config
+  const stackRef = useRef(stack)
+  stackRef.current = stack
 
   useEffect(() => {
     if (!stage) return
-    const e = createLazuli(stage, liveRef.current(configRef.current))
+    const e = createLazuli(stage, stackToConfig(stackRef.current))
+    e.setStack(liveRef.current(stackRef.current))
     engine.current = e
     return () => {
       e.destroy()
@@ -66,8 +86,13 @@ export function App() {
   }, [stage])
 
   useEffect(() => {
-    engine.current?.set(live(config))
-  }, [config, live])
+    engine.current?.setStack(live(stack))
+  }, [stack, live])
+
+  useEffect(() => {
+    const t = setTimeout(() => writeUrlStack(stack, preset), 250)
+    return () => clearTimeout(t)
+  }, [stack, preset])
 
   // ---- Lazuli's mood (the corner mascot) ---------------------------------
   const [mood, setMoodState] = useState<Mood>('look')
@@ -77,7 +102,6 @@ export function App() {
     setMoodState(m ?? 'look')
     if (m && ms) moodTimer.current = setTimeout(() => setMoodState('look'), ms)
   }, [])
-  // Nodding off after a minute without input; the next move startles it awake.
   useEffect(() => {
     let sleepy = false
     let t = setTimeout(() => ((sleepy = true), setMood('sleepy')), 60_000)
@@ -98,92 +122,116 @@ export function App() {
     }
   }, [setMood])
 
-  // ---- URL ---------------------------------------------------------------
-  useEffect(() => {
-    const t = setTimeout(() => writeUrlState(config, preset), 200)
-    return () => clearTimeout(t)
-  }, [config, preset])
+  // ---- editing -----------------------------------------------------------
+  const canDo = useCallback((op: StackOp) => applyOp(stack, op).ok, [stack])
 
-  // ---- look actions ------------------------------------------------------
-  const set = useCallback((patch: Patch) => {
-    if (patch.motion?.speed !== undefined) setSpeedTouched(true)
-    setConfig((c) => resolveConfig(patch, c))
-  }, [])
+  const onOp = useCallback(
+    (op: StackOp) => {
+      const r = applyOp(stack, op)
+      if (!r.ok) {
+        setMood('oops', 1600)
+        return
+      }
+      commit(r.stack)
+      // Select what was just made.
+      if (op.op === 'add' || op.op === 'duplicate') {
+        const before = new Set(JSON.stringify(stack).match(/"id":"[^"]+"/g))
+        const made = JSON.stringify(r.stack).match(/"id":"[^"]+"/g)?.find((m) => !before.has(m))
+        if (made) setSelected(made.slice(6, -1))
+      }
+    },
+    [stack, commit, setMood],
+  )
 
-  const pickPreset = useCallback((id: PresetId) => {
-    setPreset(id)
-    setConfig(presetConfig(id))
-  }, [])
+  const onPatch = useCallback(
+    (patch: LazuliInput) => {
+      if (selected === SCENE_ID && patch.motion?.speed !== undefined) setSpeedTouched(true)
+      commit(patchLayer(stack, selected, patch), `patch:${selected}:${Object.keys(patch).join()}`)
+    },
+    [stack, selected, commit],
+  )
+
+  const pickPreset = useCallback(
+    (id: PresetId) => {
+      const next = configToStack(presetConfig(id))
+      setPreset(id)
+      commit(next)
+      setSelected(next.shapes[0].id)
+      setPresetsOpen(false)
+    },
+    [commit],
+  )
 
   const shuffle = useCallback(() => {
-    setConfig((c) => resolveConfig({ seed: randomSeed() }, c))
+    const seed = Math.round(Math.random() * 1e8) / 10
+    const sel = stack.shapes.find((s) => s.id === selected)
+    commit({ ...stack, shapes: stack.shapes.map((s, i) => (!sel || s === sel ? { ...s, seed: seed + i * 7919 } : s)) })
     setMood('surprised', 1100)
-  }, [setMood])
+  }, [stack, selected, commit, setMood])
 
   const closeWelcome = useCallback(() => {
     setWelcomeOpen(false)
     markWelcomeSeen()
   }, [])
 
-  const toggleControls = useCallback(() => {
-    setOpenPanel(null)
-    setControlsHidden((h) => !h)
-  }, [])
+  const toggleControls = useCallback(() => setControlsHidden((h) => !h), [])
 
   // ---- keyboard ----------------------------------------------------------
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.metaKey || e.ctrlKey || e.altKey || e.defaultPrevented || meeting) return
+      if (e.defaultPrevented || meeting) return
       const t = e.target as HTMLElement
-      if (t.isContentEditable || t.tagName === 'INPUT' || t.tagName === 'TEXTAREA') return
-      if (e.key === 'Escape' && welcomeOpen && !openPanel && !codeOpen) {
-        closeWelcome()
+      const typing = t.isContentEditable || t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT'
+      const mod = e.metaKey || e.ctrlKey
+      if (mod && e.key.toLowerCase() === 'z' && !typing) {
+        e.preventDefault()
+        if (e.shiftKey) redo()
+        else undo()
         return
       }
-      if (codeOpen) return
+      if (e.altKey && !mod && !typing && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+        // Move the selected layer up or down within its own group (shapes, textures, warps).
+        const place = findLayer(stack, selected)?.place
+        if (place && 'index' in place) {
+          e.preventDefault()
+          const op: StackOp = { op: 'move', id: selected, index: place.index + (e.key === 'ArrowUp' ? -1 : 1) }
+          if (canDo(op)) onOp(op)
+        }
+        return
+      }
+      if (mod || e.altKey || typing || codeOpen) return
+      if (e.key === 'Escape' && welcomeOpen) return closeWelcome()
+      if ((e.key === 'Delete' || e.key === 'Backspace') && canDo({ op: 'delete', id: selected })) {
+        e.preventDefault()
+        return onOp({ op: 'delete', id: selected })
+      }
       const key = e.key.toLowerCase()
       if (key === 'r') shuffle()
       else if (key === 'h') toggleControls()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [meeting, welcomeOpen, openPanel, codeOpen, closeWelcome, shuffle, toggleControls])
-
-  // ---- toolbar -----------------------------------------------------------
-  const base = preset ? presetConfig(preset) : undefined
-  const panelProps = (id: SectionId) => ({ config, set, compact, reset: () => set(sectionDefaults(id, base)) })
-
-  const groups: ToolbarItem[][] = useMemo(
-    () => [
-      [
-        { kind: 'panel', id: 'presets', label: 'Presets', icon: PresetsIcon, content: <PresetsPanel config={config} preset={preset} onPick={pickPreset} /> },
-        { kind: 'panel', id: 'colors', label: 'Colors', icon: ColorsIcon, content: <SchemaPanel id="colors" {...panelProps('colors')} /> },
-        { kind: 'panel', id: 'shapes', label: 'Shapes', icon: ShapesIcon, content: <SchemaPanel id="shapes" {...panelProps('shapes')} /> },
-        { kind: 'panel', id: 'texture', label: 'Texture', icon: TextureIcon, content: <SchemaPanel id="texture" {...panelProps('texture')} /> },
-        { kind: 'panel', id: 'background', label: 'Background', icon: BackgroundIcon, content: <SchemaPanel id="background" {...panelProps('background')} /> },
-      ],
-      [
-        { kind: 'panel', id: 'motion', label: 'Motion', icon: MotionIcon, content: <MotionPanel {...panelProps('motion')} /> },
-        {
-          kind: 'panel',
-          id: 'cursor',
-          label: 'Cursor',
-          icon: CursorIcon,
-          keepOpenOnCanvas: true,
-          content: <CursorPanel {...panelProps('cursor')} touch={coarse} />,
-        },
-      ],
-      [
-        { kind: 'action', id: 'code', label: 'Get code', icon: CodeIcon, onClick: () => setCodeOpen(true) },
-        { kind: 'action', id: 'hide', label: 'Hide controls', icon: HideIcon, onClick: toggleControls, shortcut: 'H' },
-      ],
-    ],
-    // panelProps closes over config, set and compact, all listed.
-    [config, preset, set, pickPreset, compact, coarse, toggleControls],
-  )
+  }, [meeting, welcomeOpen, codeOpen, closeWelcome, shuffle, toggleControls, undo, redo, canDo, onOp, selected, stack])
 
   // Where the entrance sinks: the middle of the screen, measured once.
   const [meetTarget] = useState(() => ({ x: 0, y: 0, w: innerWidth, h: innerHeight }))
+  const panels = !controlsHidden && !meeting
+
+  const presetsButton = (
+    <Popover.Root open={presetsOpen} onOpenChange={setPresetsOpen}>
+      <Popover.Trigger className="icon-action" aria-label="Presets" title="Presets">
+        <PresetsIcon width={16} height={16} />
+      </Popover.Trigger>
+      <Popover.Portal>
+        <Popover.Content className="popover panel panel--presets" side="right" align="start" sideOffset={12} collisionPadding={12}>
+          <div className="panel__head">
+            <h2 className="panel__title">Start from a preset</h2>
+          </div>
+          <PresetGrid config={config} preset={preset} onPick={pickPreset} />
+        </Popover.Content>
+      </Popover.Portal>
+    </Popover.Root>
+  )
 
   return (
     <Tooltip.Provider delayDuration={300} skipDelayDuration={200}>
@@ -197,18 +245,32 @@ export function App() {
         aria-hidden="true"
       />
 
-      <Toolbar
-        groups={groups}
-        open={openPanel}
-        setOpen={setOpenPanel}
-        compact={compact}
-        magnify={!reducedMotion && !coarse}
-        hidden={controlsHidden || meeting}
-        canvas={stage}
-      />
+      {panels && (
+        <>
+          <Layers stack={stack} selected={selected} onSelect={setSelected} onOp={onOp} canDo={canDo} header={presetsButton} />
+          <Inspector
+            stack={stack}
+            selected={selected}
+            onPatch={onPatch}
+            onOp={onOp}
+            canDo={canDo}
+            actions={
+              <>
+                <button type="button" className="icon-action" onClick={toggleControls} aria-label="Hide panels (H)" title="Hide panels (H)">
+                  <HideIcon width={16} height={16} />
+                </button>
+                <button type="button" className="button-primary" onClick={() => setCodeOpen(true)}>
+                  <CodeIcon width={14} height={14} />
+                  Get code
+                </button>
+              </>
+            }
+          />
+        </>
+      )}
 
       {controlsHidden && (
-        <button type="button" className="show-controls" onClick={toggleControls} aria-label="Show controls" aria-keyshortcuts="H">
+        <button type="button" className="show-controls" onClick={toggleControls} aria-label="Show panels" aria-keyshortcuts="H">
           <ShowIcon width={16} height={16} />
         </button>
       )}

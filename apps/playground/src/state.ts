@@ -1,4 +1,8 @@
 import {
+  configToStack,
+  decodeStack,
+  encodeStack,
+  type Stack,
   DEFAULT_CONFIG,
   fromFlat,
   getPath,
@@ -104,6 +108,24 @@ export function toQuery(c: Config, preset: PresetId | null): string {
   const q = new URLSearchParams([...(preset ? [['p', preset]] : []), ...toFlat(c, 'url', { base })])
   const s = q.toString()
   return s ? `?${s}` : ''
+}
+
+/** The stack in the URL (`?s=…`), else old-style settings as a one-shape stack. */
+export function readUrlStack(): { stack: Stack; preset: PresetId | null } {
+  const q = new URLSearchParams(location.search)
+  const s = q.get('s')
+  const decoded = s ? decodeStack(s) : null
+  const p = q.get('p')
+  const preset = isPreset(p) ? p : null
+  if (decoded) return { stack: decoded, preset }
+  const { config, preset: fromConfig } = readUrlState()
+  return { stack: configToStack(config), preset: fromConfig }
+}
+
+export function writeUrlStack(stack: Stack, preset: PresetId | null) {
+  const q = new URLSearchParams([...(preset ? [['p', preset]] : []), ['s', encodeStack(stack)]])
+  const next = `${location.pathname}?${q}${location.hash}`
+  if (next !== `${location.pathname}${location.search}${location.hash}`) history.replaceState(null, '', next)
 }
 
 export function writeUrlState(c: Config, preset: PresetId | null) {

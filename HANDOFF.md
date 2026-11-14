@@ -19,7 +19,10 @@ Read `docs/plans/layer-builder.md` first; it is the plan of record. The user dec
 - Milestone 3 done: combine modes (compile.ts `shapeGroups`, `COMBINE`), Blobs split into
   `blobsField` + `blobsShade`, engine `setStack()` / `stack`. Bench: `pnpm dev:engine` (or vite on
   5399) then `GPU=1 node tools/visual-fit/shoot.mjs 'http://localhost:5399/bench.html?timing&w=1920&h=1080' …`.
-- Next: Milestone 4 (layers panel).
+- Milestone 4 done: playground state is a Stack (`App.tsx` with undo history), `Layers.tsx`,
+  `Inspector.tsx` (compact fields), `layerEdit.ts` (layer ⇄ schema controls). Old toolbar and
+  popover panels deleted.
+- Next: Milestone 5 (warps).
 
 ---
 

@@ -160,6 +160,8 @@ export type StackOp =
   | { op: 'move'; id: string; index: number }
   | { op: 'hide'; id: string; visible: boolean }
   | { op: 'duplicate'; id: string }
+  | { op: 'combine'; id: string; combine: CombineMode }
+  | { op: 'rename'; id: string; name: string }
 
 export type StackError =
   | 'not_found'
@@ -174,6 +176,8 @@ export type StackError =
   | 'bad_index'
   | 'cannot_hide'
   | 'cannot_duplicate'
+  | 'wrong_kind'
+  | 'bad_name'
 
 export type StackResult = { ok: true; stack: Stack } | { ok: false; error: StackError }
 
@@ -328,6 +332,23 @@ export function applyOp(input: Readonly<Stack>, op: StackOp): StackResult {
       }
       if (p.list === 'cursor') return fail('cursor_limit')
       return fail('cannot_duplicate')
+    }
+
+    case 'combine': {
+      const found = findLayer(s, op.id)
+      if (!found) return fail('not_found')
+      if (found.layer.kind !== 'shape') return fail('wrong_kind')
+      found.layer.combine = op.combine
+      return { ok: true, stack: s }
+    }
+
+    case 'rename': {
+      const found = findLayer(s, op.id)
+      if (!found) return fail('not_found')
+      const name = op.name.trim()
+      if (!name || name.length > 60) return fail('bad_name')
+      found.layer.name = name
+      return { ok: true, stack: s }
     }
   }
 }
