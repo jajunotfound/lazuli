@@ -1514,8 +1514,8 @@ button {
   margin: 0;
   padding-right: 8px;
   color: var(--ink-80);
-  font-size: 12px;
-  line-height: 18px;
+  font-size: 14px;
+  line-height: 20px;
   letter-spacing: var(--tracking-tight);
 }
 
@@ -1561,22 +1561,6 @@ button {
   position: absolute;
 }
 
-.welcome__caption {
-  position: absolute;
-  z-index: 1;
-  left: 0;
-  right: 0;
-  bottom: 22px;
-  margin: 0;
-  color: #fffffff2;
-  font-size: 12px;
-  font-weight: 500;
-  line-height: 16px;
-  letter-spacing: var(--tracking-tight);
-  text-align: center;
-  text-shadow: 0 1px 2px #0000002e;
-  pointer-events: none;
-}
 
 .about-button {
   position: fixed;

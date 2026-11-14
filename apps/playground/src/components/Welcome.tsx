@@ -81,7 +81,6 @@ function Preview({ config }: { config: Config }) {
   return (
     <div className="welcome__preview">
       <div className="welcome__preview-stage" ref={ref} style={stage} />
-      <p className="welcome__caption">Move over it.</p>
     </div>
   )
 }
