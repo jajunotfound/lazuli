@@ -18,6 +18,10 @@ Earlier plan: `docs/plans/draw-builder.md` (all milestones built).
 - Textures apply to the shapes: new grain/noise/paper default to "only the shapes"; lit drawn shapes
   report their real coverage to dither/halftone; dither never lights a dot without coverage.
 - The light handle is a quiet ring, shown only while the Colour map is selected.
+- Demo for recordings: open the app with `?demo`, press Space (R restarts). `apps/playground/src/demo/demo.ts`
+  scripts ~58 s on the real app: smooth cursor, Screen Studio-style camera (a transform on <body>, only
+  while no popover is open), captions, a rounded window on a plain mat (`&mat=hex`, `&outro=text`).
+  Ask Lazuli answers from a script in demo mode (`provider: 'demo'`).
 - Type: Manrope, even px sizes only (14 body).
 
 ---

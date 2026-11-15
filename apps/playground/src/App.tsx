@@ -16,6 +16,7 @@ import { Toolbar, type ToolbarItem } from './components/Toolbar'
 import { AboutButton, WelcomeCard } from './components/Welcome'
 import { EllipseIcon, ExportIcon, HideIcon, LayersIcon, LazuliIcon, MoveIcon, PenIcon, PresetsIcon, RectIcon, ShowIcon } from './icons'
 import { AskLazuli } from './components/AskLazuli'
+import { isDemo, startDemo } from './demo/demo'
 import { Segmented } from './components/Segmented'
 import { moved } from './geom'
 import { patchLayer, SCENE_ID } from './layerEdit'
@@ -37,7 +38,9 @@ const MAX_UNDO = 100
 // One shader built from a layer stack: layers on the left, the selected layer on the right,
 // the live preview filling the screen behind both.
 export function App() {
-  const [initial] = useState(readUrlStack)
+  // ?demo: a recorded walkthrough (demo/demo.ts) on a fresh canvas.
+  const [demo] = useState(isDemo)
+  const [initial] = useState(() => (demo ? { stack: blankStack(), preset: null } : readUrlStack()))
   const [hist, setHist] = useState<History>(() => ({ past: [], present: initial.stack, future: [], tag: null, at: 0 }))
   const stack = hist.present
   const [preset, setPreset] = useState<PresetId | null>(initial.preset)
@@ -57,18 +60,19 @@ export function App() {
   const playingRef = useRef(true)
   const [playing, setPlaying] = useState(true)
   const [codeOpen, setCodeOpen] = useState(false)
-  const [meeting, setMeeting] = useState(shouldMeet)
+  const [meeting, setMeeting] = useState(() => !demo && shouldMeet())
   // Agent first: an empty canvas opens Ask Lazuli once, after the entrance (if any) is done.
   const askedOnLoad = useRef(false)
   useEffect(() => {
     if (meeting || askedOnLoad.current) return
     askedOnLoad.current = true
+    if (demo) return
     if (hist.present.shapes.length === 0) setOpenPanel('ask')
     // Only on the way in: later empties come from New canvas, which opens it itself.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [meeting])
   const [revealed, setRevealed] = useState(() => !meeting)
-  const [welcomeOpen, setWelcomeOpen] = useState(() => !hasSeenWelcome())
+  const [welcomeOpen, setWelcomeOpen] = useState(() => !demo && !hasSeenWelcome())
   const [controlsHidden, setControlsHidden] = useState(false)
   // Reduced-motion users get a near-still pattern until they pick a speed themselves.
   const [speedTouched, setSpeedTouched] = useState(false)
@@ -138,6 +142,7 @@ export function App() {
   }
 
   useEffect(() => {
+    if (demo) return // keep ?demo in the address, so R starts it over
     const t = setTimeout(() => writeUrlStack(stack, preset), 250)
     return () => clearTimeout(t)
   }, [stack, preset])
@@ -313,6 +318,24 @@ export function App() {
   // Where the entrance sinks: the middle of the screen, measured once.
   const [meetTarget] = useState(() => ({ x: 0, y: 0, w: innerWidth, h: innerHeight }))
   const panels = !controlsHidden && !meeting
+
+  // ---- the demo: the script drives the app through these, always the latest ------------------
+  const latest = useRef({ onOp, onPatch, stack, selected, undo })
+  latest.current = { onOp, onPatch, stack, selected, undo }
+  useEffect(() => {
+    if (!demo) return
+    return startDemo(() => ({
+      stack: () => latest.current.stack,
+      selected: () => latest.current.selected,
+      onOp: (op, tag) => latest.current.onOp(op, tag),
+      patch: (p) => latest.current.onPatch(p as LazuliInput),
+      select: (id) => setSelected(id),
+      setTool: (t) => setTool(t),
+      undo: () => latest.current.undo(),
+    }))
+    // Once, on the way in.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // ---- the dock ----------------------------------------------------------
   // Three groups, by what you're doing: draw, organise, output. Color, background and motion

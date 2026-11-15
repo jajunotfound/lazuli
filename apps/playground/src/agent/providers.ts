@@ -6,7 +6,7 @@
 //   anthropic   your own Anthropic key.
 // Keys never leave this browser except to the provider they belong to.
 
-export type ProviderId = 'lazuli' | 'gemini' | 'openrouter' | 'anthropic'
+export type ProviderId = 'lazuli' | 'gemini' | 'openrouter' | 'anthropic' | 'demo'
 
 export interface Message {
   role: 'user' | 'assistant'
@@ -30,7 +30,22 @@ export const PROVIDERS: { id: ProviderId; name: string; needsKey: boolean; defau
 
 const STORE = 'lazuli.agent'
 
+// The recorded demo (?demo) answers from a script, so a take never depends on the network.
+const DEMO_INFO: (typeof PROVIDERS)[number] = { id: 'demo', name: 'Lazuli', needsKey: false, defaultModel: '' }
+const DEMO_ANSWER = `A flower that glows on dark
+\`\`\`glsl
+float d = ellipse(kaleido(p), vec2(0.2, 0), vec2(0.12, 0.045)); // Petal
+d = melt(d, ellipse(p, vec2(0, 0), vec2(0.07, 0.07)), 0.4); // Center
+return palette(field(p), 0.03);
+glow(0.4);
+palette(#ffe0a3, #f2607e, #6b2fa8);
+background(#1a0f24, #0b0712);
+move(breathe);
+\`\`\``
+const inDemo = () => typeof location !== 'undefined' && new URLSearchParams(location.search).has('demo')
+
 export function loadSettings(): AgentSettings {
+  if (inDemo()) return { provider: 'demo', keys: {}, models: {} }
   const fallback: AgentSettings = { provider: AGENT_URL ? 'lazuli' : 'gemini', keys: {}, models: {} }
   try {
     const raw = localStorage.getItem(STORE)
@@ -44,6 +59,7 @@ export function loadSettings(): AgentSettings {
 }
 
 export function saveSettings(s: AgentSettings) {
+  if (s.provider === 'demo') return
   try {
     localStorage.setItem(STORE, JSON.stringify(s))
   } catch {
@@ -51,7 +67,7 @@ export function saveSettings(s: AgentSettings) {
   }
 }
 
-export const providerInfo = (id: ProviderId) => PROVIDERS.find((p) => p.id === id) ?? PROVIDERS[0]
+export const providerInfo = (id: ProviderId) => (id === 'demo' ? DEMO_INFO : PROVIDERS.find((p) => p.id === id) ?? PROVIDERS[0])
 export const modelFor = (s: AgentSettings) => s.models[s.provider] || providerInfo(s.provider).defaultModel
 export const isReady = (s: AgentSettings) => !providerInfo(s.provider).needsKey || !!s.keys[s.provider]?.trim()
 
@@ -74,6 +90,15 @@ interface Call {
 
 /** Stream one reply from the chosen provider. Resolves with the whole text. */
 export async function complete(settings: AgentSettings, call: Call): Promise<string> {
+  if (settings.provider === 'demo') {
+    // Streams like a model would, a few characters at a time.
+    await new Promise((r) => setTimeout(r, 700))
+    for (let i = 0; i < DEMO_ANSWER.length; i += 6) {
+      call.onText(DEMO_ANSWER.slice(i, i + 6))
+      await new Promise((r) => setTimeout(r, 18))
+    }
+    return DEMO_ANSWER
+  }
   const model = modelFor(settings)
   const key = settings.keys[settings.provider]?.trim() ?? ''
   let res: Response

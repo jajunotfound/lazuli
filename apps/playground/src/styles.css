@@ -3139,3 +3139,144 @@ button {
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
 }
+
+/* ==========================================================================
+   Demo (?demo): the app in a rounded window on a plain backdrop, for screen recordings.
+   Everything fixed to the window's edges moves in by --mat; the overlay draws the frame.
+   ========================================================================== */
+
+html.demo {
+  --mat: 28px;
+  --mat-color: #dfe2e8;
+}
+
+html.demo,
+html.demo * {
+  cursor: none !important;
+}
+
+html.demo .stage {
+  inset: var(--mat);
+}
+
+html.demo .stage:not([data-editor]) .frame {
+  inset: var(--mat);
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+html.demo .toolbar {
+  left: calc(43px + var(--mat));
+}
+
+html.demo .stage:not([data-editor]) .modes {
+  top: calc(34px + var(--mat));
+}
+
+html.demo .about-button {
+  right: calc(32px + var(--mat));
+  bottom: calc(32px + var(--mat));
+}
+
+html.demo .code-panel {
+  inset: var(--mat) auto var(--mat) var(--mat);
+}
+
+html.demo .code-topbar {
+  top: var(--mat);
+  right: var(--mat);
+  left: calc(var(--code-w) + var(--mat));
+}
+
+.demo-overlay {
+  /* Outside <body>, so it brings its own type. */
+  font-family: var(--font-sans);
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  pointer-events: none;
+}
+
+/* A window cut out of the backdrop: everything outside the rounded rect is the mat. */
+.demo-window {
+  position: fixed;
+  inset: var(--mat);
+  border-radius: 14px;
+  box-shadow:
+    0 0 0 1px rgb(0 0 0 / 0.08),
+    0 0 0 100vmax var(--mat-color);
+}
+
+.demo-cursor {
+  position: fixed;
+  top: 0;
+  left: 0;
+  will-change: transform;
+}
+
+.demo-cursor svg {
+  display: block;
+  transition: transform 120ms ease-out;
+  transform-origin: 5px 3px;
+}
+
+.demo-cursor--down svg {
+  transform: scale(0.86);
+}
+
+.demo-ripple {
+  position: fixed;
+  width: 28px;
+  height: 28px;
+  margin: -14px 0 0 -14px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--accent) 35%, transparent);
+  animation: demo-ripple 650ms var(--ease-out) forwards;
+}
+
+@keyframes demo-ripple {
+  from {
+    opacity: 1;
+    transform: scale(0.4);
+  }
+  to {
+    opacity: 0;
+    transform: scale(2.2);
+  }
+}
+
+.demo-caption {
+  position: fixed;
+  left: 50%;
+  bottom: calc(var(--mat) + 104px);
+  padding: 10px 18px;
+  border-radius: 999px;
+  background: rgb(17 19 26 / 0.86);
+  color: #fff;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  opacity: 0;
+  transform: translate(-50%, 8px);
+  transition:
+    opacity 220ms ease,
+    transform 220ms var(--ease-out);
+}
+
+.demo-caption--on {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+.demo-hint {
+  position: fixed;
+  left: 50%;
+  top: calc(var(--mat) + 90px);
+  padding: 6px 12px;
+  border-radius: 8px;
+  background: rgb(17 19 26 / 0.7);
+  color: #fff;
+  font-size: 12px;
+  transform: translateX(-50%);
+}
