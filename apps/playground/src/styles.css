@@ -3336,7 +3336,7 @@ html.demo .code-topbar {
   z-index: var(--z-dialog);
   left: 50%;
   top: 50%;
-  width: min(1040px, calc(100vw - 32px));
+  width: min(920px, calc(100vw - 32px));
   max-height: calc(100dvh - 32px);
   display: flex;
   flex-direction: column;
@@ -3365,9 +3365,18 @@ html.demo .code-topbar {
 
 .tour__body {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 240px;
+  grid-template-columns: minmax(0, 1fr) 220px;
   gap: 16px;
   min-height: 0;
+}
+
+.tour:not(:has(.tour__chapters)) {
+  width: min(720px, calc(100vw - 32px));
+}
+
+/* No chapters (yet): the video takes the whole width. */
+.tour__body:not(:has(.tour__chapters)) {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .tour__video {
@@ -3378,6 +3387,8 @@ html.demo .code-topbar {
 }
 
 .tour__chapters {
+  /* No height of its own: the row is as tall as the video, and the list scrolls inside it. */
+  contain: size;
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -3441,6 +3452,7 @@ html.demo .code-topbar {
   }
 
   .tour__chapters {
+    contain: none;
     max-height: 160px;
   }
 }
