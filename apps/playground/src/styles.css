@@ -2563,3 +2563,257 @@ button {
 .inspector__glsl .button-quiet {
   align-self: flex-start;
 }
+
+/* ---- Ask Lazuli ------------------------------------------------------------ */
+
+.ask {
+  width: 320px;
+  gap: 10px;
+  padding: 12px;
+}
+
+.ask__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ask__face {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--accent);
+}
+
+.ask__title {
+  margin: 0;
+  color: var(--ink-90);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.ask__head .ask__link {
+  margin-left: auto;
+}
+
+.ask__link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ask__hello {
+  margin: 0;
+  color: var(--ink-90);
+  font-size: 14px;
+}
+
+.ask__form {
+  display: flex;
+  gap: 6px;
+}
+
+.ask__form input,
+.ask__field input {
+  flex: 1;
+  min-width: 0;
+  height: 30px;
+  padding: 0 10px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: var(--row);
+  color: var(--ink-90);
+  font: inherit;
+  font-size: 14px;
+  outline: none;
+}
+
+.ask__form input:focus-visible,
+.ask__field input:focus-visible {
+  border-color: var(--accent);
+}
+
+.ask__form .button-quiet {
+  height: 30px;
+  font-size: 12px;
+}
+
+.ask__form .button-primary:disabled,
+.ask__done:disabled {
+  opacity: 0.45;
+}
+
+.ask__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.ask__chips button {
+  padding: 2px 10px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--row);
+  color: var(--ink-60);
+  font: inherit;
+  font-size: 12px;
+  line-height: 20px;
+  cursor: pointer;
+}
+
+.ask__chips button:hover {
+  color: var(--ink-90);
+}
+
+.ask__status,
+.ask__error,
+.ask__note,
+.ask__foot {
+  margin: 0;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.ask__status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink-60);
+}
+
+.ask__error {
+  color: var(--danger, #b42318);
+}
+
+.ask__note {
+  color: var(--ink-60);
+}
+
+.ask__foot {
+  color: var(--ink-40);
+}
+
+.ask__dots {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.ask__dots i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: ask-pulse 1s infinite ease-in-out;
+}
+
+.ask__dots i:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.ask__dots i:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes ask-pulse {
+  50% {
+    opacity: 0.25;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ask__dots i {
+    animation: none;
+  }
+}
+
+.ask__result {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ask__made {
+  margin: 0;
+  color: var(--ink-90);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.ask__actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ask__actions .button-quiet {
+  height: 30px;
+  font-size: 14px;
+}
+
+.ask__actions .ask__link {
+  margin-left: auto;
+}
+
+.ask__code {
+  max-height: 200px;
+  margin: 0;
+  padding: 8px 10px;
+  overflow: auto;
+  border-radius: 8px;
+  background: var(--code-bg);
+  color: var(--ink-90);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 18px;
+  white-space: pre-wrap;
+}
+
+.ask__providers {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ask__provider {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  padding: 0 8px;
+  border-radius: 8px;
+  color: var(--ink-90);
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.ask__provider:hover {
+  background: var(--row);
+}
+
+.ask__provider input {
+  accent-color: var(--accent);
+}
+
+.ask__field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink-60);
+  font-size: 12px;
+}
+
+.ask__field span {
+  width: 40px;
+}
+
+.ask__done {
+  justify-content: center;
+}

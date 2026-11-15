@@ -14,7 +14,8 @@ import { PresetGrid } from './components/PresetsPanel'
 import { exampleStack, type Example } from './examples'
 import { Toolbar, type ToolbarItem } from './components/Toolbar'
 import { AboutButton, WelcomeCard } from './components/Welcome'
-import { EllipseIcon, ExportIcon, HideIcon, LayersIcon, MoveIcon, PenIcon, PresetsIcon, RectIcon, ShowIcon } from './icons'
+import { EllipseIcon, ExportIcon, HideIcon, LayersIcon, LazuliIcon, MoveIcon, PenIcon, PresetsIcon, RectIcon, ShowIcon } from './icons'
+import { AskLazuli } from './components/AskLazuli'
 import { moved } from './geom'
 import { patchLayer, SCENE_ID } from './layerEdit'
 import { blankStack, hasSeenWelcome, markMet, markWelcomeSeen, readUrlStack, shouldMeet, writeUrlStack, type PanelId } from './state'
@@ -52,6 +53,15 @@ export function App() {
   const [playing, setPlaying] = useState(true)
   const [codeOpen, setCodeOpen] = useState(false)
   const [meeting, setMeeting] = useState(shouldMeet)
+  // Agent first: an empty canvas opens Ask Lazuli once, after the entrance (if any) is done.
+  const askedOnLoad = useRef(false)
+  useEffect(() => {
+    if (meeting || askedOnLoad.current) return
+    askedOnLoad.current = true
+    if (hist.present.shapes.length === 0) setOpenPanel('ask')
+    // Only on the way in: later empties come from New canvas, which opens it itself.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [meeting])
   const [revealed, setRevealed] = useState(() => !meeting)
   const [welcomeOpen, setWelcomeOpen] = useState(() => !hasSeenWelcome())
   const [controlsHidden, setControlsHidden] = useState(false)
@@ -209,7 +219,8 @@ export function App() {
     setPreset(null)
     commit(blank)
     setSelected(blank.background.id)
-    setOpenPanel(null)
+    // Agent first: a fresh canvas asks what to make (the drawing tools are right there too).
+    setOpenPanel('ask')
     setTool('ellipse')
   }, [commit])
 
@@ -315,6 +326,9 @@ export function App() {
     [
       { kind: 'action', id: 'export', label: 'Export', icon: ExportIcon, onClick: () => setCodeOpen(true) },
       { kind: 'action', id: 'hide', label: 'Hide controls', icon: HideIcon, onClick: toggleControls, shortcut: 'H' },
+    ],
+    [
+      { kind: 'panel', id: 'ask', label: 'Ask Lazuli', icon: LazuliIcon, keepOpenOnCanvas: true, content: <AskLazuli stack={stack} onApply={(next, tag) => commit(next, tag)} /> },
     ],
   ]
 

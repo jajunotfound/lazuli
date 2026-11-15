@@ -185,3 +185,11 @@ export const ExportIcon = (p: IconProps) => (
     <path {...stroke} d="M5 12.5v5A2.5 2.5 0 0 0 7.5 20h9a2.5 2.5 0 0 0 2.5-2.5v-5" />
   </Svg>
 )
+
+/** Lazuli, as an icon: the mascot's round body and close-set pill eyes, in the dock's line style. */
+export const LazuliIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <circle {...stroke} cx="12" cy="12.5" r="8.5" />
+    <path {...stroke} strokeWidth={2} d="M10.4 9.2v2.8M13.6 9.2v2.8" />
+  </Svg>
+)

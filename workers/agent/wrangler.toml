@@ -1,0 +1,14 @@
+name = "lazuli-agent"
+main = "src/index.js"
+compatibility_date = "2026-11-01"
+
+# Workers AI: the free fallback (10,000 neurons a day on the free plan).
+[ai]
+binding = "AI"
+
+[vars]
+# Who may call this: the sites Lazuli runs on, comma separated.
+ALLOWED_ORIGINS = "http://localhost:5210"
+GEMINI_MODEL = "gemini-flash-latest"
+AI_MODEL = "@cf/meta/llama-3.1-8b-instruct-fp8-fast"
+# The Gemini key is a secret, not a var: npx wrangler secret put GEMINI_KEY
