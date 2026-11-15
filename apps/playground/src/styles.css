@@ -2859,8 +2859,11 @@ button {
   z-index: 1;
 }
 
+/* Centered on the canvas, which is the whole window (not on the space left of the panel). */
 .stage:not([data-editor]) .modes {
-  position: absolute;
+  position: fixed;
+  top: 34px;
+  left: 50%;
 }
 
 .stage:not([data-editor]) .canvas-tools {
