@@ -70,10 +70,9 @@ export function TutorialDialog({ open, onOpenChange }: { open: boolean; onOpenCh
               className="tour__video"
               src="/tutorial.mp4"
               controls
-              autoPlay
               muted
               playsInline
-              preload="metadata"
+              preload="auto"
               onTimeUpdate={(e) => setNow(e.currentTarget.currentTime)}
             />
             {chapters.length > 0 && (

@@ -89,7 +89,12 @@ const list = shots.map((s, i) => `file '${s.file}'\nduration ${((shots[i + 1]?.t
 writeFileSync(join(frames, 'list.txt'), `${list}\nfile '${shots.at(-1).file}'\n`)
 const encode = (file, crf, width) => {
   const r = spawnSync('ffmpeg', ['-y', '-loglevel', 'error', '-f', 'concat', '-safe', '0', '-i', join(frames, 'list.txt'),
-    '-vf', `fps=60,scale=${width}:-2:flags=lanczos,format=yuv420p`, '-c:v', 'libx264', '-preset', 'slow', '-crf', String(crf), '-movflags', '+faststart', file], { stdio: 'inherit' })
+    // Frames are full-range JPEGs; video players expect standard (limited-range) BT.709 4:2:0,
+    // which every browser and QuickTime plays. Main profile for the widest support.
+    '-vf', `fps=60,scale=${width}:-2:flags=lanczos:in_range=full:out_range=tv,format=yuv420p`,
+    '-c:v', 'libx264', '-profile:v', 'main', '-preset', 'slow', '-crf', String(crf),
+    '-color_range', 'tv', '-colorspace', 'bt709', '-color_primaries', 'bt709', '-color_trc', 'bt709',
+    '-movflags', '+faststart', file], { stdio: 'inherit' })
   if (r.status !== 0) throw new Error(`ffmpeg failed for ${file}`)
   console.log(`wrote ${file}`)
 }
