@@ -404,6 +404,7 @@ export function App() {
                 filter={tab}
                 title={<Segmented<'Shapes' | 'Effects'> label="Show" className="segmented--tabs" options={[{ label: 'Shapes' }, { label: 'Effects' }]} value={tab === 'shapes' ? 'Shapes' : 'Effects'} onChange={(v) => pickTab(v === 'Shapes' ? 'shapes' : 'effects')} />}
                 inline={(id) => <Inspector inline stack={stack} selected={id} onPatch={onPatch} onOp={onOp} canDo={canDo} onOpenCode={() => setEditorOpen(true)} />}
+                onShuffle={shuffle}
               />
             </aside>
           )}

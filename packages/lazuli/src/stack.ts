@@ -372,8 +372,12 @@ export function applyOp(input: Readonly<Stack>, op: StackOp): StackResult {
         if (s.shapes.filter((x) => x.kind === 'drawn').length >= MAX_DRAWN) return fail('drawn_limit')
         const geom = cleanGeometry(op.geom)
         if (!geom) return fail('bad_geometry')
-        const names = { ellipse: 'Ellipse', rect: 'Rectangle', path: 'Path', noise: 'Noise', cells: 'Cells', text: 'Text', gradient: 'Gradient', code: 'Code' }
-        const layer: DrawnLayer = { id: nextId(s, 'drawn'), kind: 'drawn', name: names[geom.kind], visible: true, geom, melt: 0.5, combine: 'merge', soft: geom.kind === 'text' ? 0.08 : 0.3, warps: [] }
+        const names = { ellipse: 'Ellipse', rect: 'Rectangle', path: 'Path', noise: 'Clouds', cells: 'Cells', text: 'Text', gradient: 'Gradient', code: 'Code' }
+        // Clouds, cells and gradients fill the frame. Over shapes that are already there they go
+        // inside them (a texture on the shape), instead of covering the whole canvas.
+        const fills = geom.kind === 'noise' || geom.kind === 'cells' || geom.kind === 'gradient'
+        const combine: CombineMode = fills && s.shapes.some((x) => x.visible) ? 'intersect' : 'merge'
+        const layer: DrawnLayer = { id: nextId(s, 'drawn'), kind: 'drawn', name: names[geom.kind], visible: true, geom, melt: fills ? 0.2 : 0.5, combine, soft: geom.kind === 'text' ? 0.08 : 0.3, warps: [] }
         return insertAt(s.shapes, layer, op.index) ? { ok: true, stack: s } : fail('bad_index')
       }
       if (op.layer === 'shape') {

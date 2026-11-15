@@ -17,6 +17,8 @@ interface LayersProps {
   filter?: 'shapes' | 'effects'
   /** The selected layer's properties, shown right under its row. */
   inline?(id: string): ReactNode
+  /** New positions for a built-in shape (the selected row's shuffle button). */
+  onShuffle?(): void
 }
 
 const SHAPES: ShapeType[] = ['blobs', 'waves', 'bands', 'rings', 'dots', 'nodal']
@@ -51,7 +53,7 @@ function indexIn(stack: Stack, id: string): number {
 }
 
 /** The left panel: the stack as a list, frontmost first, like a design tool's layers. */
-export function Layers({ stack, selected, onSelect, onOp, canDo, header, title, filter, inline }: LayersProps) {
+export function Layers({ stack, selected, onSelect, onOp, canDo, header, title, filter, inline, onShuffle }: LayersProps) {
   const [drag, setDrag] = useState<string | null>(null)
   const [over, setOver] = useState<string | null>(null)
   const [addOpen, setAddOpen] = useState(false)
@@ -140,6 +142,27 @@ export function Layers({ stack, selected, onSelect, onOp, canDo, header, title, 
           </span>
         )}
         {opts.meta && <span className="layer__meta">{opts.meta}</span>}
+        {inline && selected === opts.id && layer && (
+          // The selected layer's own actions sit on its row, next to the eye.
+          <span className="layer__acts">
+            {layer.kind === 'shape' && onShuffle && (
+              <RowAction label="Shuffle (⇧R)" onClick={onShuffle}>
+                <path d="M2 4h3.5c1.5 0 2.3.6 3.2 2l1.6 2.6c.9 1.4 1.7 2 3.2 2H14M2 12h3.5c1.5 0 2.3-.6 3.2-2M12 2l2 2-2 2M12 8.6l2 2-2 2" />
+              </RowAction>
+            )}
+            {canDo({ op: 'duplicate', id: opts.id }) && (
+              <RowAction label="Duplicate" onClick={() => onOp({ op: 'duplicate', id: opts.id })}>
+                <rect x="5" y="5" width="9" height="9" rx="2" />
+                <path d="M11 5V3.5A1.5 1.5 0 0 0 9.5 2h-6A1.5 1.5 0 0 0 2 3.5v6A1.5 1.5 0 0 0 3.5 11H5" />
+              </RowAction>
+            )}
+            {canDo({ op: 'delete', id: opts.id }) && (
+              <RowAction label="Delete (⌫)" onClick={() => onOp({ op: 'delete', id: opts.id })}>
+                <path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.6 8.5h5.8l.6-8.5" />
+              </RowAction>
+            )}
+          </span>
+        )}
         {opts.hideable && (
           <button
             type="button"
@@ -180,7 +203,7 @@ export function Layers({ stack, selected, onSelect, onOp, canDo, header, title, 
                   <AddItem label="Text" op={{ op: 'add', layer: 'drawn', geom: { kind: 'text', text: 'HELLO', x: 0, y: 0, size: 0.2, weight: 0.4, angle: 0 } }} canDo={canDo} onOp={onOp} close={() => setAddOpen(false)} />
                   <AddItem label="Gradient" op={{ op: 'add', layer: 'drawn', geom: { kind: 'gradient', x1: -0.6, y1: 0.2, x2: 0.6, y2: -0.2, radial: false } }} canDo={canDo} onOp={onOp} close={() => setAddOpen(false)} />
                   <AddItem label="Code" op={{ op: 'add', layer: 'drawn', geom: { kind: 'code', name: freeName(stack), glsl: 'return length(q) - 0.2 + 0.03 * sin(atan(q.y, q.x) * 6.0 + t * 2.0);' } }} canDo={canDo} onOp={onOp} close={() => setAddOpen(false)} />
-                  <AddItem label="Noise" op={{ op: 'add', layer: 'drawn', geom: { kind: 'noise', scale: 3, level: 0.5 } }} canDo={canDo} onOp={onOp} close={() => setAddOpen(false)} />
+                  <AddItem label="Clouds" op={{ op: 'add', layer: 'drawn', geom: { kind: 'noise', scale: 3, level: 0.5 } }} canDo={canDo} onOp={onOp} close={() => setAddOpen(false)} />
                   <AddItem label="Cells" op={{ op: 'add', layer: 'drawn', geom: { kind: 'cells', scale: 5, gap: 0.2 } }} canDo={canDo} onOp={onOp} close={() => setAddOpen(false)} />
                 </AddGroup>
                 <AddGroup title="Built-in">
@@ -237,6 +260,25 @@ export function Layers({ stack, selected, onSelect, onOp, canDo, header, title, 
         {filter !== 'shapes' && row(stack.background, { id: stack.background.id, name: stack.background.name, kind: 'background' })}
       </ul>
     </nav>
+  )
+}
+
+function RowAction({ label, onClick, children }: { label: string; onClick(): void; children: ReactNode }) {
+  return (
+    <button
+      type="button"
+      className="layer__act"
+      aria-label={label}
+      title={label}
+      onClick={(e) => {
+        e.stopPropagation()
+        onClick()
+      }}
+    >
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        {children}
+      </svg>
+    </button>
   )
 }
 

@@ -26,7 +26,7 @@ export function shapeCode(l: DrawnLayer): string {
 }
 
 const WARPS: WarpType[] = ['swirl', 'noise', 'ripple', 'kaleido', 'repeat', 'twist', 'cursor']
-const NAMES: Record<Geometry['kind'], string> = { ellipse: 'Ellipse', rect: 'Rectangle', path: 'Path', noise: 'Noise', cells: 'Cells', text: 'Text', gradient: 'Gradient', code: 'Code' }
+const NAMES: Record<Geometry['kind'], string> = { ellipse: 'Ellipse', rect: 'Rectangle', path: 'Path', noise: 'Clouds', cells: 'Cells', text: 'Text', gradient: 'Gradient', code: 'Code' }
 
 const drawnBackToFront = (s: Stack) => s.shapes.filter((x): x is DrawnLayer => x.kind === 'drawn').reverse()
 

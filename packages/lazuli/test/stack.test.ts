@@ -403,3 +403,17 @@ test('code layers: safe bodies only, keyed by their text, compiled as written', 
   // An expression without return is returned.
   assert.match(stackFragment(add('length(q) - 0.25')), /return length\(q\) - 0\.25;/)
 })
+
+test('clouds, cells and gradients go inside shapes that are already there', () => {
+  const base = configToStack(resolveConfig({}))
+  const r = applyOp(base, { op: 'add', layer: 'drawn', geom: { kind: 'noise', scale: 3, level: 0.5 } })
+  assert.ok(r.ok)
+  assert.equal(r.stack.shapes[0].combine, 'intersect')
+  assert.equal(r.stack.shapes[0].name, 'Clouds')
+  const empty = applyOp({ ...base, shapes: [] }, { op: 'add', layer: 'drawn', geom: { kind: 'cells', scale: 5, gap: 0.2 } })
+  assert.ok(empty.ok)
+  assert.equal(empty.stack.shapes[0].combine, 'merge')
+  const ell = applyOp(base, { op: 'add', layer: 'drawn', geom: { kind: 'ellipse', x: 0, y: 0, rx: 0.1, ry: 0.1, angle: 0 } })
+  assert.ok(ell.ok)
+  assert.equal(ell.stack.shapes[0].combine, 'merge')
+})

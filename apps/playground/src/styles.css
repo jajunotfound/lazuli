@@ -2954,6 +2954,11 @@ button {
   flex: 1;
 }
 
+/* Two tabs share the track evenly, so there's no empty stretch after the last one. */
+.workspace__panel .layers__head .segmented__item {
+  flex: 1;
+}
+
 .workspace__panel .layers__list {
   flex: 1;
   min-height: 0;
@@ -3084,9 +3089,36 @@ button {
   pointer-events: none;
 }
 
-/* Nothing to do on this layer (Colour map, Background, Motion): no empty bar above its settings. */
-.inspector--inline .inspector__head:not(:has(.icon-action)) {
+/* The row above carries the name and the actions, so the settings start straight away. */
+.inspector--inline .inspector__head {
   display: none;
+}
+
+.layer__acts {
+  display: flex;
+  flex-shrink: 0;
+  gap: 2px;
+  margin-left: auto;
+}
+
+.layer__acts + .layer__eye {
+  margin-left: 0;
+}
+
+.layer__act {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--ink-50);
+}
+
+.layer__act:hover {
+  background: var(--row-strong);
+  color: var(--ink-90);
 }
 
 /* Code mode: the editor takes the left; the canvas and timeline share the rest, no card. */
