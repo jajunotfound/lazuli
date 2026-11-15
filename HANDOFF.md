@@ -26,7 +26,10 @@ Earlier plan: `docs/plans/draw-builder.md` (all milestones built).
 - The tour: `public/tutorial.mp4` + `public/tutorial.json` (chapters), shown in `TutorialDialog` once on a
   first visit and from the play button over the canvas / the welcome card. Re-record after UI changes:
   `node tools/record/record.mjs http://localhost:5210/ ~/Desktop/lazuli-tutorial.mp4 --web apps/playground/public/tutorial.mp4 --chapters apps/playground/public/tutorial.json`
-  (needs `pnpm dev` running and ffmpeg).
+  (needs `pnpm dev` running and ffmpeg). It adds an original soundtrack (`tools/record/music.mjs`,
+  synthesized, no licences). Instagram: `--reels` records a silent 1080×1920 version cropped along a
+  window that follows the cursor (`?demo&reels`); `tools/record/meet.mjs` records the opening at any size
+  (silent unless `--music`) with stills for a cover.
 - ⌘A selects every shape; Delete clears them all (one undo step).
 - Type: Manrope, even px sizes only (14 body).
 

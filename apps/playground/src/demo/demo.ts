@@ -71,6 +71,9 @@ async function glide(x: number, y: number, ms?: number) {
 }
 
 function ripple() {
+  // For the soundtrack: a soft tick at each click (tools/record/music.mjs).
+  const w = window as unknown as { __demoClicks?: number[] }
+  ;(w.__demoClicks ??= []).push(Math.round((performance.now() - t0) / 10) / 100)
   const r = document.createElement('div')
   r.className = 'demo-ripple'
   r.style.left = `${pos.x}px`
@@ -82,7 +85,7 @@ function ripple() {
 }
 
 /** Chapter marks (seconds from Space) for the video player: every titled step. */
-export const chapters: { t: number; title: string }[] = []
+export const chapters: { t: number; title: string; hint?: string }[] = []
 let t0 = 0
 
 /** A step's title, and a hint saying where things are. */
@@ -101,7 +104,7 @@ async function caption(title: string | null, hint?: string) {
   }
   captionEl.classList.add('demo-caption--on')
   const t = Math.round((performance.now() - t0) / 100) / 10
-  chapters.push({ t, title })
+  chapters.push({ t, title, ...(hint ? { hint } : {}) })
   console.debug(`[demo] ${t}s ${title}`)
 }
 
@@ -245,6 +248,7 @@ async function drawEllipse(api: DemoApi, a: [number, number], b: [number, number
 async function script(api: DemoApi) {
   t0 = performance.now()
   chapters.length = 0
+  ;(window as unknown as { __demoClicks?: number[] }).__demoClicks = []
   // For the recorder: when step one began, on the wall clock (so chapters line up with the video).
   ;(window as unknown as { __demoT0?: number }).__demoT0 = performance.timeOrigin + t0
 
@@ -380,7 +384,13 @@ async function script(api: DemoApi) {
   // 10. Export
   await caption('Put it on your site', 'Export, then copy')
   await clickOn(find('button[aria-label="Export"]'), 700)
-  await sleep(2800)
+  // Over to the dialog (and its Copy button), so the eye and a 9:16 crop both land on it.
+  const copy = document.querySelector<HTMLElement>('.code-dialog .copy-button')
+  if (copy) {
+    const [cx, cy] = centerOf(copy)
+    await glide(...onScreen(cx, cy), 900)
+  }
+  await sleep(2200)
   const close = document.querySelector<HTMLElement>('.code-dialog__close')
   if (close) await clickOn(close, 400)
 
@@ -396,8 +406,43 @@ async function script(api: DemoApi) {
 let running = false
 
 /** Set the stage and wait for Space. Returns a cleanup. */
+// ---- Reels: a 9:16 window that follows the action ---------------------------------------
+// The window (as tall as the page) eases after the cursor, moving only when the cursor nears its
+// edge. Captions and keys sit in its middle; its path goes to the recorder, which crops to it.
+
+const reels = new URLSearchParams(location.search).has('reels')
+const reel = { c: innerWidth / 2, v: 0 }
+
+function followReel() {
+  const w = (innerHeight * 9) / 16
+  let last = performance.now(), logged = 0
+  const step = (now: number) => {
+    const dt = Math.min(0.05, (now - last) / 1000)
+    last = now
+    // A dead zone in the middle; past it, a critically damped spring toward the cursor.
+    const off = pos.x - reel.c, dead = w * 0.18
+    const want = Math.abs(off) > dead ? pos.x - Math.sign(off) * dead : reel.c
+    const k = 26, d = 2 * Math.sqrt(k)
+    reel.v += (k * (want - reel.c) - d * reel.v) * dt
+    reel.c += reel.v * dt
+    reel.c = Math.min(innerWidth - w / 2, Math.max(w / 2, reel.c))
+    document.documentElement.style.setProperty('--reel-x', `${reel.c}px`)
+    if (running && now - logged > 33) {
+      logged = now
+      const log = ((window as unknown as { __demoReel?: number[][] }).__demoReel ??= [])
+      log.push([Math.round((now - t0) / 10) / 100, Math.round(reel.c)])
+    }
+    requestAnimationFrame(step)
+  }
+  requestAnimationFrame(step)
+}
+
 export function startDemo(api: () => DemoApi): () => void {
   buildOverlay()
+  if (reels) {
+    document.documentElement.classList.add('demo--reels')
+    followReel()
+  }
   const onKey = async (e: KeyboardEvent) => {
     if (e.key === 'r' || e.key === 'R') location.reload()
     if (e.key !== ' ' || running) return

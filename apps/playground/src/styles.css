@@ -3467,3 +3467,21 @@ html.demo .code-topbar {
   text-underline-offset: 2px;
   cursor: pointer;
 }
+
+/* Reels (?demo&reels): captions and keys follow the 9:16 window, sized for a phone. */
+html.demo--reels .demo-caption {
+  left: var(--reel-x, 50%);
+  max-width: 520px;
+  padding: 14px 22px;
+  white-space: normal;
+  font-size: 26px;
+  line-height: 1.25;
+}
+
+html.demo--reels .demo-caption span {
+  font-size: 20px;
+}
+
+html.demo--reels .demo-keys {
+  left: var(--reel-x, 50%);
+}

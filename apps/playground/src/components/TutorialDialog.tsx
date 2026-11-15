@@ -69,8 +69,8 @@ export function TutorialDialog({ open, onOpenChange }: { open: boolean; onOpenCh
               ref={video}
               className="tour__video"
               src="/tutorial.mp4"
+              poster="/tutorial-poster.jpg"
               controls
-              muted
               playsInline
               preload="auto"
               onTimeUpdate={(e) => setNow(e.currentTarget.currentTime)}
