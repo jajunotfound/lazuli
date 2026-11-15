@@ -438,12 +438,6 @@ export function App() {
                 <button type="button" className="canvas-tools__btn" aria-pressed={stack.quality === 'high'} onClick={() => onPatch({ quality: stack.quality === 'high' ? 'auto' : 'high' })} title={stack.quality === 'high' ? 'Full resolution (on)' : 'Full resolution'}>
                   HQ
                 </button>
-                <button type="button" className="canvas-tools__btn" onClick={() => setTourOpen(true)} aria-label="Watch the tour" title="Watch the tour">
-                  <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true">
-                    <circle cx="8" cy="8" r="6.25" fill="none" stroke="currentColor" strokeWidth="1.3" />
-                    <path d="M6.6 5.6v4.8L10.4 8 6.6 5.6Z" fill="currentColor" />
-                  </svg>
-                </button>
                 <button type="button" className="canvas-tools__btn" onClick={toggleControls} aria-label="Just the canvas (H)" title="Just the canvas (H)">
                   <ShowIcon width={14} height={14} />
                 </button>
