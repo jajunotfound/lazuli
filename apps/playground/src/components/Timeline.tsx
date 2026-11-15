@@ -103,6 +103,18 @@ export function Timeline({ stack, selected, engine, live, time, playing, onKeys,
       <span className="timeline__t">0s</span>
       <div className="timeline__track" ref={track} onPointerDown={onDown} onPointerMove={(e) => e.buttons === 1 && scrubTo(e)} role="slider" aria-label="Playhead" aria-valuemin={0} aria-valuemax={loop} aria-valuenow={Math.round(time.current * loop * 10) / 10}>
         <span className="timeline__line" />
+        {(() => {
+          // Half-second ticks; a label each second, or every two on long loops.
+          const every = loop > 8 ? 2 : 1
+          const out = []
+          for (let k = 0; k <= loop * 2; k++) {
+            const sec = k / 2
+            const major = sec % every === 0
+            out.push(<span key={`t${k}`} className="timeline__tick" data-major={major || undefined} style={{ left: `${(sec / loop) * 100}%` }} />)
+            if (major && sec > 0 && sec < loop) out.push(<span key={`l${k}`} className="timeline__label" style={{ left: `${(sec / loop) * 100}%` }}>{`0:${String(sec).padStart(2, '0')}`}</span>)
+          }
+          return out
+        })()}
         {keys.map((k, i) => (
           <span key={i} className="timeline__key" style={{ left: `${k.t * 100}%` }} title={`${(k.t * loop).toFixed(1)} s`} />
         ))}

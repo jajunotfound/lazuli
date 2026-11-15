@@ -11,6 +11,12 @@ interface LayersProps {
   canDo(op: StackOp): boolean
   /** Extra controls in the header (Presets). */
   header?: ReactNode
+  /** Replaces the "Layers" title (the Shapes | Effects tabs). */
+  title?: ReactNode
+  /** Only part of the stack: the shapes (and their warps), or everything that finishes them. */
+  filter?: 'shapes' | 'effects'
+  /** The selected layer's properties, shown right under its row. */
+  inline?(id: string): ReactNode
 }
 
 const SHAPES: ShapeType[] = ['blobs', 'waves', 'bands', 'rings', 'dots', 'nodal']
@@ -45,10 +51,12 @@ function indexIn(stack: Stack, id: string): number {
 }
 
 /** The left panel: the stack as a list, frontmost first, like a design tool's layers. */
-export function Layers({ stack, selected, onSelect, onOp, canDo, header }: LayersProps) {
+export function Layers({ stack, selected, onSelect, onOp, canDo, header, title, filter, inline }: LayersProps) {
   const [drag, setDrag] = useState<string | null>(null)
   const [over, setOver] = useState<string | null>(null)
   const [addOpen, setAddOpen] = useState(false)
+  // Double-click a name to rename it in place.
+  const [renaming, setRenaming] = useState<string | null>(null)
 
   const selShape = (() => {
     const f = findLayer(stack, selected)
@@ -108,7 +116,29 @@ export function Layers({ stack, selected, onSelect, onOp, canDo, header }: Layer
         {...(layer ? dragProps(opts.id) : {})}
       >
         <LayerIcon kind={opts.kind} />
-        <span className="layer__name">{opts.name}</span>
+        {renaming === opts.id ? (
+          <input
+            className="layer__rename"
+            autoFocus
+            defaultValue={opts.name}
+            aria-label="Layer name"
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => {
+              e.stopPropagation()
+              if (e.key === 'Enter') (e.target as HTMLInputElement).blur()
+              if (e.key === 'Escape') setRenaming(null)
+            }}
+            onBlur={(e) => {
+              const name = e.target.value.trim()
+              if (renaming && name && name !== opts.name) onOp({ op: 'rename', id: opts.id, name })
+              setRenaming(null)
+            }}
+          />
+        ) : (
+          <span className="layer__name" onDoubleClick={() => layer && setRenaming(opts.id)} title={layer ? 'Double-click to rename' : undefined}>
+            {opts.name}
+          </span>
+        )}
         {opts.meta && <span className="layer__meta">{opts.meta}</span>}
         {opts.hideable && (
           <button
@@ -125,6 +155,7 @@ export function Layers({ stack, selected, onSelect, onOp, canDo, header }: Layer
           </button>
         )}
       </div>
+      {inline && selected === opts.id && <div className="layer__props">{inline(opts.id)}</div>}
     </li>
   )
 
@@ -132,7 +163,7 @@ export function Layers({ stack, selected, onSelect, onOp, canDo, header }: Layer
   return (
     <nav className="layers" aria-label="Layers">
       <div className="layers__head">
-        <h2 className="layers__title">Layers</h2>
+        {title ?? <h2 className="layers__title">Layers</h2>}
         <div className="layers__acts">
           {header}
           <Popover.Root open={addOpen} onOpenChange={setAddOpen}>
@@ -185,16 +216,25 @@ export function Layers({ stack, selected, onSelect, onOp, canDo, header }: Layer
       </div>
 
       <ul className="layers__list" role="tree" aria-label="Layer stack">
-        {row(null, { id: SCENE_ID, name: 'Motion', kind: 'scene' })}
-        <li role="none" className="layers__rule" aria-hidden="true" />
-        {stack.textures.map((t) => row(t, { id: t.id, name: t.name, kind: 'texture', hideable: true, visible: t.visible }))}
-        {row(stack.color, { id: stack.color.id, name: stack.color.name, kind: 'color' })}
-        {stack.cursor && row(stack.cursor, { id: stack.cursor.id, name: stack.cursor.name, kind: 'cursor', hideable: true, visible: stack.cursor.visible })}
-        {stack.shapes.map((s) => [
+        {filter !== 'shapes' && (
+          <>
+            {row(null, { id: SCENE_ID, name: 'Motion', kind: 'scene', meta: stack.move ? stack.move[0].toUpperCase() + stack.move.slice(1) : undefined })}
+            <li role="none" className="layers__rule" aria-hidden="true" />
+            {stack.textures.map((t) => row(t, { id: t.id, name: t.name, kind: 'texture', hideable: true, visible: t.visible }))}
+            {row(stack.color, { id: stack.color.id, name: stack.color.name, kind: 'color' })}
+            {stack.cursor && row(stack.cursor, { id: stack.cursor.id, name: stack.cursor.name, kind: 'cursor', hideable: true, visible: stack.cursor.visible })}
+          </>
+        )}
+        {filter === 'shapes' && stack.shapes.length === 0 && (
+          <li role="none" className="layers__empty">
+            Nothing drawn yet. Pick a tool on the dock, or ask Lazuli.
+          </li>
+        )}
+        {filter !== 'effects' && stack.shapes.map((s) => [
           row(s, { id: s.id, name: s.name, kind: s.kind === 'drawn' ? s.geom.kind : 'shape', hideable: true, visible: s.visible, meta: s.id === backmost ? undefined : s.combine === 'merge' ? undefined : COMBINE_LABEL[s.combine] }),
           ...s.warps.map((w) => row(w, { id: w.id, name: w.name, kind: 'warp', depth: 1, hideable: true, visible: w.visible })),
         ])}
-        {row(stack.background, { id: stack.background.id, name: stack.background.name, kind: 'background' })}
+        {filter !== 'shapes' && row(stack.background, { id: stack.background.id, name: stack.background.name, kind: 'background' })}
       </ul>
     </nav>
   )

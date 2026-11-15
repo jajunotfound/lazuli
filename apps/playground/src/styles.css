@@ -21,6 +21,9 @@
 
   --surface: #ffffff;
   --ground-canvas: #eceef2;
+  --glass: color-mix(in srgb, var(--surface) 62%, transparent);
+  --glass-strong: color-mix(in srgb, var(--surface) 94%, transparent);
+  --glass-border: color-mix(in srgb, var(--surface) 70%, var(--border));
   --border: #e5e5e5;
   --divider: #efefef;
   --row: #f4f4f5;
@@ -2821,4 +2824,284 @@ button {
 
 .ask__done {
   justify-content: center;
+}
+
+/* ==========================================================================
+   Workspace: the canvas fills the window behind everything (soft and dimmed), and the
+   working surfaces float over it: the canvas card, the stack panel, the timeline.
+   ========================================================================== */
+
+.backdrop {
+  position: fixed;
+  inset: -32px;
+  z-index: 0;
+  pointer-events: none;
+  filter: blur(14px) saturate(1.1);
+}
+
+/* A little dimmer than the canvas itself, so the canvas stays the brightest thing. */
+.backdrop::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgb(12 14 22 / 0.16);
+}
+
+.stage[data-panels]:not([data-editor]) {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 12px;
+  padding: 20px 20px 20px 120px;
+  background: transparent;
+}
+
+.stage:not([data-editor]) {
+  background: transparent;
+}
+
+.workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
+.workspace__canvas {
+  position: relative;
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+}
+
+.stage[data-panels] .workspace__canvas {
+  padding: 60px 28px 28px;
+  /* Works on dark and light canvases alike: a faint dark ring outside, a faint light one inside. */
+  border: 0;
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 0.06), inset 0 0 0 1px rgb(255 255 255 / 0.1);
+  border-radius: 20px;
+  background: var(--glass);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+}
+
+.workspace__canvas .modes {
+  top: 14px;
+}
+
+.stage[data-panels] .frame {
+  border-radius: 10px;
+  /* The card is the canvas's own background, so only a faint edge marks what exports. */
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--ink-90) 10%, transparent);
+}
+
+.canvas-tools {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 2;
+  display: flex;
+  gap: 6px;
+}
+
+.canvas-tools__btn {
+  display: grid;
+  place-items: center;
+  min-width: 32px;
+  height: 32px;
+  padding: 0 8px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--ink-60);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.canvas-tools__btn:hover {
+  color: var(--ink-90);
+}
+
+.canvas-tools__btn[aria-pressed='true'] {
+  color: var(--accent);
+}
+
+.workspace__panel {
+  display: flex;
+  width: 300px;
+  min-height: 0;
+}
+
+.workspace__panel .layers {
+  position: static;
+  width: 100%;
+  max-height: none;
+  border-color: var(--glass-border);
+  border-radius: 20px;
+  background: var(--glass-strong);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  box-shadow: none;
+  animation: none;
+}
+
+.workspace__panel .layers__head {
+  padding: 8px 8px 8px 8px;
+}
+
+.workspace__panel .layers__head .segmented {
+  flex: 1;
+}
+
+.workspace__panel .layers__list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.layers__empty {
+  padding: 12px 14px;
+  color: var(--ink-50);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+/* The selected layer's settings, right under its row. */
+.layer__props {
+  margin: 2px 0 8px;
+  padding: 6px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--row) 70%, transparent);
+}
+
+.inspector--inline {
+  position: static;
+  width: auto;
+  max-height: none;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  animation: none;
+}
+
+.inspector--inline .inspector__head {
+  min-height: 32px;
+  padding: 0 2px 4px 6px;
+  border-bottom: 0;
+}
+
+.inspector--inline .inspector__body {
+  padding: 0;
+}
+
+.stage[data-panels]:not([data-editor]) .timeline {
+  /* Room for Lazuli in the corner. */
+  margin-right: 64px;
+  height: 56px;
+  padding: 0 12px 0 10px;
+  border-color: var(--glass-border);
+  border-radius: 16px;
+  background: var(--glass-strong);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+}
+
+@media (max-width: 640px) {
+  .stage[data-panels]:not([data-editor]) {
+    padding: 64px 12px 120px;
+  }
+
+  .workspace {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .stage[data-panels] .workspace__canvas {
+    padding: 52px 12px 12px;
+  }
+
+  .workspace__panel {
+    position: fixed;
+    top: calc(12px + env(safe-area-inset-top));
+    left: 12px;
+    right: 12px;
+    z-index: var(--z-toolbar);
+    width: auto;
+    max-height: 44dvh;
+  }
+}
+
+.workspace .canvas-col {
+  width: min(100cqw, 100cqh * 16 / 9);
+}
+
+/* Inline settings: the row above already shows the name. */
+.inspector--inline .inspector__title,
+.inspector--inline .inspector__name {
+  visibility: hidden;
+}
+
+.layer__rename {
+  flex: 1;
+  min-width: 0;
+  height: 24px;
+  margin: -2px 0;
+  padding: 0 6px;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--ink-90);
+  font: inherit;
+  font-size: 14px;
+  outline: none;
+}
+
+/* Ticks along the timeline: every half second, a label every second (or two). */
+.timeline__tick {
+  position: absolute;
+  top: 50%;
+  width: 1px;
+  height: 6px;
+  margin-left: -0.5px;
+  background: var(--ink-30, var(--border));
+  transform: translateY(4px);
+  pointer-events: none;
+}
+
+.timeline__tick[data-major] {
+  height: 8px;
+}
+
+.timeline__label {
+  position: absolute;
+  bottom: -2px;
+  color: var(--ink-40);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+/* Nothing to do on this layer (Colour map, Background, Motion): no empty bar above its settings. */
+.inspector--inline .inspector__head:not(:has(.icon-action)) {
+  display: none;
+}
+
+/* Code mode: the editor takes the left; the canvas and timeline share the rest, no card. */
+.stage[data-editor] {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 12px;
+}
+
+.stage[data-editor] .workspace__canvas {
+  padding: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }

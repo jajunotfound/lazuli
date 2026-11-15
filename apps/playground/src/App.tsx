@@ -1,5 +1,5 @@
 import * as Tooltip from '@radix-ui/react-tooltip'
-import { animateStack, applyOp, createLazuli, findLayer, hasKeys, presetStack, stackToConfig, type LazuliInput, type LazuliInstance, type PresetId, type Stack, type StackOp } from 'lazuli-bg'
+import { animateStack, cssBackground, applyOp, createLazuli, findLayer, hasKeys, presetStack, stackToConfig, type LazuliInput, type LazuliInstance, type PresetId, type Stack, type StackOp } from 'lazuli-bg'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { CanvasEditor, type DrawTool } from './components/CanvasEditor'
 import { CodeDialog } from './components/CodeDialog'
@@ -16,6 +16,7 @@ import { Toolbar, type ToolbarItem } from './components/Toolbar'
 import { AboutButton, WelcomeCard } from './components/Welcome'
 import { EllipseIcon, ExportIcon, HideIcon, LayersIcon, LazuliIcon, MoveIcon, PenIcon, PresetsIcon, RectIcon, ShowIcon } from './icons'
 import { AskLazuli } from './components/AskLazuli'
+import { Segmented } from './components/Segmented'
 import { moved } from './geom'
 import { patchLayer, SCENE_ID } from './layerEdit'
 import { blankStack, hasSeenWelcome, markMet, markWelcomeSeen, readUrlStack, shouldMeet, writeUrlStack, type PanelId } from './state'
@@ -43,6 +44,11 @@ export function App() {
   const [selected, setSelected] = useState<string>(() => initial.stack.shapes[0]?.id ?? initial.stack.background.id)
 
   const [stage, setStage] = useState<HTMLDivElement | null>(null)
+  // The workspace: the shader also fills the window behind everything (the backdrop), and the
+  // stack panel sits beside the canvas with the selected layer's settings under its row.
+  const [backdrop, setBackdrop] = useState<HTMLDivElement | null>(null)
+  const [stackOpen, setStackOpen] = useState(true)
+  const [tab, setTab] = useState<'shapes' | 'effects'>('shapes')
   const engine = useRef<LazuliInstance | null>(null)
   const [openPanel, setOpenPanel] = useState<PanelId | null>(null)
   const [tool, setTool] = useState<DrawTool>('move')
@@ -118,6 +124,35 @@ export function App() {
   useEffect(() => {
     engine.current?.setStack(live(hasKeys(stack) ? animateStack(stack, timeRef.current) : stack))
   }, [stack, live])
+
+  // The backdrop: the same canvas, drawn small and soft behind the workspace (keyframes aside).
+  const backdropEngine = useRef<LazuliInstance | null>(null)
+  useEffect(() => {
+    if (!backdrop) return
+    const e = createLazuli(backdrop, stackToConfig(stackRef.current))
+    e.setStack({ ...liveRef.current(stackRef.current), quality: 'low' })
+    backdropEngine.current = e
+    return () => {
+      e.destroy()
+      backdropEngine.current = null
+    }
+  }, [backdrop])
+  useEffect(() => {
+    backdropEngine.current?.setStack({ ...live(stack), quality: 'low' })
+  }, [stack, live])
+
+  // Shapes and their warps live on the Shapes tab; everything that finishes them on Effects.
+  const isShapeLayer = (id: string) => stack.shapes.some((x) => x.id === id || x.warps.some((w) => w.id === id))
+  useEffect(() => {
+    setTab(isShapeLayer(selected) ? 'shapes' : 'effects')
+    // Only when the selection changes (a tab click can show the other side).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected])
+  const pickTab = (t: 'shapes' | 'effects') => {
+    setTab(t)
+    if (t === 'shapes' && !isShapeLayer(selected) && stack.shapes[0]) setSelected(stack.shapes[0].id)
+    if (t === 'effects' && isShapeLayer(selected)) setSelected(stack.color.id)
+  }
 
   useEffect(() => {
     const t = setTimeout(() => writeUrlStack(stack, preset), 250)
@@ -307,7 +342,7 @@ export function App() {
       { kind: 'action', id: 'tool-rect', label: 'Rectangle', icon: RectIcon, shortcut: 'R', pressed: tool === 'rect', onClick: () => setTool('rect') },
     ],
     [
-      { kind: 'panel', id: 'layers', label: 'Layers', icon: LayersIcon, keepOpenOnCanvas: true, content: <Layers stack={stack} selected={selected} onSelect={setSelected} onOp={onOp} canDo={canDo} /> },
+      { kind: 'action', id: 'layers', label: stackOpen ? 'Hide layers' : 'Show layers', icon: LayersIcon, pressed: stackOpen, onClick: () => setStackOpen((o) => !o) },
       { kind: 'panel', id: 'presets', label: 'Presets', icon: PresetsIcon, content: (
         <div className="panel panel--presets">
           <div className="panel__head">
@@ -345,23 +380,54 @@ export function App() {
 
   return (
     <Tooltip.Provider delayDuration={300} skipDelayDuration={200}>
+      {/* The canvas again, filling the window behind the workspace. */}
+      {!editorOpen && <div className="backdrop" ref={setBackdrop} aria-hidden="true" />}
       <div
         className="stage"
         data-editor={(panels && editorOpen) || undefined}
         data-veiled={!revealed || undefined}
+        data-panels={panels || undefined}
         onPointerDown={() => {
           if (welcomeOpen && !meeting) closeWelcome()
         }}
       >
-        {panels && !editorOpen && modes}
-        <div className="stage__area">
-          <div className="canvas-col">
-            <div className="frame" ref={setStage}>
-              {panels && <CanvasEditor stack={view} moving={playing && hasKeys(stack) ? Object.keys(stack.keys ?? {}) : []} selected={selected} tool={tool} onSelect={setSelected} setTool={setTool} onOp={onOp} />}
+        <div className="workspace">
+          <div className="workspace__canvas" style={panels && !editorOpen ? { background: cssBackground(config) === 'transparent' ? undefined : cssBackground(config) } : undefined}>
+            {panels && !editorOpen && modes}
+            <div className="stage__area">
+              <div className="canvas-col">
+                <div className="frame" ref={setStage}>
+                  {panels && <CanvasEditor stack={view} moving={playing && hasKeys(stack) ? Object.keys(stack.keys ?? {}) : []} selected={selected} tool={tool} onSelect={setSelected} setTool={setTool} onOp={onOp} />}
+                </div>
+              </div>
             </div>
-            {panels && <Timeline stack={stack} selected={selected} engine={engine} live={live} time={timeRef} playing={playingRef} onKeys={(keys) => commit({ ...stack, keys })} onPlaying={setPlaying} />}
+            {panels && !editorOpen && (
+              <div className="canvas-tools">
+                <button type="button" className="canvas-tools__btn" aria-pressed={stack.quality === 'high'} onClick={() => onPatch({ quality: stack.quality === 'high' ? 'auto' : 'high' })} title={stack.quality === 'high' ? 'Full resolution (on)' : 'Full resolution'}>
+                  HQ
+                </button>
+                <button type="button" className="canvas-tools__btn" onClick={toggleControls} aria-label="Just the canvas (H)" title="Just the canvas (H)">
+                  <ShowIcon width={14} height={14} />
+                </button>
+              </div>
+            )}
           </div>
+          {panels && stackOpen && !editorOpen && (
+            <aside className="workspace__panel" aria-label="Stack">
+              <Layers
+                stack={stack}
+                selected={selected}
+                onSelect={setSelected}
+                onOp={onOp}
+                canDo={canDo}
+                filter={tab}
+                title={<Segmented<'Shapes' | 'Effects'> label="Show" className="segmented--tabs" options={[{ label: 'Shapes' }, { label: 'Effects' }]} value={tab === 'shapes' ? 'Shapes' : 'Effects'} onChange={(v) => pickTab(v === 'Shapes' ? 'shapes' : 'effects')} />}
+                inline={(id) => <Inspector inline stack={stack} selected={id} onPatch={onPatch} onOp={onOp} canDo={canDo} onOpenCode={() => setEditorOpen(true)} />}
+              />
+            </aside>
+          )}
         </div>
+        {panels && <Timeline stack={stack} selected={selected} engine={engine} live={live} time={timeRef} playing={playingRef} onKeys={(keys) => commit({ ...stack, keys })} onPlaying={setPlaying} />}
       </div>
 
       {/* Code mode is a workspace: the dock tucks away, the editor and its Properties take the left. */}
@@ -379,7 +445,7 @@ export function App() {
         </>
       )}
 
-      {panels && !editorOpen && <Inspector stack={stack} selected={selected} onPatch={onPatch} onOp={onOp} canDo={canDo} onOpenCode={() => setEditorOpen(true)} />}
+
 
       {controlsHidden && (
         <button type="button" className="show-controls" onClick={toggleControls} aria-label="Show panels" aria-keyshortcuts="H">

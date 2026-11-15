@@ -20,6 +20,8 @@ interface InspectorProps {
   embedded?: boolean
   /** Switch to the code workspace (where a code layer's GLSL is edited). */
   onOpenCode?(): void
+  /** Under the layer's row in the stack panel: no frame, no title (the row is the title). */
+  inline?: boolean
 }
 
 const COMBINE: { value: CombineMode; label: string }[] = [
@@ -30,7 +32,7 @@ const COMBINE: { value: CombineMode; label: string }[] = [
 ]
 
 /** The right panel: the selected layer's settings in a label | control grid. */
-export function Inspector({ stack, selected, onPatch, onOp, canDo, embedded, onOpenCode }: InspectorProps) {
+export function Inspector({ stack, selected, onPatch, onOp, canDo, embedded, onOpenCode, inline }: InspectorProps) {
   const found = selected === SCENE_ID ? null : findLayer(stack, selected)
   const layer: Layer | 'scene' = found?.layer ?? 'scene'
   const view = layerView(stack, selected)
@@ -43,7 +45,7 @@ export function Inspector({ stack, selected, onPatch, onOp, canDo, embedded, onO
   const duplicable = layer !== 'scene' && canDo({ op: 'duplicate', id: selected })
 
   return (
-    <aside className={embedded ? 'inspector inspector--embedded' : 'inspector'} aria-label="Inspector">
+    <aside className={inline ? 'inspector inspector--inline' : embedded ? 'inspector inspector--embedded' : 'inspector'} aria-label="Inspector">
       <div className="inspector__head">
         {layer === 'scene' || layer.kind === 'color' || layer.kind === 'background' ? (
           <h2 className="inspector__title">{title}</h2>
