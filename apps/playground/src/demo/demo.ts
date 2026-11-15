@@ -81,16 +81,60 @@ function ripple() {
   setTimeout(() => cursorEl.classList.remove('demo-cursor--down'), 160)
 }
 
-async function caption(text: string | null) {
-  if (!text) {
-    captionEl.classList.remove('demo-caption--on')
-    return
-  }
+/** Chapter marks (seconds from Space) for the video player: every titled step. */
+export const chapters: { t: number; title: string }[] = []
+let t0 = 0
+
+/** A step's title, and a hint saying where things are. */
+async function caption(title: string | null, hint?: string) {
   captionEl.classList.remove('demo-caption--on')
+  if (!title) return
   await sleep(180)
-  captionEl.textContent = text
+  captionEl.innerHTML = ''
+  const b = document.createElement('b')
+  b.textContent = title
+  captionEl.append(b)
+  if (hint) {
+    const h = document.createElement('span')
+    h.textContent = hint
+    captionEl.append(h)
+  }
   captionEl.classList.add('demo-caption--on')
-  console.debug(`[demo] ${(performance.now() / 1000).toFixed(1)}s ${text}`)
+  const t = Math.round((performance.now() - t0) / 100) / 10
+  chapters.push({ t, title })
+  console.debug(`[demo] ${t}s ${title}`)
+}
+
+/** Keys being pressed, shown the way screen recordings show them. */
+async function keycaps(...keys: string[]) {
+  const k = document.createElement('div')
+  k.className = 'demo-keys'
+  for (const key of keys) {
+    const cap = document.createElement('kbd')
+    cap.textContent = key
+    k.append(cap)
+  }
+  overlay.append(k)
+  requestAnimationFrame(() => k.classList.add('demo-keys--on'))
+  setTimeout(() => {
+    k.classList.remove('demo-keys--on')
+    setTimeout(() => k.remove(), 300)
+  }, 1300)
+}
+
+/** A key press the app hears (it listens on window). */
+const press = (key: string, mods: KeyboardEventInit = {}) => dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, ...mods }))
+
+/** Press the pointer on an element at a fraction of its width (for the timeline's scrubbing). */
+async function pressAt(el: HTMLElement, fx: number) {
+  const r = el.getBoundingClientRect()
+  const x = r.left + r.width * fx, y = r.top + r.height / 2
+  await glide(x, y)
+  await sleep(100)
+  ripple()
+  el.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: x, clientY: y, pointerId: 1, button: 0, buttons: 1, isPrimary: true }))
+  el.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: x, clientY: y, pointerId: 1, button: 0, isPrimary: true }))
+  await sleep(300)
 }
 
 // ---- the camera ---------------------------------------------------------------------------------
@@ -199,19 +243,25 @@ async function drawEllipse(api: DemoApi, a: [number, number], b: [number, number
 }
 
 async function script(api: DemoApi) {
-  await caption('Draw a shape')
+  t0 = performance.now()
+  chapters.length = 0
+  // For the recorder: when step one began, on the wall clock (so chapters line up with the video).
+  ;(window as unknown as { __demoT0?: number }).__demoT0 = performance.timeOrigin + t0
+
+  // 1. Draw
+  await caption('Draw a shape', 'Pick Ellipse in the dock, then drag on the canvas')
   await camera(1.7, 70, innerHeight / 2 - 60)
   await clickOn(find('button[aria-label="Ellipse"]'))
   await camera(1.15, innerWidth / 2 - 60, innerHeight / 2)
   await drawEllipse(api, [-0.32, 0.2], [-0.02, -0.12])
-  await sleep(300)
-
-  await caption('Add another')
+  await sleep(400)
+  await caption('Add another', 'Let them overlap a little')
   await clickOn(find('button[aria-label="Ellipse"]'), 120)
   const second = await drawEllipse(api, [0.02, 0.12], [0.22, -0.08])
-  await sleep(400)
+  await sleep(500)
 
-  await caption('Melt them together')
+  // 2. Melt
+  await caption('Melt them together', 'Drag the diamond between two shapes')
   const handle = document.querySelector<HTMLElement>('.ce-melt')
   if (handle) {
     const [hx, hy] = centerOf(handle)
@@ -219,12 +269,13 @@ async function script(api: DemoApi) {
     await glide(...onScreen(...centerOf(handle)))
     const layer = api.stack().shapes.find((x) => x.id === second)
     const start = layer?.kind === 'drawn' ? layer.melt : 0.5
-    await drag(130, 0, 1300, (k) => api.onOp({ op: 'reshape', id: second, melt: start + (0.95 - start) * k }, `melt:${second}`))
+    await drag(130, 0, 1400, (k) => api.onOp({ op: 'reshape', id: second, melt: start + (0.95 - start) * k }, `melt:${second}`))
   }
-  await sleep(500)
+  await sleep(700)
   await camera(1)
 
-  await caption('Give it light')
+  // 3. Light and color
+  await caption('Give it light', 'Effects, then Color map, then slide Light')
   await camera(1.6, innerWidth - 190, 230)
   await clickOn(find('.workspace__panel .segmented__item', 'Effects'))
   await clickOn(find('.workspace__panel [role="treeitem"]', 'Color map'))
@@ -232,62 +283,104 @@ async function script(api: DemoApi) {
   const light = find('.workspace__panel .inline-slider', 'Light')
   const [lx, ly] = centerOf(light)
   await glide(...onScreen(lx - 80, ly))
-  await drag(150, 0, 1200, (k) => api.onOp({ op: 'light', amount: 0.85 * k }, 'light:amount'))
+  await drag(150, 0, 1300, (k) => api.onOp({ op: 'light', amount: 0.85 * k }, 'light:amount'))
   await sleep(250)
   const shine = find('.workspace__panel .inline-slider', 'Shine')
   const [shx, shy] = centerOf(shine)
   await glide(...onScreen(shx - 10, shy))
-  await drag(60, 0, 700, (k) => api.onOp({ op: 'light', shine: 0.5 + 0.35 * k }, 'light:shine'))
-  await sleep(300)
-
-  await caption('Pick the colors')
+  await drag(60, 0, 800, (k) => api.onOp({ op: 'light', shine: 0.5 + 0.35 * k }, 'light:shine'))
+  await sleep(400)
+  await caption('Pick the colors', 'The palette sits under the light')
   const palette = document.querySelector<HTMLElement>('.workspace__panel .stops__bar')
   if (palette) await clickOn(palette, 100)
   api.patch({ color: { palette: ['#1b1f2e', '#6f7690', '#eef0f7'] } })
-  await sleep(500)
+  await sleep(600)
   await camera(1)
-  await sleep(900)
+  await sleep(1000)
 
-  await caption('Let it drift, or keep it still')
-  await camera(1.6, innerWidth - 190, 130)
+  // 4. Keyframes
+  await caption('Animate it with keyframes', 'Select a shape, then Add keyframe')
+  await clickOn(find('.workspace__panel .segmented__item', 'Shapes'))
+  await clickOn(find('.workspace__panel [role="treeitem"]', 'Ellipse'))
+  const track = find('.timeline__track')
+  const [, ty] = centerOf(track)
+  // The right half of the timeline, where Add keyframe is, with the canvas above it.
+  await camera(1.3, innerWidth * 0.66, ty - 90)
+  await pressAt(track, 0.01)
+  await clickOn(find('.timeline__add'), 500)
+  await caption('Move the playhead, then the shape', 'Lazuli keys it where the playhead is')
+  await pressAt(track, 0.5)
+  await sleep(300)
+  await camera(1)
+  const moving = api.stack().shapes.find((x) => x.id === second)
+  if (moving?.kind === 'drawn' && moving.geom.kind === 'ellipse') {
+    const g = moving.geom
+    const [px, py] = fieldToPage(g.x, g.y)
+    await glide(...onScreen(px, py))
+    const [ex, ey] = fieldToPage(g.x + 0.14, g.y + 0.14)
+    await drag(ex - px, ey - py, 1100, (k) => api.onOp({ op: 'reshape', id: second, geom: { ...g, x: g.x + 0.14 * k, y: g.y + 0.14 * k } }, `demo-move:${second}`))
+  }
+  await sleep(500)
+  await caption('Press play', 'It moves between the keyframes, on a loop')
+  await clickOn(find('.timeline button[aria-label="Play"]'), 300)
+  await glide(innerWidth * 0.5, innerHeight * 0.75, 900)
+  await sleep(4200)
+
+  // 5. Motion on its own
+  await caption('Or let it drift on its own', 'Effects, then Motion, then Move')
+  await clickOn(find('.workspace__panel .segmented__item', 'Effects'))
   await clickOn(find('.workspace__panel [role="treeitem"]', 'Motion'))
   await sleep(200)
   const move = document.querySelector<HTMLElement>('.workspace__panel .select-row')
   if (move) await clickOn(move, 100)
   api.onOp({ op: 'movement', move: 'drift' })
-  await sleep(400)
-  await camera(1)
-  await sleep(1400)
+  await sleep(2600)
 
-  await caption('Or sketch it in pencil')
+  // 6. Pencil
+  await caption('Or sketch it in pencil', 'Add layer, then Lines')
   await clickOn(find('button[aria-label="Add layer"]'), 500)
   await clickOn(find('.menu__item', 'Lines'), 300)
-  await sleep(2600)
+  await sleep(2800)
   api.undo()
-  await sleep(400)
+  await sleep(500)
 
-  await caption('Every change is shader code')
+  // 7. Code
+  await caption("It's all shader code", 'Switch to Code to read or edit it')
   await clickOn(find('.modes button', 'Code'), 600)
-  await sleep(2600)
+  await sleep(3000)
   await clickOn(find('.modes button', 'Canvas'), 600)
 
-  await caption('Or just ask')
+  // 8. Start over
+  await caption('Start over anytime', 'Select everything, then delete')
+  await glide(innerWidth * 0.5, innerHeight * 0.5, 700)
+  await keycaps('⌘', 'A')
+  press('a', { metaKey: true })
+  await sleep(1100)
+  await keycaps('Delete')
+  press('Backspace')
+  await sleep(300)
+  console.debug(`[demo] cleared: ${api.stack().shapes.length === 0}`)
+  await sleep(900)
+
+  // 9. Ask
+  await caption('Or start from a sentence', 'Ask Lazuli, at the bottom of the dock')
   await clickOn(find('button[aria-label="Ask Lazuli"]'), 500)
   const input = find('input[aria-label="Describe a look"]') as HTMLInputElement
   await clickOn(input, 150)
   await typeInto(input, 'A glowing flower on dark')
-  await sleep(250)
+  await sleep(300)
   await clickOn(find('.ask__form button[type="submit"]'), 200)
   for (let i = 0; i < 60 && !document.querySelector('.ask__result'); i++) await sleep(100)
-  await sleep(1400)
+  await sleep(1600)
   const keep = [...document.querySelectorAll<HTMLElement>('.ask__actions button')].find((b) => b.textContent?.includes('Keep'))
-  if (keep) await clickOn(keep, 400)
+  if (keep) await clickOn(keep, 500)
   await clickOn(find('button[aria-label="Ask Lazuli"]'), 400)
-  await sleep(1000)
+  await sleep(1200)
 
-  await caption('Copy it into your site')
+  // 10. Export
+  await caption('Put it on your site', 'Export, then copy')
   await clickOn(find('button[aria-label="Export"]'), 700)
-  await sleep(2400)
+  await sleep(2800)
   const close = document.querySelector<HTMLElement>('.code-dialog__close')
   if (close) await clickOn(close, 400)
 
@@ -295,8 +388,9 @@ async function script(api: DemoApi) {
   api.select(api.stack().background.id)
   await caption(new URLSearchParams(location.search).get('outro') || 'Made with Lazuli')
   await glide(innerWidth * 0.62, innerHeight * 0.62, 900)
-  await sleep(2600)
+  await sleep(3000)
   await caption(null)
+  ;(window as unknown as { __demoDone?: unknown }).__demoDone = chapters.slice()
 }
 
 let running = false

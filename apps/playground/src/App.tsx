@@ -16,6 +16,7 @@ import { Toolbar, type ToolbarItem } from './components/Toolbar'
 import { AboutButton, WelcomeCard } from './components/Welcome'
 import { EllipseIcon, ExportIcon, HideIcon, LayersIcon, LazuliIcon, MoveIcon, PenIcon, PresetsIcon, RectIcon, ShowIcon } from './icons'
 import { AskLazuli } from './components/AskLazuli'
+import { markTourSeen, TutorialDialog, tourSeen } from './components/TutorialDialog'
 import { isDemo, startDemo } from './demo/demo'
 import { Segmented } from './components/Segmented'
 import { moved } from './geom'
@@ -50,6 +51,9 @@ export function App() {
   // The workspace: the canvas fills the window, and everything else floats over it (the dock, the
   // stack panel with the selected layer's settings under its row, the timeline).
   const [stackOpen, setStackOpen] = useState(true)
+  // ⌘A: every shape on the canvas at once (Delete then clears them all, one undo step).
+  const [allSelected, setAllSelected] = useState(false)
+  useEffect(() => setAllSelected(false), [selected])
   const [tab, setTab] = useState<'shapes' | 'effects'>('shapes')
   const engine = useRef<LazuliInstance | null>(null)
   const [openPanel, setOpenPanel] = useState<PanelId | null>(null)
@@ -67,12 +71,20 @@ export function App() {
     if (meeting || askedOnLoad.current) return
     askedOnLoad.current = true
     if (demo) return
+    if (!tourSeen()) {
+      markTourSeen()
+      markWelcomeSeen()
+      setTourOpen(true)
+      return
+    }
     if (hist.present.shapes.length === 0) setOpenPanel('ask')
     // Only on the way in: later empties come from New canvas, which opens it itself.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [meeting])
   const [revealed, setRevealed] = useState(() => !meeting)
-  const [welcomeOpen, setWelcomeOpen] = useState(() => !demo && !hasSeenWelcome())
+  // First visit: the tour opens (once) instead of the welcome card; both stay a click away.
+  const [tourOpen, setTourOpen] = useState(false)
+  const [welcomeOpen, setWelcomeOpen] = useState(() => !demo && tourSeen() && !hasSeenWelcome())
   const [controlsHidden, setControlsHidden] = useState(false)
   // Reduced-motion users get a near-still pattern until they pick a speed themselves.
   const [speedTouched, setSpeedTouched] = useState(false)
@@ -271,6 +283,22 @@ export function App() {
       const t = e.target as HTMLElement
       const typing = t.isContentEditable || t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT'
       const mod = e.metaKey || e.ctrlKey
+      if (mod && e.key.toLowerCase() === 'a' && !typing && !codeOpen) {
+        e.preventDefault()
+        if (stack.shapes.length) setAllSelected(true)
+        return
+      }
+      if (e.key === 'Escape' && allSelected) {
+        setAllSelected(false)
+        return
+      }
+      if (allSelected && (e.key === 'Delete' || e.key === 'Backspace') && !typing) {
+        e.preventDefault()
+        commit({ ...stack, shapes: [], keys: undefined })
+        setAllSelected(false)
+        setSelected(stack.background.id)
+        return
+      }
       if (mod && e.key.toLowerCase() === 'z' && !typing) {
         e.preventDefault()
         if (e.shiftKey) redo()
@@ -313,7 +341,7 @@ export function App() {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [meeting, welcomeOpen, codeOpen, closeWelcome, shuffle, toggleControls, undo, redo, canDo, onOp, selected, stack])
+  }, [meeting, welcomeOpen, codeOpen, closeWelcome, shuffle, toggleControls, undo, redo, canDo, onOp, selected, stack, allSelected, commit])
 
   // Where the entrance sinks: the middle of the screen, measured once.
   const [meetTarget] = useState(() => ({ x: 0, y: 0, w: innerWidth, h: innerHeight }))
@@ -401,7 +429,7 @@ export function App() {
             <div className="stage__area">
               <div className="canvas-col">
                 <div className="frame" ref={setStage}>
-                  {panels && <CanvasEditor stack={view} moving={playing && hasKeys(stack) ? Object.keys(stack.keys ?? {}) : []} selected={selected} tool={tool} onSelect={setSelected} setTool={setTool} onOp={onOp} />}
+                  {panels && <CanvasEditor stack={view} moving={playing && hasKeys(stack) ? Object.keys(stack.keys ?? {}) : []} selected={selected} allSelected={allSelected} tool={tool} onSelect={setSelected} setTool={setTool} onOp={onOp} />}
                 </div>
               </div>
             </div>
@@ -409,6 +437,12 @@ export function App() {
               <div className="canvas-tools">
                 <button type="button" className="canvas-tools__btn" aria-pressed={stack.quality === 'high'} onClick={() => onPatch({ quality: stack.quality === 'high' ? 'auto' : 'high' })} title={stack.quality === 'high' ? 'Full resolution (on)' : 'Full resolution'}>
                   HQ
+                </button>
+                <button type="button" className="canvas-tools__btn" onClick={() => setTourOpen(true)} aria-label="Watch the tour" title="Watch the tour">
+                  <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true">
+                    <circle cx="8" cy="8" r="6.25" fill="none" stroke="currentColor" strokeWidth="1.3" />
+                    <path d="M6.6 5.6v4.8L10.4 8 6.6 5.6Z" fill="currentColor" />
+                  </svg>
                 </button>
                 <button type="button" className="canvas-tools__btn" onClick={toggleControls} aria-label="Just the canvas (H)" title="Just the canvas (H)">
                   <ShowIcon width={14} height={14} />
@@ -425,6 +459,7 @@ export function App() {
                 onOp={onOp}
                 canDo={canDo}
                 filter={tab}
+                allSelected={allSelected}
                 title={<Segmented<'Shapes' | 'Effects'> label="Show" className="segmented--tabs" options={[{ label: 'Shapes' }, { label: 'Effects' }]} value={tab === 'shapes' ? 'Shapes' : 'Effects'} onChange={(v) => pickTab(v === 'Shapes' ? 'shapes' : 'effects')} />}
                 inline={(id) => <Inspector inline stack={stack} selected={id} onPatch={onPatch} onOp={onOp} canDo={canDo} onOpenCode={() => setEditorOpen(true)} />}
                 onShuffle={shuffle}
@@ -471,9 +506,10 @@ export function App() {
       )}
 
       {!meeting &&
-        (welcomeOpen ? <WelcomeCard config={config} onClose={closeWelcome} /> : <AboutButton onClick={() => setWelcomeOpen(true)} mood={mood} reduced={reducedMotion} />)}
+        (welcomeOpen ? <WelcomeCard config={config} onClose={closeWelcome} onTour={() => { closeWelcome(); setTourOpen(true) }} /> : <AboutButton onClick={() => setWelcomeOpen(true)} mood={mood} reduced={reducedMotion} />)}
 
       <CodeDialog open={codeOpen} onOpenChange={setCodeOpen} stack={stack} onMood={setMood} />
+      <TutorialDialog open={tourOpen} onOpenChange={setTourOpen} />
     </Tooltip.Provider>
   )
 }

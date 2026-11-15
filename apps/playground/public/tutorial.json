@@ -1,0 +1,64 @@
+{
+  "chapters": [
+    {
+      "t": 1.6,
+      "title": "Draw a shape"
+    },
+    {
+      "t": 7,
+      "title": "Add another"
+    },
+    {
+      "t": 10.9,
+      "title": "Melt them together"
+    },
+    {
+      "t": 15.4,
+      "title": "Give it light"
+    },
+    {
+      "t": 21.9,
+      "title": "Pick the colors"
+    },
+    {
+      "t": 25.2,
+      "title": "Animate it with keyframes"
+    },
+    {
+      "t": 31,
+      "title": "Move the playhead, then the shape"
+    },
+    {
+      "t": 36.1,
+      "title": "Press play"
+    },
+    {
+      "t": 42.7,
+      "title": "Or let it drift on its own"
+    },
+    {
+      "t": 48.2,
+      "title": "Or sketch it in pencil"
+    },
+    {
+      "t": 53.7,
+      "title": "It's all shader code"
+    },
+    {
+      "t": 59.5,
+      "title": "Start over anytime"
+    },
+    {
+      "t": 62.7,
+      "title": "Or start from a sentence"
+    },
+    {
+      "t": 73.7,
+      "title": "Put it on your site"
+    },
+    {
+      "t": 79.2,
+      "title": "Made with Lazuli"
+    }
+  ]
+}

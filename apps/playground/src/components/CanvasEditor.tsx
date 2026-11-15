@@ -6,6 +6,8 @@ export type DrawTool = 'move' | 'pen' | 'ellipse' | 'rect'
 
 interface CanvasEditorProps {
   stack: Stack
+  /** ⌘A: outline every shape. */
+  allSelected?: boolean
   /** Keyed layers while the timeline plays: they move, so no outline or handles for them. */
   moving?: string[]
   selected: string
@@ -31,7 +33,7 @@ const PEN_CLOSE_PX = 10
  * layers, resizes them by their corners, drags path points, and the melt handle between a shape
  * and the one below it. All edits go through stack ops, so undo and the rules still apply.
  */
-export function CanvasEditor({ stack, moving = [], selected, tool, onSelect, setTool, onOp }: CanvasEditorProps) {
+export function CanvasEditor({ stack, moving = [], selected, tool, onSelect, setTool, onOp, allSelected }: CanvasEditorProps) {
   const svg = useRef<SVGSVGElement>(null)
   const [box, setBox] = useState<Box>({ left: 0, top: 0, width: 1, height: 1 })
   const [drag, setDrag] = useState<Drag | null>(null)
@@ -210,6 +212,7 @@ export function CanvasEditor({ stack, moving = [], selected, tool, onSelect, set
       aria-label="Canvas"
     >
       {hovered && outline(hovered.geom, 'ce-hover')}
+      {allSelected && drawn.map((x) => <g key={x.id}>{outline(x.geom, 'ce-outline')}</g>)}
       {sel && tool === 'move' && (
         <g>
           {outline(sel.geom, 'ce-outline')}

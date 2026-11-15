@@ -9,7 +9,7 @@ export const GITHUB_URL = 'https://github.com/jajunotfound/lazuli'
 const AUTHOR_URL = 'https://elisha.ma'
 const PREVIEW_ZOOM = 2.4
 
-export function WelcomeCard({ config, onClose }: { config: Config; onClose(): void }) {
+export function WelcomeCard({ config, onClose, onTour }: { config: Config; onClose(): void; onTour?(): void }) {
   return (
     <>
       {/* Dim layer: clicking the canvas area closes the card. */}
@@ -35,6 +35,14 @@ export function WelcomeCard({ config, onClose }: { config: Config; onClose(): vo
               <a href={GITHUB_URL} target="_blank" rel="noreferrer">
                 View on GitHub
               </a>
+              {onTour && (
+                <>
+                  <span aria-hidden="true"> · </span>
+                  <button type="button" className="welcome__tour" onClick={onTour}>
+                    Watch the tour
+                  </button>
+                </>
+              )}
             </span>
           </p>
         </div>

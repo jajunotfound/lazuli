@@ -17,6 +17,8 @@ interface LayersProps {
   filter?: 'shapes' | 'effects'
   /** The selected layer's properties, shown right under its row. */
   inline?(id: string): ReactNode
+  /** ⌘A: every shape row reads as selected. */
+  allSelected?: boolean
   /** New positions for a built-in shape (the selected row's shuffle button). */
   onShuffle?(): void
 }
@@ -53,7 +55,7 @@ function indexIn(stack: Stack, id: string): number {
 }
 
 /** The left panel: the stack as a list, frontmost first, like a design tool's layers. */
-export function Layers({ stack, selected, onSelect, onOp, canDo, header, title, filter, inline, onShuffle }: LayersProps) {
+export function Layers({ stack, selected, onSelect, onOp, canDo, header, title, filter, inline, onShuffle, allSelected }: LayersProps) {
   const [drag, setDrag] = useState<string | null>(null)
   const [over, setOver] = useState<string | null>(null)
   const [addOpen, setAddOpen] = useState(false)
@@ -101,7 +103,7 @@ export function Layers({ stack, selected, onSelect, onOp, canDo, header, title, 
     <li key={opts.id} role="none">
       <div
         role="treeitem"
-        aria-selected={selected === opts.id}
+        aria-selected={selected === opts.id || (!!allSelected && stack.shapes.some((x) => x.id === opts.id))}
         tabIndex={selected === opts.id ? 0 : -1}
         className="layer"
         data-depth={opts.depth || undefined}

@@ -21,7 +21,13 @@ Earlier plan: `docs/plans/draw-builder.md` (all milestones built).
 - Demo for recordings: open the app with `?demo`, press Space (R restarts). `apps/playground/src/demo/demo.ts`
   scripts ~58 s on the real app: smooth cursor, Screen Studio-style camera (a transform on <body>, only
   while no popover is open), captions, a rounded window on a plain mat (`&mat=hex`, `&outro=text`).
-  Ask Lazuli answers from a script in demo mode (`provider: 'demo'`).
+  Ask Lazuli answers from a script in demo mode (`provider: 'demo'`). It's a tutorial now: titles + hints,
+  keyframes, ⌘A + Delete, keycaps, chapter marks.
+- The tour: `public/tutorial.mp4` + `public/tutorial.json` (chapters), shown in `TutorialDialog` once on a
+  first visit and from the play button over the canvas / the welcome card. Re-record after UI changes:
+  `node tools/record/record.mjs http://localhost:5210/ ~/Desktop/lazuli-tutorial.mp4 --web apps/playground/public/tutorial.mp4 --chapters apps/playground/public/tutorial.json`
+  (needs `pnpm dev` running and ffmpeg).
+- ⌘A selects every shape; Delete clears them all (one undo step).
 - Type: Manrope, even px sizes only (14 body).
 
 ---

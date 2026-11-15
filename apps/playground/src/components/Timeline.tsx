@@ -72,7 +72,11 @@ export function Timeline({ stack, selected, engine, live, time, playing, onKeys,
   }
   const onDown = (e: ReactPointerEvent) => {
     setPlaying(false)
-    track.current!.setPointerCapture(e.pointerId)
+    try {
+      track.current!.setPointerCapture(e.pointerId)
+    } catch {
+      // A pointer the browser doesn't know (a scripted one): scrubbing still works without capture.
+    }
     scrubTo(e)
   }
 
