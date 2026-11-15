@@ -3,7 +3,7 @@
 // and `applyCode` folds it into the stack. Only Lazuli's own shape language is understood:
 // ellipse, box and polygon, joined by melt, cut or intersect, then palette and background.
 
-import { cleanGeometry, textChars, type CombineMode, type DrawnLayer, type Geometry, type Stack, type WarpLayer, type WarpType } from 'lazuli-bg'
+import { cleanGeometry, DEFAULT_CONFIG, MAX_TEXTURES, SCREEN_TEXTURES, textChars, type LightSettings, type MoveMode, type CombineMode, type DrawnLayer, type Geometry, type Stack, type WarpLayer, type WarpType } from 'lazuli-bg'
 
 const n = (v: number) => String(Number(v.toFixed(3)))
 const vec2 = (a: number, b: number) => `vec2(${n(a)}, ${n(b)})`
@@ -52,10 +52,20 @@ export function writeCode(s: Stack): string {
   if (look?.contours) out.push(`contours(${look.contours}); // rings around the shapes`)
   if (look?.glow) out.push(`glow(${n(look.glow)});`)
   const light = s.color.light
-  if (light?.amount) out.push(`light(${n(light.amount)}, ${n(light.shine)}); // depth, shine`)
+  if (light?.amount) {
+    const from = light.follow ? ', pointer' : light.x !== undefined ? `, ${vec2(light.x, light.y ?? 0)}` : ''
+    out.push(`light(${n(light.amount)}, ${n(light.shine)}${from}); // depth, shine${from ? ', where it comes from' : ''}`)
+    if (light.shadow) out.push(`shadow(${n(light.shadow)});`)
+  }
+  if (look?.outline) out.push(`outline(${n(look.outline)}${look.sketch ? `, ${n(look.sketch)}` : ''}); // thickness${look.sketch ? ', sketchy' : ''}`)
   out.push(`palette(${s.color.settings.palette.join(', ')});`)
   const bg = s.background.settings
   out.push(`background(${bg.type === 'solid' ? bg.color : bg.type === 'gradient' ? bg.gradient.join(', ') : 'none'});`)
+  const lines = s.textures.find((t) => t.settings.type === 'hatch')
+  if (lines) out.push(`lines(${n(lines.settings.scale)}, ${n(lines.settings.angle)}${lines.settings.cross ? ', cross' : ''}); // spacing, angle`)
+  const paper = s.textures.find((t) => t.settings.type === 'paper')
+  if (paper) out.push(`paper(${n(paper.settings.intensity / 100)});`)
+  if (s.move) out.push(`move(${s.move});`)
   const generated = s.shapes.filter((x) => x.kind === 'shape')
   if (generated.length) out.push('', `// + ${generated.map((x) => x.name).join(', ')} from the preset. Delete this line to drop them.`)
   return out.join('\n')
@@ -85,7 +95,12 @@ export interface ParsedCode {
   soft?: number
   palette?: string[]
   background?: string[] | 'none'
-  light?: { amount: number; shine: number }
+  light?: { amount: number; shine: number; from?: [number, number] | 'pointer' }
+  shadow?: number
+  outline?: { width: number; sketch: number }
+  lines?: { scale: number; angle: number; cross: boolean }
+  paper?: number
+  move?: MoveMode
   contours?: number
   glow?: number
   /** Built-in (generated) shapes stay only while the "// + … from the preset" line is in the text. */
@@ -275,9 +290,46 @@ export function readCode(text: string): { code: ParsedCode } | { error: CodeErro
       continue
     }
     if ((m = /^light\((.*)\);$/.exec(line))) {
-      const [a, b] = splitArgs(m[1]).map(num)
-      if (a === null || a === undefined || a < 0 || a > 1 || (b !== undefined && (b === null || b < 0 || b > 1))) return fail('Use values from 0 to 1')
-      code.light = { amount: a, shine: b ?? 0.5 }
+      const args = splitArgs(m[1])
+      const [a, b] = args.slice(0, 2).map(num)
+      if (a === null || a === undefined || a < 0 || a > 1 || (b !== undefined && (b === null || b < 0 || b > 1))) return fail('light(depth, shine, vec2(x, y) or pointer): depth and shine from 0 to 1')
+      let from: [number, number] | 'pointer' | undefined
+      if (args[2] !== undefined) {
+        from = args[2] === 'pointer' ? 'pointer' : (v2(args[2]) ?? undefined)
+        if (!from) return fail('Say where the light comes from: vec2(x, y) or pointer')
+      }
+      code.light = { amount: a, shine: b ?? 0.5, ...(from ? { from } : {}) }
+      continue
+    }
+    if ((m = /^shadow\((.*)\);$/.exec(line))) {
+      const v = num(m[1])
+      if (v === null || v < 0 || v > 1) return fail('Use a value from 0 to 1')
+      code.shadow = v
+      continue
+    }
+    if ((m = /^outline\((.*)\);$/.exec(line))) {
+      const [w, k] = splitArgs(m[1]).map(num)
+      if (w === null || w === undefined || w < 0 || w > 1 || (k !== undefined && (k === null || k < 0 || k > 1))) return fail('outline(thickness, sketchy): both from 0 to 1')
+      code.outline = { width: w, sketch: k ?? 0 }
+      continue
+    }
+    if ((m = /^lines\((.*)\);$/.exec(line))) {
+      const args = splitArgs(m[1])
+      const [sc, an] = args.slice(0, 2).map(num)
+      if (sc === null || sc === undefined || sc < 1 || sc > 16 || an === null || an === undefined || an < 0 || an > 90 || (args[2] !== undefined && args[2] !== 'cross')) return fail('lines(spacing 1–16, angle 0–90, cross?)')
+      code.lines = { scale: sc, angle: an, cross: args[2] === 'cross' }
+      continue
+    }
+    if ((m = /^paper\((.*)\);$/.exec(line))) {
+      const v = num(m[1])
+      if (v === null || v < 0 || v > 1) return fail('Use a value from 0 to 1')
+      code.paper = v
+      continue
+    }
+    if ((m = /^move\((.*)\);$/.exec(line))) {
+      const v = m[1].trim()
+      if (v !== 'drift' && v !== 'breathe') return fail('move(drift) or move(breathe). Leave it out to stay still.')
+      code.move = v
       continue
     }
     if ((m = /^palette\((.*)\);$/.exec(line))) {
@@ -337,10 +389,41 @@ export function applyCode(s: Stack, code: ParsedCode): Stack {
   const out: Stack = { ...s, shapes: [...back.reverse(), ...(code.keepBuiltIn ? s.shapes.filter((x) => x.kind === 'shape') : [])] }
   // Light, contours and glow: written only when they differ from "off", so a stack that never
   // had them stays exactly as it was.
-  const light = code.light ?? { amount: 0, shine: s.color.light?.shine ?? 0.5 }
+  const cl = code.light ?? { amount: 0, shine: s.color.light?.shine ?? 0.5 }
+  const light: LightSettings = { amount: cl.amount, shine: cl.shine }
+  if (cl.from === 'pointer') light.follow = true
+  else if (cl.from) [light.x, light.y] = cl.from
+  if (code.shadow) light.shadow = code.shadow
   if (s.color.light || light.amount) out.color = { ...out.color, light }
-  const look = { contours: code.contours ?? 0, glow: code.glow ?? 0 }
-  if (s.color.look || look.contours || look.glow) out.color = { ...out.color, look }
+  const look: NonNullable<Stack['color']['look']> = { contours: code.contours ?? 0, glow: code.glow ?? 0 }
+  if (code.outline?.width) look.outline = code.outline.width
+  if (code.outline?.width && code.outline.sketch) look.sketch = code.outline.sketch
+  if (s.color.look || look.contours || look.glow || look.outline) out.color = { ...out.color, look }
+  // Motion: still unless the code says otherwise.
+  if (code.move) out.move = code.move
+  else delete out.move
+  // Lines and paper are the textures the code speaks for; the rest stay as they are.
+  let textures = s.textures.filter((t) => (t.settings.type !== 'hatch' || code.lines) && (t.settings.type !== 'paper' || code.paper !== undefined))
+  const texId = () => {
+    let k = 1
+    while (textures.some((t) => t.id === `texture-${k}`) || s.shapes.some((x) => x.id === `texture-${k}`)) k++
+    return `texture-${k}`
+  }
+  if (code.lines) {
+    const was = textures.find((t) => t.settings.type === 'hatch')
+    const settings = { ...(was?.settings ?? { ...DEFAULT_CONFIG.texture, intensity: 100 }), type: 'hatch' as const, scale: code.lines.scale, angle: code.lines.angle, cross: code.lines.cross }
+    // One screen texture at a time: lines take the place of a halftone or dither.
+    textures = textures.filter((t) => t.settings.type === 'hatch' || !SCREEN_TEXTURES.includes(t.settings.type))
+    if (was) textures = textures.map((t) => (t === was ? { ...t, settings } : t))
+    else if (textures.length < MAX_TEXTURES) textures = [{ id: texId(), kind: 'texture', name: 'Lines', visible: true, settings }, ...textures]
+  }
+  if (code.paper !== undefined) {
+    const was = textures.find((t) => t.settings.type === 'paper')
+    const settings = { ...(was?.settings ?? DEFAULT_CONFIG.texture), type: 'paper' as const, intensity: Math.round(code.paper * 100) }
+    if (was) textures = textures.map((t) => (t === was ? { ...t, settings } : t))
+    else if (textures.length < MAX_TEXTURES) textures = [...textures, { id: texId(), kind: 'texture', name: 'Paper', visible: true, settings }]
+  }
+  out.textures = textures
   if (code.palette) out.color = { ...out.color, settings: { ...out.color.settings, palette: code.palette } }
   if (code.background) {
     const b = s.background.settings

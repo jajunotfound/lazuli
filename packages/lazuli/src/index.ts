@@ -52,6 +52,7 @@ export {
   stackToConfig,
   MAX_SHAPES,
   MAX_TEXTURES,
+  SCREEN_TEXTURES,
   MAX_WARPS_PER_SHAPE,
   type BackgroundLayer,
   type ColorLayer,

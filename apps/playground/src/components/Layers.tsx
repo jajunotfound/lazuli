@@ -19,6 +19,7 @@ const TEXTURES: { type: Exclude<TextureType, 'none'>; label: string }[] = [
   { type: 'noise', label: 'Noise' },
   { type: 'paper', label: 'Paper' },
   { type: 'halftone', label: 'Halftone' },
+  { type: 'hatch', label: 'Lines' },
   { type: 'dither', label: 'Dither' },
 ]
 const WARPS = [

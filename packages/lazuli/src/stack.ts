@@ -387,7 +387,7 @@ export function applyOp(input: Readonly<Stack>, op: StackOp): StackResult {
       if (op.layer === 'texture') {
         if (s.textures.length >= MAX_TEXTURES) return fail('texture_limit')
         if (SCREEN_TEXTURES.includes(op.type) && screens(s) >= 1) return fail('screen_limit')
-        const layer: TextureLayer = { id: nextId(s, 'texture'), kind: 'texture', name: TEXTURE_LABELS[op.type], visible: true, settings: { ...clone(DEFAULT_CONFIG.texture), type: op.type } }
+        const layer: TextureLayer = { id: nextId(s, 'texture'), kind: 'texture', name: TEXTURE_LABELS[op.type], visible: true, settings: { ...clone(DEFAULT_CONFIG.texture), type: op.type, ...(op.type === 'hatch' ? { intensity: 100 } : {}) } }
         return insertAt(s.textures, layer, op.index) ? { ok: true, stack: s } : fail('bad_index')
       }
       if (op.layer === 'cursor') {

@@ -147,9 +147,22 @@ export function Inspector({ stack, selected, onPatch, onOp, canDo, embedded, onO
           <>
             <NumberField label="Light" value={Math.round((stack.color.light?.amount ?? 0) * 100)} min={0} max={100} step={1} format={(v) => (v === 0 ? 'Flat' : String(Math.round(v)))} onChange={(v) => onOp({ op: 'light', amount: v / 100 }, 'light:amount')} />
             <NumberField label="Shine" value={Math.round((stack.color.light?.shine ?? 0.5) * 100)} min={0} max={100} step={1} format={(v) => String(Math.round(v))} onChange={(v) => onOp({ op: 'light', shine: v / 100 }, 'light:shine')} />
+            {(stack.color.light?.amount ?? 0) > 0 && (
+              <>
+                <SelectField label="Light from" value={stack.color.light?.follow ? 'pointer' : 'sun'} options={[{ value: 'sun', label: 'The sun' }, { value: 'pointer', label: 'The pointer' }]} onChange={(v) => onOp({ op: 'light', follow: v === 'pointer' })} />
+                <NumberField label="Shadow" value={Math.round((stack.color.light?.shadow ?? 0) * 100)} min={0} max={100} step={1} format={(v) => (v === 0 ? 'Off' : String(Math.round(v)))} onChange={(v) => onOp({ op: 'light', shadow: v / 100 }, 'light:shadow')} />
+              </>
+            )}
+            <NumberField label="Outline" value={Math.round((stack.color.look?.outline ?? 0) * 100)} min={0} max={100} step={1} format={(v) => (v === 0 ? 'Off' : String(Math.round(v)))} onChange={(v) => onOp({ op: 'look', outline: v / 100 }, 'look:outline')} />
+            {(stack.color.look?.outline ?? 0) > 0 && (
+              <NumberField label="Sketchy" value={Math.round((stack.color.look?.sketch ?? 0) * 100)} min={0} max={100} step={1} format={(v) => (v === 0 ? 'Clean' : String(Math.round(v)))} onChange={(v) => onOp({ op: 'look', sketch: v / 100 }, 'look:sketch')} />
+            )}
             <NumberField label="Contours" value={stack.color.look?.contours ?? 0} min={0} max={40} step={1} format={(v) => (v === 0 ? 'Off' : String(Math.round(v)))} onChange={(v) => onOp({ op: 'look', contours: v }, 'look:contours')} />
             <NumberField label="Glow" value={Math.round((stack.color.look?.glow ?? 0) * 100)} min={0} max={100} step={1} format={(v) => (v === 0 ? 'Off' : String(Math.round(v)))} onChange={(v) => onOp({ op: 'look', glow: v / 100 }, 'look:glow')} />
           </>
+        )}
+        {layer === 'scene' && (
+          <SelectField label="Move" value={stack.move ?? 'still'} options={[{ value: 'still', label: 'Still' }, { value: 'drift', label: 'Drift' }, { value: 'breathe', label: 'Breathe' }]} onChange={(v) => onOp({ op: 'movement', move: v as 'still' | 'drift' | 'breathe' })} />
         )}
         {paths.map((p) => (
           <Field key={p} path={p} view={view} set={onPatch} />

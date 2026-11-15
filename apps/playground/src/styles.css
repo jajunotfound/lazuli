@@ -691,6 +691,22 @@ button {
   stroke-width: 1;
 }
 
+.ce-sun {
+  cursor: grab;
+}
+
+.ce-sun__disc {
+  fill: #ffd34d;
+  stroke: #b07800;
+  stroke-width: 1.5;
+}
+
+.ce-sun__ray {
+  stroke: #b07800;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+}
+
 .ce-halo {
   fill: none;
   stroke: #fff;

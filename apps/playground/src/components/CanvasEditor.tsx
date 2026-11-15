@@ -1,4 +1,4 @@
-import type { DrawnLayer, Geometry, Stack, StackOp } from 'lazuli-bg'
+import { DEFAULT_SUN, type DrawnLayer, type Geometry, type Stack, type StackOp } from 'lazuli-bg'
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import { center, corners, ends, fromDrag, halfSize, hit, isField, moved, resized, toField, toScreen, type Box } from '../geom'
 
@@ -21,6 +21,7 @@ type Drag =
   | { kind: 'resize'; id: string; geom: Geometry }
   | { kind: 'vertex'; id: string; index: number; geom: Geometry }
   | { kind: 'melt'; id: string; x: number; melt: number }
+  | { kind: 'sun' }
   | { kind: 'draw'; shape: 'ellipse' | 'rect'; from: [number, number]; to: [number, number]; square: boolean }
 
 const PEN_CLOSE_PX = 10
@@ -61,6 +62,9 @@ export function CanvasEditor({ stack, moving = [], selected, tool, onSelect, set
   }, [tool])
 
   const drawn = stack.shapes.filter((x): x is DrawnLayer => x.kind === 'drawn' && x.visible)
+  // The sun handle: only while drawn shapes are lit from a placed light.
+  const light = stack.color.light
+  const sun: [number, number] | null = drawn.length && light && light.amount > 0 && !light.follow ? [light.x ?? DEFAULT_SUN[0], light.y ?? DEFAULT_SUN[1]] : null
   const sel = drawn.find((x) => x.id === selected && !moving.includes(x.id)) ?? null
   // The drawn layer right below the selection, which the melt handle joins it to.
   const below = (() => {
@@ -103,6 +107,7 @@ export function CanvasEditor({ stack, moving = [], selected, tool, onSelect, set
     const t = e.target as SVGElement
     if (sel && t.dataset.handle === 'corner') return setDrag({ kind: 'resize', id: sel.id, geom: sel.geom })
     if (sel && t.dataset.handle === 'vertex') return setDrag({ kind: 'vertex', id: sel.id, index: Number(t.dataset.index), geom: sel.geom })
+    if (t.closest('[data-handle="sun"]')) return setDrag({ kind: 'sun' })
     if (sel && t.dataset.handle === 'melt') return setDrag({ kind: 'melt', id: sel.id, x: e.clientX, melt: sel.melt })
     const target = drawn.find((x) => hit(x.geom, p[0], p[1]))
     if (target) {
@@ -131,6 +136,7 @@ export function CanvasEditor({ stack, moving = [], selected, tool, onSelect, set
       const points = drag.geom.points.map((q, i) => (i === drag.index ? p : q))
       return onOp({ op: 'reshape', id: drag.id, geom: { kind: 'path', points } }, `vertex:${drag.id}`)
     }
+    if (drag.kind === 'sun') return onOp({ op: 'light', x: p[0], y: p[1] }, 'light:sun')
     if (drag.kind === 'melt') return onOp({ op: 'reshape', id: drag.id, melt: Math.min(1, Math.max(0, drag.melt + (e.clientX - drag.x) / 160)) }, `melt:${drag.id}`)
   }
 
@@ -242,6 +248,21 @@ export function CanvasEditor({ stack, moving = [], selected, tool, onSelect, set
           })()}
         </g>
       )}
+      {sun && tool === 'move' && (() => {
+        // The light, where it was put: drag it and the shading follows.
+        const [sx, sy] = px(sun[0], sun[1])
+        return (
+          <g className="ce-sun" data-handle="sun">
+            <circle cx={sx} cy={sy} r="18" fill="transparent" stroke="none" />
+            <circle className="ce-sun__disc" cx={sx} cy={sy} r="7" />
+            {[...Array(8)].map((_, i) => {
+              const a = (i * Math.PI) / 4
+              return <line key={i} className="ce-sun__ray" x1={sx + Math.cos(a) * 10.5} y1={sy + Math.sin(a) * 10.5} x2={sx + Math.cos(a) * 14.5} y2={sy + Math.sin(a) * 14.5} />
+            })}
+            <title>The light. Drag it.</title>
+          </g>
+        )
+      })()}
       {draft && outline(draft, 'ce-draft')}
       {tool === 'pen' && pen.length > 0 && (
         <g>

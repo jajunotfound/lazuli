@@ -25,6 +25,20 @@ palette(#1b1f2e, #6f7690, #eef0f7);
 background(#f5f6fa, #dcdfeb);`,
   },
   {
+    id: 'pencil',
+    name: 'Pencil',
+    code: `float d = ellipse(p, vec2(-0.2, 0.06), vec2(0.15, 0.15));
+d = melt(d, ellipse(p, vec2(0.1, 0.14), vec2(0.12, 0.12)), 0.7);
+d = melt(d, ellipse(p, vec2(0.12, -0.13), vec2(0.13, 0.13)), 0.7);
+return palette(field(p), 0.04);
+light(0.8, 0.05, vec2(-0.5, 0.35));
+shadow(0.7);
+outline(0.4, 0.6);
+palette(#3a3d45, #9a9da5, #f4f2ec);
+background(#f6f3ec);
+lines(1, 45, cross);`,
+  },
+  {
     id: 'lava',
     name: 'Lava',
     code: `float d = ellipse(p, vec2(-0.25, -0.1), vec2(0.16, 0.2));
