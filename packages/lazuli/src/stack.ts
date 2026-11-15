@@ -64,6 +64,8 @@ export type Geometry =
   | { kind: 'noise'; scale: number; level: number }
   /** Organic tiles: scale = cells per frame height, gap 0–1 between them. */
   | { kind: 'cells'; scale: number; gap: number }
+  /** A ramp of the palette: fullest at (x1, y1), fading out at (x2, y2); radial grows out from (x1, y1). */
+  | { kind: 'gradient'; x1: number; y1: number; x2: number; y2: number; radial: boolean }
   /** Words in Lazuli's stroke font (font.ts): size = cap height, weight 0–1 = stroke thickness. */
   | { kind: 'text'; text: string; x: number; y: number; size: number; weight: number; angle: number }
 
@@ -332,7 +334,7 @@ export function applyOp(input: Readonly<Stack>, op: StackOp): StackResult {
         if (s.shapes.filter((x) => x.kind === 'drawn').length >= MAX_DRAWN) return fail('drawn_limit')
         const geom = cleanGeometry(op.geom)
         if (!geom) return fail('bad_geometry')
-        const names = { ellipse: 'Ellipse', rect: 'Rectangle', path: 'Path', noise: 'Noise', cells: 'Cells', text: 'Text' }
+        const names = { ellipse: 'Ellipse', rect: 'Rectangle', path: 'Path', noise: 'Noise', cells: 'Cells', text: 'Text', gradient: 'Gradient' }
         const layer: DrawnLayer = { id: nextId(s, 'drawn'), kind: 'drawn', name: names[geom.kind], visible: true, geom, melt: 0.5, combine: 'merge', soft: geom.kind === 'text' ? 0.08 : 0.3, warps: [] }
         return insertAt(s.shapes, layer, op.index) ? { ok: true, stack: s } : fail('bad_index')
       }
@@ -521,6 +523,11 @@ export function cleanGeometry(g: Geometry): Geometry | null {
   if (g.kind === 'cells') {
     const v = [n(g.scale, 1, 30), n(g.gap, 0, 1)]
     return v.some((x) => x === null) ? null : { kind: 'cells', scale: v[0]!, gap: v[1]! }
+  }
+  if (g.kind === 'gradient') {
+    const v = [n(g.x1, -4, 4), n(g.y1, -4, 4), n(g.x2, -4, 4), n(g.y2, -4, 4)]
+    if (v.some((x) => x === null)) return null
+    return { kind: 'gradient', x1: v[0]!, y1: v[1]!, x2: v[2]!, y2: v[3]!, radial: g.radial === true }
   }
   if (g.kind === 'text') {
     if (typeof g.text !== 'string') return null

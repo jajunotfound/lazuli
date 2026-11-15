@@ -234,6 +234,11 @@ function drawnFunction(l: DrawnLayer, i: number): string {
   if (l.geom.kind === 'rect') {
     return `${head}\nuniform vec4 u_geo_${i}; uniform vec2 u_rect_${i};\nfloat drawn_${i}(vec2 p, float t) {\n  ${center}\n  return sdRoundRect(drawnTurn(u_rect_${i}.y) * (q - u_geo_${i}.xy), u_geo_${i}.zw, u_rect_${i}.x);\n}`
   }
+  if (l.geom.kind === 'gradient') {
+    // A ramp: s runs 0 at the first point to 1 at the second (along the line, or out from the
+    // first point when radial). Fullest at the first point, the edge at the second.
+    return `${head}\nuniform vec4 u_geo_${i}; uniform float u_rad_${i};\nfloat drawn_${i}(vec2 p, float t) {\n  ${center}\n  vec2 a = u_geo_${i}.xy, e = u_geo_${i}.zw - a;\n  float L = max(length(e), 1e-4);\n  float s = u_rad_${i} > 0.5 ? length(q - a) / L : dot(q - a, e) / (L * L);\n  return (s - 1.0) * 0.16;\n}`
+  }
   if (l.geom.kind === 'text') {
     // Words: the distance to the font's segments (cap-height units), thickened by the weight.
     return `${head}
@@ -286,6 +291,9 @@ function drawnValues(l: DrawnLayer, i: number, out: UniformValues) {
   } else if (g.kind === 'rect') {
     out[`u_geo_${i}`] = [g.x, g.y, g.w, g.h]
     out[`u_rect_${i}`] = [g.radius, g.angle]
+  } else if (g.kind === 'gradient') {
+    out[`u_geo_${i}`] = [g.x1, g.y1, g.x2, g.y2]
+    out[`u_rad_${i}`] = g.radial ? 1 : 0
   } else if (g.kind === 'text') {
     const { segments } = textLayout(g.text)
     const flat = new Float32Array(MAX_TEXT_SEGMENTS * 4)

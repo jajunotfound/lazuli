@@ -19,12 +19,13 @@ export function shapeCode(l: DrawnLayer): string {
   if (g.kind === 'rect') return `box(${p}, ${vec2(g.x, g.y)}, ${vec2(g.w, g.h)}, ${n(g.radius)}${g.angle ? `, ${n(g.angle)}` : ''})`
   if (g.kind === 'noise') return `noise(${p}, ${n(g.scale)}, ${n(g.level)})`
   if (g.kind === 'cells') return `cells(${p}, ${n(g.scale)}, ${n(g.gap)})`
+  if (g.kind === 'gradient') return `${g.radial ? 'radial' : 'gradient'}(${p}, ${vec2(g.x1, g.y1)}, ${vec2(g.x2, g.y2)})`
   if (g.kind === 'text') return `text(${p}, "${g.text}", ${vec2(g.x, g.y)}, ${n(g.size)}, ${n(g.weight)}${g.angle ? `, ${n(g.angle)}` : ''})`
   return `polygon(${p}, ${g.points.map(([x, y]) => vec2(x, y)).join(', ')})`
 }
 
 const WARPS: WarpType[] = ['swirl', 'noise', 'ripple', 'kaleido', 'repeat', 'twist', 'cursor']
-const NAMES: Record<Geometry['kind'], string> = { ellipse: 'Ellipse', rect: 'Rectangle', path: 'Path', noise: 'Noise', cells: 'Cells', text: 'Text' }
+const NAMES: Record<Geometry['kind'], string> = { ellipse: 'Ellipse', rect: 'Rectangle', path: 'Path', noise: 'Noise', cells: 'Cells', text: 'Text', gradient: 'Gradient' }
 
 const drawnBackToFront = (s: Stack) => s.shapes.filter((x): x is DrawnLayer => x.kind === 'drawn').reverse()
 
@@ -132,8 +133,8 @@ function v2(s: string): [number, number] | null {
 
 /** A shape expression → geometry, or an error message. */
 function readShape(expr: string): { geom: Geometry; source: string; warps: WarpType[] } | string {
-  const m = /\b(ellipse|box|polygon|noise|cells|text)\s*\(/.exec(expr)
-  if (!m) return 'Try ellipse(), box(), polygon(), text(), noise() or cells()'
+  const m = /\b(ellipse|box|polygon|noise|cells|text|gradient|radial)\s*\(/.exec(expr)
+  if (!m) return 'Try ellipse(), box(), polygon(), text(), gradient(), radial(), noise() or cells()'
   const open = m.index + m[0].length - 1
   const body = inside(expr, open)
   if (body === null) return 'Missing a closing parenthesis'
@@ -154,6 +155,11 @@ function readShape(expr: string): { geom: Geometry; source: string; warps: WarpT
     const [a, b] = [num(args[0] ?? ''), num(args[1] ?? '')]
     if (a === null || b === null) return `${m[1]}(p, scale, ${m[1] === 'noise' ? 'fill' : 'gap'})`
     return done(cleanGeometry(m[1] === 'noise' ? { kind: 'noise', scale: a, level: b } : { kind: 'cells', scale: a, gap: b }), 'That scale is out of range')
+  }
+  if (m[1] === 'gradient' || m[1] === 'radial') {
+    const [a, b] = [v2(args[0] ?? ''), v2(args[1] ?? '')]
+    if (!a || !b) return `${m[1]}(p, vec2(fullest), vec2(fades out))`
+    return done(cleanGeometry({ kind: 'gradient', x1: a[0], y1: a[1], x2: b[0], y2: b[1], radial: m[1] === 'radial' }), 'Those points are too far out')
   }
   if (m[1] === 'text') {
     const words = /^"([^"]*)"$/.exec(args[0] ?? '')?.[1]

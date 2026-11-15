@@ -93,6 +93,14 @@ export function Inspector({ stack, selected, onPatch, onOp, canDo, embedded }: I
                 <NumberField label="Gap" value={Math.round(drawn.geom.gap * 100)} min={0} max={100} step={1} format={(v) => String(Math.round(v))} onChange={(v) => drawn.geom.kind === 'cells' && onOp({ op: 'reshape', id: selected, geom: { ...drawn.geom, gap: v / 100 } }, `gap:${selected}`)} />
               </>
             )}
+            {drawn.geom.kind === 'gradient' && (
+              <SelectField
+                label="Type"
+                value={drawn.geom.radial ? 'radial' : 'linear'}
+                options={[{ value: 'linear', label: 'Linear' }, { value: 'radial', label: 'Radial' }]}
+                onChange={(v) => drawn.geom.kind === 'gradient' && onOp({ op: 'reshape', id: selected, geom: { ...drawn.geom, radial: v === 'radial' } })}
+              />
+            )}
             {drawn.geom.kind === 'text' && (
               <>
                 <TextRow label="Text" value={drawn.geom.text} onCommit={(v) => drawn.geom.kind === 'text' && onOp({ op: 'reshape', id: selected, geom: { ...drawn.geom, text: v } })} />

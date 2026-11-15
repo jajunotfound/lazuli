@@ -1,6 +1,6 @@
 import type { DrawnLayer, Geometry, Stack, StackOp } from 'lazuli-bg'
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
-import { center, corners, fromDrag, halfSize, hit, isField, moved, resized, toField, toScreen, type Box } from '../geom'
+import { center, corners, ends, fromDrag, halfSize, hit, isField, moved, resized, toField, toScreen, type Box } from '../geom'
 
 export type DrawTool = 'move' | 'pen' | 'ellipse' | 'rect'
 
@@ -123,6 +123,10 @@ export function CanvasEditor({ stack, moving = [], selected, tool, onSelect, set
       return onOp({ op: 'reshape', id: drag.id, geom: moved(drag.geom, p[0] - drag.from[0], p[1] - drag.from[1]) }, `move:${drag.id}`)
     }
     if (drag.kind === 'resize') return onOp({ op: 'reshape', id: drag.id, geom: resized(drag.geom, p[0], p[1], e.shiftKey) }, `resize:${drag.id}`)
+    if (drag.kind === 'vertex' && drag.geom.kind === 'gradient') {
+      const g = drag.index === 0 ? { ...drag.geom, x1: p[0], y1: p[1] } : { ...drag.geom, x2: p[0], y2: p[1] }
+      return onOp({ op: 'reshape', id: drag.id, geom: g }, `vertex:${drag.id}`)
+    }
     if (drag.kind === 'vertex' && drag.geom.kind === 'path') {
       const points = drag.geom.points.map((q, i) => (i === drag.index ? p : q))
       return onOp({ op: 'reshape', id: drag.id, geom: { kind: 'path', points } }, `vertex:${drag.id}`)
@@ -160,6 +164,17 @@ export function CanvasEditor({ stack, moving = [], selected, tool, onSelect, set
 
   const outline = (g: Geometry, cls: string) => {
     if (isField(g)) return null
+    if (g.kind === 'gradient') {
+      const [[ax, ay], [bx, by]] = ends(g).map(([x, y]) => px(x, y))
+      // A white halo under the line: the gradient paints the colour the line is drawn in.
+      return (
+        <g>
+          <line className="ce-halo" x1={ax} y1={ay} x2={bx} y2={by} />
+          <line className={cls} x1={ax} y1={ay} x2={bx} y2={by} />
+          {g.radial && <circle className={cls} cx={ax} cy={ay} r={Math.hypot(bx - ax, by - ay)} strokeDasharray="4 4" />}
+        </g>
+      )
+    }
     if (g.kind === 'path') return <polygon className={cls} points={g.points.map(([x, y]) => px(x, y).join(',')).join(' ')} />
     const [cx, cy] = px(g.x, g.y)
     const rot = `rotate(${(-g.angle * 180) / Math.PI} ${cx} ${cy})`
@@ -193,6 +208,13 @@ export function CanvasEditor({ stack, moving = [], selected, tool, onSelect, set
           {outline(sel.geom, 'ce-outline')}
           {sel.geom.kind === 'noise' || sel.geom.kind === 'cells'
             ? null
+            : sel.geom.kind === 'gradient'
+            ? ends(sel.geom).map(([x, y], i) => {
+                const [sx, sy] = px(x, y)
+                return <circle key={i} className="ce-handle ce-handle--stop" data-handle="vertex" data-index={i} cx={sx} cy={sy} r={i === 0 ? 6 : 5}>
+                  <title>{i === 0 ? 'Fullest here' : 'Fades out here'}</title>
+                </circle>
+              })
             : sel.geom.kind === 'path'
             ? sel.geom.points.map(([x, y], i) => {
                 const [sx, sy] = px(x, y)

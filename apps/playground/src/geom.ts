@@ -18,6 +18,9 @@ export const toField = (b: Box, cx: number, cy: number): [number, number] => [
 /** Field point → overlay pixels (relative to the frame's top-left). */
 export const toScreen = (b: Box, x: number, y: number): [number, number] => [b.width / 2 + x * b.height, b.height / 2 - y * b.height]
 
+/** A gradient's two points (fullest, then where it fades out). */
+export const ends = (g: Extract<Geometry, { kind: 'gradient' }>): [number, number][] => [[g.x1, g.y1], [g.x2, g.y2]]
+
 /** Noise and cells fill the whole frame: nothing to drag or outline. */
 export const isField = (g: Geometry): g is Extract<Geometry, { kind: 'noise' | 'cells' }> => g.kind === 'noise' || g.kind === 'cells'
 
@@ -34,6 +37,7 @@ export function halfSize(g: Boxed): [number, number] {
 
 export function center(g: Geometry): [number, number] {
   if (isField(g)) return [0, 0]
+  if (g.kind === 'gradient') return [(g.x1 + g.x2) / 2, (g.y1 + g.y2) / 2]
   if (g.kind !== 'path') return [g.x, g.y]
   const n = g.points.length
   return [g.points.reduce((a, p) => a + p[0], 0) / n, g.points.reduce((a, p) => a + p[1], 0) / n]
@@ -50,6 +54,12 @@ export function local(g: Geometry, x: number, y: number): [number, number] {
 /** Is the field point inside the shape (with a little slack, in field units)? */
 export function hit(g: Geometry, x: number, y: number, slack = 0.01): boolean {
   if (isField(g)) return false
+  if (g.kind === 'gradient') {
+    // It fills the frame, so only its line picks it.
+    const ex = g.x2 - g.x1, ey = g.y2 - g.y1
+    const k = Math.min(1, Math.max(0, ((x - g.x1) * ex + (y - g.y1) * ey) / Math.max(ex * ex + ey * ey, 1e-9)))
+    return Math.hypot(x - g.x1 - ex * k, y - g.y1 - ey * k) <= 0.015 + slack
+  }
   if (g.kind === 'ellipse') {
     const [lx, ly] = local(g, x, y)
     return (lx / (g.rx + slack)) ** 2 + (ly / (g.ry + slack)) ** 2 <= 1
@@ -70,6 +80,7 @@ export function hit(g: Geometry, x: number, y: number, slack = 0.01): boolean {
 /** The same shape moved by (dx, dy). */
 export function moved(g: Geometry, dx: number, dy: number): Geometry {
   if (isField(g)) return g
+  if (g.kind === 'gradient') return { ...g, x1: g.x1 + dx, y1: g.y1 + dy, x2: g.x2 + dx, y2: g.y2 + dy }
   if (g.kind === 'path') return { ...g, points: g.points.map(([x, y]) => [x + dx, y + dy]) }
   return { ...g, x: g.x + dx, y: g.y + dy }
 }

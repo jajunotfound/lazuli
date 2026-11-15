@@ -691,6 +691,13 @@ button {
   stroke-width: 1;
 }
 
+.ce-halo {
+  fill: none;
+  stroke: #fff;
+  stroke-width: 3;
+  stroke-opacity: 0.7;
+}
+
 .ce-hover {
   stroke-opacity: 0.5;
 }
@@ -708,6 +715,16 @@ button {
 
 .ce-handle[data-handle='vertex'] {
   cursor: move;
+}
+
+/* A gradient's stops: the filled one is where the colour is fullest. */
+.ce-handle--stop {
+  stroke-width: 1.5;
+}
+
+.ce-handle--stop[data-index='0'] {
+  fill: var(--accent);
+  stroke: #fff;
 }
 
 .ce-link {

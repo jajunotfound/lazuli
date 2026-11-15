@@ -373,3 +373,12 @@ test('text: layout, cleaning and compiling', async () => {
   assert.match(fs, /uniform vec4 u_seg_0\[64\]/)
   assert.equal(stackUniforms(r.stack).u_nseg_0, 4)
 })
+
+test('gradient: compiles with both points and the radial flag', () => {
+  const r = applyOp(configToStack(resolveConfig({})), { op: 'add', layer: 'drawn', geom: { kind: 'gradient', x1: -0.5, y1: 0, x2: 0.5, y2: 0, radial: true } })
+  assert.ok(r.ok)
+  const u = stackUniforms(r.stack)
+  assert.deepEqual(Array.from(u.u_geo_0 as number[]), [-0.5, 0, 0.5, 0])
+  assert.equal(u.u_rad_0, 1)
+  assert.match(stackFragment(r.stack), /float s = u_rad_0 > 0\.5/)
+})
