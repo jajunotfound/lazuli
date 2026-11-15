@@ -10,8 +10,8 @@ Earlier plan: `docs/plans/draw-builder.md` (all milestones built).
   README), then `VITE_AGENT_URL` in `apps/playground/.env.local`. Bring-your-own key works today.
 - Checks: `pnpm -C packages/lazuli test`; `tools/checks/*` (code language, agent loop, Worker);
   `tools/regress/*` GPU checks (serve the repo root on 5398).
-- Workspace (2026-11-15, after the user's reference): the canvas fills the window behind everything
-  (`.backdrop`, a second low-quality engine), the canvas card takes the canvas's own background, the
+- Workspace (2026-11-15, after the user's reference): one canvas fills the whole window (the frame
+  is fixed full-window outside Code mode; no inner 16:9 frame, no backdrop copy), the dock overlays it, the
   stack panel (Shapes | Effects, settings inline under the selected row) replaces the Layers popover
   and floating inspector, full-width timeline with ticks. The dock is unchanged; its Layers button
   shows/hides the panel. Phone layout: panel overlays the top (not checked on a device yet).

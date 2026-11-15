@@ -2831,28 +2831,40 @@ button {
    working surfaces float over it: the canvas card, the stack panel, the timeline.
    ========================================================================== */
 
-.backdrop {
-  position: fixed;
-  inset: -32px;
-  z-index: 0;
-  pointer-events: none;
-  filter: blur(14px) saturate(1.1);
-}
-
-/* A little dimmer than the canvas itself, so the canvas stays the brightest thing. */
-.backdrop::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: rgb(12 14 22 / 0.16);
-}
-
 .stage[data-panels]:not([data-editor]) {
   display: grid;
   grid-template-rows: minmax(0, 1fr) auto;
   gap: 12px;
-  padding: 20px 20px 20px 120px;
+  /* The dock floats over the canvas on the left, so no room is kept for it. */
+  padding: 20px;
   background: transparent;
+}
+
+/* One canvas, the whole window: everything else floats over it. */
+.stage:not([data-editor]) .frame {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  width: auto;
+  aspect-ratio: auto;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.stage:not([data-editor]) .workspace__panel,
+.stage:not([data-editor]) .timeline,
+.stage:not([data-editor]) .canvas-tools,
+.stage:not([data-editor]) .modes {
+  position: relative;
+  z-index: 1;
+}
+
+.stage:not([data-editor]) .modes {
+  position: absolute;
+}
+
+.stage:not([data-editor]) .canvas-tools {
+  position: absolute;
 }
 
 .stage:not([data-editor]) {
@@ -2875,26 +2887,13 @@ button {
   min-height: 0;
 }
 
-.stage[data-panels] .workspace__canvas {
-  padding: 60px 28px 28px;
-  /* Works on dark and light canvases alike: a faint dark ring outside, a faint light one inside. */
-  border: 0;
-  box-shadow: 0 0 0 1px rgb(0 0 0 / 0.06), inset 0 0 0 1px rgb(255 255 255 / 0.1);
-  border-radius: 20px;
-  background: var(--glass);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-}
+
 
 .workspace__canvas .modes {
   top: 14px;
 }
 
-.stage[data-panels] .frame {
-  border-radius: 10px;
-  /* The card is the canvas's own background, so only a faint edge marks what exports. */
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--ink-90) 10%, transparent);
-}
+
 
 .canvas-tools {
   position: absolute;

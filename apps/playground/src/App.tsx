@@ -1,5 +1,5 @@
 import * as Tooltip from '@radix-ui/react-tooltip'
-import { animateStack, cssBackground, applyOp, createLazuli, findLayer, hasKeys, presetStack, stackToConfig, type LazuliInput, type LazuliInstance, type PresetId, type Stack, type StackOp } from 'lazuli-bg'
+import { animateStack, applyOp, createLazuli, findLayer, hasKeys, presetStack, stackToConfig, type LazuliInput, type LazuliInstance, type PresetId, type Stack, type StackOp } from 'lazuli-bg'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { CanvasEditor, type DrawTool } from './components/CanvasEditor'
 import { CodeDialog } from './components/CodeDialog'
@@ -44,9 +44,8 @@ export function App() {
   const [selected, setSelected] = useState<string>(() => initial.stack.shapes[0]?.id ?? initial.stack.background.id)
 
   const [stage, setStage] = useState<HTMLDivElement | null>(null)
-  // The workspace: the shader also fills the window behind everything (the backdrop), and the
-  // stack panel sits beside the canvas with the selected layer's settings under its row.
-  const [backdrop, setBackdrop] = useState<HTMLDivElement | null>(null)
+  // The workspace: the canvas fills the window, and everything else floats over it (the dock, the
+  // stack panel with the selected layer's settings under its row, the timeline).
   const [stackOpen, setStackOpen] = useState(true)
   const [tab, setTab] = useState<'shapes' | 'effects'>('shapes')
   const engine = useRef<LazuliInstance | null>(null)
@@ -123,22 +122,6 @@ export function App() {
 
   useEffect(() => {
     engine.current?.setStack(live(hasKeys(stack) ? animateStack(stack, timeRef.current) : stack))
-  }, [stack, live])
-
-  // The backdrop: the same canvas, drawn small and soft behind the workspace (keyframes aside).
-  const backdropEngine = useRef<LazuliInstance | null>(null)
-  useEffect(() => {
-    if (!backdrop) return
-    const e = createLazuli(backdrop, stackToConfig(stackRef.current))
-    e.setStack({ ...liveRef.current(stackRef.current), quality: 'low' })
-    backdropEngine.current = e
-    return () => {
-      e.destroy()
-      backdropEngine.current = null
-    }
-  }, [backdrop])
-  useEffect(() => {
-    backdropEngine.current?.setStack({ ...live(stack), quality: 'low' })
   }, [stack, live])
 
   // Shapes and their warps live on the Shapes tab; everything that finishes them on Effects.
@@ -380,8 +363,6 @@ export function App() {
 
   return (
     <Tooltip.Provider delayDuration={300} skipDelayDuration={200}>
-      {/* The canvas again, filling the window behind the workspace. */}
-      {!editorOpen && <div className="backdrop" ref={setBackdrop} aria-hidden="true" />}
       <div
         className="stage"
         data-editor={(panels && editorOpen) || undefined}
@@ -392,7 +373,7 @@ export function App() {
         }}
       >
         <div className="workspace">
-          <div className="workspace__canvas" style={panels && !editorOpen ? { background: cssBackground(config) === 'transparent' ? undefined : cssBackground(config) } : undefined}>
+          <div className="workspace__canvas">
             {panels && !editorOpen && modes}
             <div className="stage__area">
               <div className="canvas-col">
