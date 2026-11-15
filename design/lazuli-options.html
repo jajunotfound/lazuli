@@ -170,13 +170,65 @@ h1 { margin: 0; font-size: 22px; line-height: 1.2; letter-spacing: -0.02em; text
 .k-bend { background: #ece5fb; color: #4b2a96; } .k-combine { background: #e6ecf9; color: #1f48a8; } .k-light { background: #fbf1d4; color: #7a5600; }
 .legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; color: var(--ink-2); align-items: center; }
 
+/* looks (pencil) */
+.looks { display: flex; flex-wrap: wrap; gap: 4px; }
+.looks button { border: 1px solid var(--line); background: var(--surface); color: var(--ink-2); font: inherit; font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 999px; cursor: pointer; }
+.looks button[aria-pressed="true"] { background: var(--accent-soft); border-color: transparent; color: var(--accent); }
+.frame--big { max-width: 600px; }
+.frame canvas[data-fx] { cursor: crosshair; }
+
+/* ask lazuli */
+.variants { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 12px; color: var(--ink-2); }
+.variants .looks button { font-size: 12px; }
+.app--ask { grid-template-areas: "dock stage panel"; }
+.app--ask > .dock { grid-area: dock; } .app--ask > .stage { grid-area: stage; } .app--ask > .panel { grid-area: panel; } .app--ask > .side { grid-area: side; display: none; }
+.app--ask[data-v="pane"] { grid-template-columns: 72px 320px 1fr; grid-template-areas: "dock side stage"; }
+.app--ask[data-v="pane"] > .side { display: flex; }
+.app--ask[data-v="pane"] > .panel { display: none; }
+.app--ask .stage { padding-bottom: 96px; }
+.app--ask[data-v="pane"] .stage { padding-bottom: 28px; }
+.result-canvas { position: absolute; inset: 0; }
+.tool--ask { color: var(--accent); }
+.tool--ask.on { background: var(--accent-soft); border-color: transparent; }
+.composer { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 10px; display: flex; flex-direction: column; gap: 8px; box-shadow: 0 1px 2px #0000000d; }
+.composer form { display: flex; gap: 6px; align-items: center; }
+.composer input { flex: 1; min-width: 0; border: 0; background: var(--row); border-radius: 10px; padding: 8px 10px; font: inherit; font-size: 14px; color: var(--ink); outline: none; }
+.composer input:focus-visible { box-shadow: 0 0 0 2px var(--accent); }
+.composer button[type=submit] { border: 0; border-radius: 10px; background: var(--accent); color: #fff; font: inherit; font-size: 12px; font-weight: 600; padding: 8px 12px; cursor: pointer; white-space: nowrap; }
+.composer .chips button { border: 0; background: var(--row); color: var(--ink-2); font: inherit; font-size: 12px; padding: 2px 8px; border-radius: 999px; cursor: pointer; }
+.composer .chips button:hover { color: var(--ink); }
+.ask-bar { position: absolute; left: 28px; right: 28px; bottom: 12px; z-index: 3; }
+.ask-pop { position: absolute; left: 82px; bottom: 60px; width: 300px; z-index: 3; }
+/* Points at the Ask button; its bottom lines up with the button (set in the script). */
+.ask-pop::before { content: ''; position: absolute; left: -6px; bottom: 14px; width: 10px; height: 10px; background: var(--surface); border-left: 1px solid var(--line); border-bottom: 1px solid var(--line); transform: rotate(45deg); }
+.result { font-size: 12px; color: var(--ink-2); display: flex; flex-direction: column; gap: 6px; }
+.result__title { color: var(--ink); font-size: 14px; font-weight: 600; }
+.result__row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.result__row .btn { border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 8px; padding: 3px 10px; font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; }
+.result__row .btn--main { background: var(--ink); border-color: var(--ink); color: var(--surface); }
+.thinking { display: inline-flex; gap: 6px; align-items: center; color: var(--ink-3); }
+.thinking i { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); animation: pulse 1s infinite ease-in-out; }
+@keyframes pulse { 50% { opacity: 0.25; } }
+.thread { flex: 1; overflow: auto; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+.msg { font-size: 12px; line-height: 1.6; }
+.msg--me { align-self: flex-end; max-width: 85%; background: var(--accent-soft); color: var(--ink); border-radius: 12px 12px 4px 12px; padding: 6px 10px; font-size: 14px; }
+.msg--diff { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; font: 12px/1.7 var(--font-mono); padding: 8px 0; overflow-x: auto; }
+.msg--diff div { white-space: pre; padding: 0 10px; }
+.msg--diff .plus { background: #e2f3ef; color: #0d5c63; }
+:root[data-theme="dark"] .msg--diff .plus { background: #12322e; color: #5fd3b0; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .msg--diff .plus { background: #12322e; color: #5fd3b0; } }
+.side .composer { margin: 10px; box-shadow: none; }
+.layer-row { display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 8px; border-radius: 8px; font-size: 12px; color: var(--ink); }
+.layer-row.new { background: var(--accent-soft); }
+.layer-row .tag { margin-left: auto; font-size: 10px; font-weight: 600; color: var(--accent); }
+
 [hidden] { display: none !important; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
 
 <div class="page">
   <header>
-    <h1>Five ways Lazuli could let you make your own shaders</h1>
+    <h1>Ways Lazuli could let you make your own shaders</h1>
     <p class="lede">Each one is a mock of the actual Lazuli app, with a live shader in the canvas. Number 3 works: drag the shapes and try the sliders.</p>
   </header>
 
@@ -187,6 +239,8 @@ h1 { margin: 0; font-size: 22px; line-height: 1.2; letter-spacing: -0.02em; text
     <button class="tab" role="tab" id="t-code" aria-controls="p-code" data-id="code"><span class="tab__num">OPTION 4</span><span class="tab__name">Code with live sliders</span></button>
     <button class="tab" role="tab" id="t-hybrid" aria-controls="p-hybrid" data-id="hybrid"><span class="tab__num">OPTION 5</span><span class="tab__name">Draw on top, nodes under</span></button>
     <button class="tab" role="tab" id="t-beyond" aria-controls="p-beyond" data-id="beyond"><span class="tab__num">WITH OPTION 3</span><span class="tab__name">Beyond circles</span><span class="tab__now">Six live examples</span></button>
+    <button class="tab" role="tab" id="t-pencil" aria-controls="p-pencil" data-id="pencil"><span class="tab__num">NEXT</span><span class="tab__name">Pencil and other looks</span><span class="tab__now">Live · move the light</span></button>
+    <button class="tab" role="tab" id="t-ask" aria-controls="p-ask" data-id="ask"><span class="tab__num">NEXT</span><span class="tab__name">Ask Lazuli</span><span class="tab__now">Prompt, then tweak</span></button>
   </nav>
 
   <!-- 1 · Remix ------------------------------------------------------------ -->
@@ -389,6 +443,81 @@ h1 { margin: 0; font-size: 22px; line-height: 1.2; letter-spacing: -0.02em; text
       <article class="card"><canvas data-fx="heart"></canvas><div class="card__body"><div class="card__title">A drawn heart, rippling</div><div class="card__how">A pen path; its distance repeats outward as rings.</div><div class="blocks"><span class="block k-draw">Pen path</span><span class="block k-combine">Contours</span><span class="block k-bend">Ripple</span><span class="block k-light">Gradient</span></div></div></article>
     </div>
   </section>
+
+  <!-- Next · Pencil and other looks ---------------------------------------- -->
+  <section id="p-pencil" role="tabpanel" aria-labelledby="t-pencil" hidden>
+    <div class="facts">
+      <div class="fact"><div class="fact__k">How the pencil demo works</div><div class="fact__v">A lit 3D model. The darker a spot is, the more layers of crossed lines it gets. The pointer moves the light.</div></div>
+      <div class="fact"><div class="fact__k">What Lazuli already has</div><div class="fact__v">Light turns any field into a lit surface. A Look decides how that light is drawn: shaded, pencil, toon or dots.</div></div>
+      <div class="fact"><div class="fact__k">Not yet</div><div class="fact__v">Real 3D models like the torus knot. That needs a 3D mode (raymarched shapes), a bigger step after Looks.</div></div>
+    </div>
+    <div class="scroll">
+      <div class="app">
+        <div class="dock">
+          <span class="tool on" data-icon="cursor"></span><span class="tool" data-icon="pen"></span><span class="tool" data-icon="ellipse"></span><span class="tool" data-icon="square"></span>
+          <hr><span class="tool" data-icon="list"></span><span class="tool" data-icon="grid"></span>
+        </div>
+        <div class="stage">
+          <div class="frame frame--big"><canvas data-fx="looks" id="looksCanvas" aria-label="Three melting shapes, lit by the pointer"></canvas><span class="hint">Move the pointer to move the light</span></div>
+        </div>
+        <div class="panel">
+          <h3>Colour map</h3>
+          <div class="sub">Look</div>
+          <div class="looks" id="looksPick">
+            <button type="button" data-mode="0">Shaded</button>
+            <button type="button" data-mode="1" aria-pressed="true">Pencil</button>
+            <button type="button" data-mode="2">Toon</button>
+            <button type="button" data-mode="3">Dots</button>
+          </div>
+          <div class="sub">Light</div>
+          <label class="field">Depth <input type="range" id="lkDepth" min="10" max="100" value="60"><output id="olkDepth">60</output></label>
+          <label class="field">Lines <input type="range" id="lkLines" min="4" max="16" value="8"><output id="olkLines">8</output></label>
+          <div class="note">In code: <code>look(pencil);</code> next to <code>light(0.6, 0.2);</code>. Exports as plain GLSL, like everything else.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Next · Ask Lazuli ------------------------------------------------------ -->
+  <section id="p-ask" role="tabpanel" aria-labelledby="t-ask" hidden>
+    <div class="facts">
+      <div class="fact"><div class="fact__k">The idea</div><div class="fact__v">Say what you want; an agent builds it as Lazuli layers. Then you drag, slide and rewrite it like anything you drew.</div></div>
+      <div class="fact"><div class="fact__k">Unlike ShaderGPT</div><div class="fact__v">It writes Lazuli's code (shapes, melts, light, code layers), not one long shader. Every part stays on the canvas.</div></div>
+      <div class="fact"><div class="fact__k">Where it lives</div><div class="fact__v">Three places to try below. The agent here is a stand-in with canned answers.</div></div>
+    </div>
+    <div class="variants">Where the prompt lives
+      <div class="looks" id="askPick">
+        <button type="button" data-v="dock" aria-pressed="true">On the dock (recommended)</button>
+        <button type="button" data-v="bar">Under the canvas</button>
+        <button type="button" data-v="pane">In the code pane</button>
+      </div>
+    </div>
+    <div class="scroll">
+      <div class="app app--ask" id="askApp" data-v="dock">
+        <div class="dock">
+          <span class="tool on" data-icon="cursor"></span><span class="tool" data-icon="pen"></span><span class="tool" data-icon="ellipse"></span><span class="tool" data-icon="square"></span>
+          <hr><span class="tool" data-icon="list"></span><span class="tool" data-icon="grid"></span>
+          <hr><span class="tool tool--ask on" data-icon="spark" id="askTool" title="Ask Lazuli"></span>
+        </div>
+        <div class="side" id="askSide">
+          <div class="side__head"><div class="switch2"><button type="button" aria-pressed="false">Code</button><button type="button" aria-pressed="false">Properties</button><button type="button" aria-pressed="true">Ask</button></div></div>
+          <div class="thread" id="askThread"><div class="msg" style="color:var(--ink-3)">What should it look like? It'll build it as layers you can edit.</div></div>
+          <div class="composer" data-composer></div>
+        </div>
+        <div class="stage">
+          <div class="frame frame--big" id="askFrame">
+            <canvas data-fx="looks" data-mode="0" class="result-canvas" id="askCanvas" aria-label="Canvas"></canvas>
+          </div>
+          <div class="ask-bar composer" data-composer id="askBar" hidden></div>
+        </div>
+        <div class="panel">
+          <h3>Layers</h3>
+          <div id="askLayers"><div class="layer-row">Background</div></div>
+        </div>
+        <div class="ask-pop composer" data-composer id="askPop"></div>
+      </div>
+    </div>
+  </section>
 </div>
 
 <script>
@@ -408,6 +537,7 @@ const ICONS = {
   pen: '<path d="M4 20l3.5-1 10-10-2.5-2.5-10 10L4 20Z"/><path d="M13.5 7.5l3 3"/>',
   ellipse: '<ellipse cx="12" cy="12" rx="8" ry="6"/>',
   text: '<path d="M6 6h12M12 6v13"/>',
+  spark: '<path d="M12 3.5l1.9 5.2 5.1 1.9-5.1 1.9L12 17.7l-1.9-5.2L5 10.6l5.1-1.9L12 3.5Z"/><path d="M18.5 15.5l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7.7-1.8Z"/>',
 }
 document.querySelectorAll('[data-icon]').forEach((el) => {
   el.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${ICONS[el.dataset.icon] || ''}</svg>`
@@ -771,6 +901,74 @@ void main() {
   vec3 bg = mix(vec3(0.85, 0.87, 0.93), vec3(0.95, 0.96, 0.98), p.y + 0.5);
   gl_FragColor = vec4(mix(bg, col, inside), 1.0);
 }`,
+  looks: `uniform vec2 mouse; uniform float mode; uniform float depth; uniform float spacing;
+float sdf(vec2 p) {
+  float d = 10.0;
+  for (int i = 0; i < 3; i++) {
+    float fi = float(i);
+    vec2 c = 0.2 * vec2(sin(t * 0.3 + fi * 2.1), cos(t * 0.26 + fi * 2.7));
+    d = smin(d, length(p - c) - (0.15 - fi * 0.02), 0.12);
+  }
+  return d;
+}
+mat2 rot(float a) { float c = cos(a), s = sin(a); return mat2(c, -s, s, c); }
+// Lines across c.y every sp pixels, thicker the further the light falls below th.
+float hatch(vec2 c, float sp, float l, float th) {
+  float amt = clamp((th - l) / 0.35, 0.0, 1.0);
+  float v = abs(mod(c.y, sp) - 0.5 * sp);
+  float w = amt * sp * 0.32;
+  return amt * (1.0 - smoothstep(w - 0.8, w + 0.8, v));
+}
+void main() {
+  vec2 p = P();
+  float s = res.y / 420.0;
+  float d = sdf(p);
+  float e = 0.0015;
+  vec2 g = vec2(sdf(p + vec2(e, 0.0)) - sdf(p - vec2(e, 0.0)), sdf(p + vec2(0.0, e)) - sdf(p - vec2(0.0, e))) / (2.0 * e);
+  float R = mix(0.04, 0.22, depth);
+  float x = clamp(-d / R, 0.0, 1.0);
+  float h = sqrt(max(1.0 - (1.0 - x) * (1.0 - x), 1e-4));
+  float slope = x < 1.0 ? (1.0 - x) / h : 0.0;
+  vec3 n = normalize(vec3(g * slope, 1.0));
+  vec2 m = (mouse - 0.5) * vec2(res.x / res.y, 1.0);
+  vec3 L = normalize(vec3(m - p, 0.45));
+  float diff = clamp(dot(n, L), 0.0, 1.0);
+  float inside = 1.0 - smoothstep(-0.0015 * s, 0.0015 * s, d);
+  // Paper in the shape's shadow: step toward the light and see if the shape is there.
+  float shadow = 1.0 - smoothstep(-0.03, 0.03, sdf(p + normalize(m - p + 1e-4) * 0.06));
+  float light = inside > 0.5 ? 0.08 + 0.92 * diff : 1.0 - 0.3 * shadow;
+  vec3 col;
+  if (mode < 0.5) {
+    vec3 base = ramp(light, vec3(0.08, 0.13, 0.32), vec3(0.3, 0.47, 0.85), vec3(0.88, 0.92, 1.0));
+    float spec = pow(max(dot(reflect(-L, n), vec3(0.0, 0.0, 1.0)), 0.0), 30.0) * inside;
+    col = mix(vec3(0.97, 0.97, 0.99) * (0.9 + 0.1 * light), base, inside) + spec * 0.6;
+  } else if (mode < 1.5) {
+    vec2 w = gl_FragCoord.xy + 3.0 * s * (vec2(noise(gl_FragCoord.xy * 0.015), noise(gl_FragCoord.yx * 0.015 + 9.0)) - 0.5);
+    float sp = spacing * s;
+    float ink = hatch(rot(0.4) * w, sp, light, 0.95);
+    ink = max(ink, hatch(rot(-0.6) * w, sp, light, 0.7));
+    ink = max(ink, hatch(rot(1.25) * w, sp * 0.8, light, 0.45));
+    ink = max(ink, hatch(rot(-0.55) * w + sp * 0.5, sp * 0.6, light, 0.25));
+    float edge = (1.0 - smoothstep(0.6 * s, 1.6 * s, abs(d) * res.y + 1.5 * s * (noise(p * 40.0) - 0.5)));
+    vec3 paper = vec3(0.97, 0.955, 0.92) - 0.035 * noise(gl_FragCoord.xy * 0.7);
+    col = mix(paper, vec3(0.16, 0.17, 0.2), clamp(ink * 0.85 + edge, 0.0, 1.0));
+  } else if (mode < 2.5) {
+    float band = floor(light * 3.0 + 0.5) / 3.0;
+    vec3 base = ramp(band, vec3(0.42, 0.13, 0.42), vec3(0.94, 0.38, 0.5), vec3(1.0, 0.85, 0.7));
+    float edge = 1.0 - smoothstep(1.0 * s, 2.2 * s, abs(d) * res.y);
+    col = mix(vec3(1.0, 0.96, 0.93) * (0.88 + 0.12 * light), base, inside);
+    col = mix(col, vec3(0.2, 0.06, 0.18), edge);
+  } else {
+    vec2 c = rot(0.785) * gl_FragCoord.xy;
+    float cell = spacing * s;
+    vec2 f = mod(c, cell) - 0.5 * cell;
+    float r = sqrt(clamp(1.0 - light, 0.0, 1.0)) * cell * 0.62;
+    float dot1 = 1.0 - smoothstep(r - 0.8, r + 0.8, length(f));
+    vec3 paper = vec3(0.98, 0.97, 0.95);
+    col = mix(paper, vec3(0.05, 0.36, 0.39), dot1);
+  }
+  gl_FragColor = vec4(col, 1.0);
+}`,
   heart: `float dot2(vec2 v) { return dot(v, v); }
 float sdHeart(vec2 p) {
   p.x = abs(p.x);
@@ -787,21 +985,27 @@ void main() {
   gl_FragColor = vec4(mix(o, col, fill), 1.0);
 }`,
 }
+const LOOKS = { depth: 0.6, spacing: 8 }
 function makeFx(canvas) {
   const gl = canvas.getContext('webgl', { antialias: true })
   if (!gl) return null
-  const sh = (type, src) => { const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) console.error(canvas.dataset.fx, gl.getShaderInfoLog(s)); return s }
-  const prog = gl.createProgram()
-  gl.attachShader(prog, sh(gl.VERTEX_SHADER, VERT))
-  gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, COMMON + FX[canvas.dataset.fx]))
-  gl.bindAttribLocation(prog, 0, 'a')
-  gl.linkProgram(prog)
-  gl.useProgram(prog)
+  const sh = (type, src, fx) => { const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) console.error(fx, gl.getShaderInfoLog(s)); return s }
   gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer())
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW)
   gl.enableVertexAttribArray(0)
   gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0)
-  const ures = gl.getUniformLocation(prog, 'res'), ut = gl.getUniformLocation(prog, 't')
+  // One context per canvas, one program per effect it shows (a canvas can switch effects).
+  const progs = {}
+  const program = (fx) => {
+    if (progs[fx]) return progs[fx]
+    const prog = gl.createProgram()
+    gl.attachShader(prog, sh(gl.VERTEX_SHADER, VERT, fx))
+    gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, COMMON + FX[fx], fx))
+    gl.bindAttribLocation(prog, 0, 'a')
+    gl.linkProgram(prog)
+    const u = (n) => gl.getUniformLocation(prog, n)
+    return (progs[fx] = { prog, res: u('res'), t: u('t'), mouse: u('mouse'), mode: u('mode'), depth: u('depth'), spacing: u('spacing') })
+  }
   if (canvas.dataset.fx === 'text') {
     // The word as a soft field: drawn blurred, so its edge has room to melt.
     const paint = () => {
@@ -822,18 +1026,132 @@ function makeFx(canvas) {
     paint()
     document.fonts?.ready.then(paint)
   }
+  // The light follows the pointer over the frame; when it leaves, it drifts back to the top left.
+  const mouse = { x: 0.25, y: 0.8, tx: 0.25, ty: 0.8 }
+  const host = canvas.closest('.frame') || canvas
+  host.addEventListener('pointermove', (e) => { const r = canvas.getBoundingClientRect(); mouse.tx = (e.clientX - r.left) / r.width; mouse.ty = 1 - (e.clientY - r.top) / r.height })
+  host.addEventListener('pointerleave', () => { mouse.tx = 0.25; mouse.ty = 0.8 })
   return {
     canvas,
     draw(time) {
+      const p = program(canvas.dataset.fx)
+      gl.useProgram(p.prog)
       const dpr = Math.min(devicePixelRatio || 1, 2)
       const w = Math.max(1, Math.round(canvas.clientWidth * dpr)), h = Math.max(1, Math.round(canvas.clientHeight * dpr))
       if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h }
       gl.viewport(0, 0, w, h)
-      gl.uniform2f(ures, w, h)
-      gl.uniform1f(ut, time)
+      gl.uniform2f(p.res, w, h)
+      gl.uniform1f(p.t, time)
+      mouse.x += (mouse.tx - mouse.x) * 0.15; mouse.y += (mouse.ty - mouse.y) * 0.15
+      if (p.mouse) gl.uniform2f(p.mouse, mouse.x, mouse.y)
+      if (p.mode) gl.uniform1f(p.mode, +(canvas.dataset.mode ?? 1))
+      if (p.depth) gl.uniform1f(p.depth, LOOKS.depth)
+      if (p.spacing) gl.uniform1f(p.spacing, LOOKS.spacing)
       gl.drawArrays(gl.TRIANGLES, 0, 3)
     },
   }
 }
 document.querySelectorAll('canvas[data-fx]').forEach((c) => { const v = makeFx(c); if (v) views.push(v) })
+
+// ---- pencil and other looks: one light, four ways to draw it ----
+const looksCanvas = document.getElementById('looksCanvas')
+looksCanvas.dataset.mode = '1'
+document.querySelectorAll('#looksPick button').forEach((b) => b.addEventListener('click', () => {
+  document.querySelectorAll('#looksPick button').forEach((x) => x.setAttribute('aria-pressed', x === b))
+  looksCanvas.dataset.mode = b.dataset.mode
+}))
+const bindLook = (id, apply) => { const el = document.getElementById(id), o = document.getElementById('o' + id); const go = () => { o.textContent = el.value; apply(+el.value) }; el.addEventListener('input', go); go() }
+bindLook('lkDepth', (v) => (LOOKS.depth = v / 100))
+bindLook('lkLines', (v) => (LOOKS.spacing = v))
+
+// ---- ask lazuli: a stand-in agent with canned answers, in three places ----
+const ANSWERS = [
+  { key: 'pencil', prompt: 'Pencil sketch of melting blobs, lit by the cursor', title: '3 shapes, a light and a pencil look',
+    layers: ['Blob', 'Blob', 'Blob', 'Light', 'Look: Pencil'],
+    code: ['float d = ellipse(p, vec2(-0.2, 0.05), vec2(0.15, 0.15));', 'd = melt(d, ellipse(p, vec2(0.1, 0.16), vec2(0.13, 0.13)), 0.8);', 'd = melt(d, ellipse(p, vec2(0.14, -0.14), vec2(0.11, 0.11)), 0.8);', 'light(0.6, 0.2);', 'look(pencil);'] },
+  { key: 'chrome', prompt: 'Liquid chrome blobs on a soft grey', title: '4 drifting shapes, lit like metal',
+    layers: ['Blob', 'Blob', 'Blob', 'Blob', 'Light'],
+    code: ['float d = ellipse(p, vec2(-0.21, 0.03), vec2(0.13, 0.13));', 'd = melt(d, ellipse(p, vec2(0.09, 0.19), vec2(0.13, 0.13)), 0.8);', 'light(0.9, 0.8);', 'palette(#1b1f2e, #6f7690, #eef0f7);'] },
+  { key: 'flower', prompt: 'A flower that slowly turns, warm on dark', title: 'A petal, folded 8 times, with a glow',
+    layers: ['petal (code)', 'Center', 'Kaleido', 'Glow'],
+    code: ['float petal(vec2 q, float t) {', '  return length((q - vec2(0.25, 0.0)) * vec2(1.0, 2.6)) - 0.1;', '}', 'float d = petal(kaleido(p));', 'd = melt(d, ellipse(p, vec2(0, 0), vec2(0.07, 0.07)), 0.4);', 'glow(0.4);'] },
+]
+const askApp = document.getElementById('askApp'), askThread = document.getElementById('askThread'), askLayers = document.getElementById('askLayers')
+const escapeHtml = (x) => x.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c])
+let lastResult = 'start'
+// One canvas; each answer is a different effect on it.
+const RESULT_FX = { start: ['looks', '0'], pencil: ['looks', '1'], chrome: ['glass', '0'], flower: ['kaleido', '0'] }
+let shown = 'start'
+const askCanvas = document.getElementById('askCanvas')
+const showResult = (key) => { shown = key; [askCanvas.dataset.fx, askCanvas.dataset.mode] = RESULT_FX[key] }
+const setLayers = (names, fresh) => {
+  askLayers.innerHTML = names.map((n) => `<div class="layer-row${fresh ? ' new' : ''}">${escapeHtml(n)}${fresh ? '<span class="tag">New</span>' : ''}</div>`).join('') + '<div class="layer-row">Background</div>'
+}
+function composerHtml() {
+  return `<form><input aria-label="Describe a look" placeholder="Describe a look" autocomplete="off"><button type="submit">Make it</button></form>
+    <div class="chips">${ANSWERS.map((a, i) => `<button type="button" data-i="${i}">${escapeHtml(a.prompt)}</button>`).join('')}</div>
+    <div class="result" aria-live="polite"></div>`
+}
+function pick(text) {
+  const t = text.toLowerCase()
+  return ANSWERS.find((a) => t.includes(a.key)) ?? (/(sketch|pencil|draw|hatch)/.test(t) ? ANSWERS[0] : /(metal|chrome|silver|liquid)/.test(t) ? ANSWERS[1] : ANSWERS[2])
+}
+function ask(box, text) {
+  const a = pick(text)
+  const out = box.querySelector('.result')
+  const inPane = askApp.dataset.v === 'pane'
+  if (inPane) {
+    askThread.insertAdjacentHTML('beforeend', `<div class="msg msg--me">${escapeHtml(text)}</div><div class="msg thinking" data-wait><i></i>Building it</div>`)
+    out.innerHTML = ''
+  } else out.innerHTML = '<span class="thinking"><i></i>Building it</span>'
+  setTimeout(() => {
+    showResult(a.key)
+    setLayers(a.layers, true)
+    const diff = `<div class="msg msg--diff">${a.code.map((l) => `<div class="plus">+ ${escapeHtml(l)}</div>`).join('')}</div>`
+    const actions = `<div class="result__row"><button type="button" class="btn btn--main" data-keep>Keep</button><button type="button" class="btn" data-undo>Undo</button><span>Drag it, slide it, or ask for changes.</span></div>`
+    if (inPane) {
+      askThread.querySelector('[data-wait]')?.remove()
+      askThread.insertAdjacentHTML('beforeend', `<div class="msg"><b>${escapeHtml(a.title)}</b></div>${diff}${actions}`)
+      askThread.scrollTop = askThread.scrollHeight
+    } else {
+      out.innerHTML = `<div class="result__title">${escapeHtml(a.title)}</div><div class="result__row">${a.layers.map((n) => `<span class="chip on">${escapeHtml(n)}</span>`).join('')}</div>${actions}`
+    }
+  }, 900)
+}
+document.querySelectorAll('[data-composer]').forEach((box) => {
+  box.innerHTML = composerHtml()
+  const input = box.querySelector('input')
+  box.querySelector('form').addEventListener('submit', (e) => { e.preventDefault(); if (input.value.trim()) { ask(box, input.value.trim()); input.value = '' } })
+  box.querySelectorAll('.chips button').forEach((b) => b.addEventListener('click', () => ask(box, ANSWERS[+b.dataset.i].prompt)))
+})
+askApp.addEventListener('click', (e) => {
+  const keep = e.target.closest('[data-keep]'), undo = e.target.closest('[data-undo]')
+  if (!keep && !undo) return
+  const row = e.target.closest('.result__row')
+  if (keep) {
+    lastResult = shown
+    askLayers.querySelectorAll('.layer-row').forEach((r) => { r.classList.remove('new'); r.querySelector('.tag')?.remove() })
+    row.innerHTML = '<span>Kept. It’s ordinary layers now.</span>'
+  } else {
+    showResult(lastResult)
+    const a = ANSWERS.find((x) => x.key === lastResult)
+    setLayers(a ? a.layers : [], false)
+    row.innerHTML = '<span>Undone.</span>'
+  }
+})
+const askPop = document.getElementById('askPop'), askTool = document.getElementById('askTool')
+const anchorPop = () => {
+  const a = askApp.getBoundingClientRect(), t = askTool.getBoundingClientRect()
+  if (a.height) askPop.style.bottom = `${a.bottom - t.bottom}px`
+}
+addEventListener('resize', anchorPop)
+document.getElementById('t-ask').addEventListener('click', () => requestAnimationFrame(anchorPop))
+if (location.hash === '#ask') requestAnimationFrame(anchorPop)
+document.querySelectorAll('#askPick button').forEach((b) => b.addEventListener('click', () => {
+  document.querySelectorAll('#askPick button').forEach((x) => x.setAttribute('aria-pressed', x === b))
+  askApp.dataset.v = b.dataset.v
+  document.getElementById('askBar').hidden = b.dataset.v !== 'bar'
+  document.getElementById('askPop').hidden = b.dataset.v !== 'dock'
+  document.getElementById('askTool').classList.toggle('on', b.dataset.v === 'dock')
+}))
 </script>
