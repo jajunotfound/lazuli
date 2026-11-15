@@ -130,9 +130,13 @@ export function readUrlStack(): { stack: Stack; preset: PresetId | null } {
   return { stack: configToStack(config), preset: fromConfig }
 }
 
+const BLANK = encodeStack(blankStack())
+
 export function writeUrlStack(stack: Stack, preset: PresetId | null) {
-  const q = new URLSearchParams([...(preset ? [['p', preset]] : []), ['s', encodeStack(stack)]])
-  const next = `${location.pathname}?${q}${location.hash}`
+  const s = encodeStack(stack)
+  // An empty canvas is what a bare URL opens, so it needs no state in the address.
+  const q = !preset && s === BLANK ? '' : `?${new URLSearchParams([...(preset ? [['p', preset]] : []), ['s', s]])}`
+  const next = `${location.pathname}${q}${location.hash}`
   if (next !== `${location.pathname}${location.search}${location.hash}`) history.replaceState(null, '', next)
 }
 
