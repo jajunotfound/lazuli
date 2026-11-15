@@ -70,6 +70,7 @@ export function createRenderer(canvas: HTMLCanvasElement | OffscreenCanvas, conf
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW)
 
   const cache = new Map<string, Program>()
+  const MAX_PROGRAMS = 24
   let current: Program | null = null
   let wanted: Program | null = null
   let values: UniformValues = {}
@@ -137,6 +138,15 @@ export function createRenderer(canvas: HTMLCanvasElement | OffscreenCanvas, conf
       values = stackUniforms(stack)
       const key = stackKey(stack)
       const p = cache.get(key) ?? build(key, stackFragment(stack))
+      // Most recent last; code layers make a new program per edit, so the oldest ones go.
+      cache.delete(key)
+      cache.set(key, p)
+      for (const [k, old] of cache) {
+        if (cache.size <= MAX_PROGRAMS) break
+        if (old === p || old === current) continue
+        gl.deleteProgram(old.program)
+        cache.delete(k)
+      }
       wanted = p
       if (finish(p)) use(p)
       else if (current) upload(current, values)

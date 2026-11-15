@@ -147,6 +147,7 @@ export function Layers({ stack, selected, onSelect, onOp, canDo, header }: Layer
                   <AddItem label="Rectangle" op={{ op: 'add', layer: 'drawn', geom: { kind: 'rect', x: 0, y: 0, w: 0.18, h: 0.12, radius: 0.02, angle: 0 } }} canDo={canDo} onOp={onOp} close={() => setAddOpen(false)} />
                   <AddItem label="Text" op={{ op: 'add', layer: 'drawn', geom: { kind: 'text', text: 'HELLO', x: 0, y: 0, size: 0.2, weight: 0.4, angle: 0 } }} canDo={canDo} onOp={onOp} close={() => setAddOpen(false)} />
                   <AddItem label="Gradient" op={{ op: 'add', layer: 'drawn', geom: { kind: 'gradient', x1: -0.6, y1: 0.2, x2: 0.6, y2: -0.2, radial: false } }} canDo={canDo} onOp={onOp} close={() => setAddOpen(false)} />
+                  <AddItem label="Code" op={{ op: 'add', layer: 'drawn', geom: { kind: 'code', name: freeName(stack), glsl: 'return length(q) - 0.2 + 0.03 * sin(atan(q.y, q.x) * 6.0 + t * 2.0);' } }} canDo={canDo} onOp={onOp} close={() => setAddOpen(false)} />
                   <AddItem label="Noise" op={{ op: 'add', layer: 'drawn', geom: { kind: 'noise', scale: 3, level: 0.5 } }} canDo={canDo} onOp={onOp} close={() => setAddOpen(false)} />
                   <AddItem label="Cells" op={{ op: 'add', layer: 'drawn', geom: { kind: 'cells', scale: 5, gap: 0.2 } }} canDo={canDo} onOp={onOp} close={() => setAddOpen(false)} />
                 </AddGroup>
@@ -257,6 +258,7 @@ function LayerIcon({ kind }: { kind: string }) {
     noise: <path d="M2.5 9c1.5-3 3.5-3 5 0s3.5 3 6 0M2.5 5.5c1.5-2 3.5-2 5 0s3.5 2 6 0" />,
     cells: <path d="M2.5 2.5h5v5h-5zM8.5 2.5h5v5h-5zM2.5 8.5h5v5h-5zM8.5 8.5h5v5h-5z" />,
     text: <path d="M3.5 4h9M8 4v8.5" />,
+    code: <path d="M6 4.5 2.5 8 6 11.5M10 4.5l3.5 3.5L10 11.5" />,
     gradient: (
       <>
         <rect x="2.5" y="2.5" width="11" height="11" rx="2" />
@@ -284,4 +286,12 @@ function EyeIcon({ off }: { off: boolean }) {
       )}
     </svg>
   )
+}
+
+/** A function name no code layer uses yet: wobble, wobble2, … */
+function freeName(s: Stack): string {
+  const used = new Set(s.shapes.flatMap((x) => (x.kind === 'drawn' && x.geom.kind === 'code' ? [x.geom.name] : [])))
+  let n = 1
+  while (used.has(n === 1 ? 'wobble' : `wobble${n}`)) n++
+  return n === 1 ? 'wobble' : `wobble${n}`
 }

@@ -382,3 +382,24 @@ test('gradient: compiles with both points and the radial flag', () => {
   assert.equal(u.u_rad_0, 1)
   assert.match(stackFragment(r.stack), /float s = u_rad_0 > 0\.5/)
 })
+
+test('code layers: safe bodies only, keyed by their text, compiled as written', async () => {
+  const { cleanGeometry, safeGlsl } = await import('../src/stack')
+  assert.ok(safeGlsl('return length(q) - 0.2;'))
+  assert.ok(safeGlsl('float r = 0.2; /* } */ if (q.x > 0.0) { r += 0.1; } return length(q) - r;'))
+  assert.equal(safeGlsl('return 1.0; } void main() { gl_FragColor = vec4(1.0); '), false)
+  assert.equal(safeGlsl('#define X 1\nreturn X;'), false)
+  assert.equal(safeGlsl('/* never closed'), false)
+  assert.equal(cleanGeometry({ kind: 'code', name: 'field', glsl: 'return 0.0;' }), null)
+  assert.equal(cleanGeometry({ kind: 'code', name: '9lives', glsl: 'return 0.0;' }), null)
+  const add = (glsl: string) => {
+    const r = applyOp(configToStack(resolveConfig({})), { op: 'add', layer: 'drawn', geom: { kind: 'code', name: 'wob', glsl } })
+    assert.ok(r.ok)
+    return r.stack
+  }
+  const a = add('return length(q) - 0.2;'), b = add('return length(q) - 0.3;')
+  assert.notEqual(stackKey(a), stackKey(b))
+  assert.match(stackFragment(a), /\/\/ code: wob\nreturn length\(q\) - 0\.2;\n\}/)
+  // An expression without return is returned.
+  assert.match(stackFragment(add('length(q) - 0.25')), /return length\(q\) - 0\.25;/)
+})

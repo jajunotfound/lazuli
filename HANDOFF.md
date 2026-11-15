@@ -5,9 +5,11 @@ https://claude.ai/artifact/RbtHBZsYipJXT1hi3g1emW (`design/lazuli-options.html`)
 - Done: M1 draw engine, M2 canvas, M3 noise/cells fields + twist/kaleido/repeat warps,
   M4 light/contours/glow, M7 examples (`apps/playground/src/examples.ts`, written in the code
   language; `ExampleGrid.tsx`). Code view (`canvasCode.ts`, `CodeEditor.tsx`) covers all of it.
-- Deferred: text as a field, gradient sources, on-canvas gradient handles.
-- Animation now exports (shader eases keyed values; engine/element/snapshot play keys).
-- Open in M5/M6: per-key easing, Code layers (free GLSL).
+- Also done 2026-11-15: animation in exports, per-key easing (smooth/linear/hold), Text (own
+  stroke font, `font.ts`), Gradient (linear/radial, on-canvas stops), Code layers (own GLSL,
+  compile-checked in `glCheck.ts`). All milestones of draw-builder.md are built.
+- Dev note: after rebuilding `packages/lazuli`, reload the playground tab (Vite doesn't hot-swap
+  the engine's dist), or new geometry renders blank.
 - Type: Manrope, even px sizes only (14 body).
 - Checks: `pnpm -C packages/lazuli test`; `node --import ./packages/lazuli/test/register.mjs <script>`
   for playground TS from node (extensionless imports need the hook).

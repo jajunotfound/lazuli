@@ -206,7 +206,7 @@ export function CanvasEditor({ stack, moving = [], selected, tool, onSelect, set
       {sel && tool === 'move' && (
         <g>
           {outline(sel.geom, 'ce-outline')}
-          {sel.geom.kind === 'noise' || sel.geom.kind === 'cells'
+          {isField(sel.geom)
             ? null
             : sel.geom.kind === 'gradient'
             ? ends(sel.geom).map(([x, y], i) => {

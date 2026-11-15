@@ -365,7 +365,7 @@ export function App() {
         </>
       )}
 
-      {panels && !editorOpen && <Inspector stack={stack} selected={selected} onPatch={onPatch} onOp={onOp} canDo={canDo} />}
+      {panels && !editorOpen && <Inspector stack={stack} selected={selected} onPatch={onPatch} onOp={onOp} canDo={canDo} onOpenCode={() => setEditorOpen(true)} />}
 
       {controlsHidden && (
         <button type="button" className="show-controls" onClick={toggleControls} aria-label="Show panels" aria-keyshortcuts="H">

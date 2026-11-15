@@ -21,8 +21,8 @@ export const toScreen = (b: Box, x: number, y: number): [number, number] => [b.w
 /** A gradient's two points (fullest, then where it fades out). */
 export const ends = (g: Extract<Geometry, { kind: 'gradient' }>): [number, number][] => [[g.x1, g.y1], [g.x2, g.y2]]
 
-/** Noise and cells fill the whole frame: nothing to drag or outline. */
-export const isField = (g: Geometry): g is Extract<Geometry, { kind: 'noise' | 'cells' }> => g.kind === 'noise' || g.kind === 'cells'
+/** Noise, cells and code layers fill the whole frame: nothing to drag or outline. */
+export const isField = (g: Geometry): g is Extract<Geometry, { kind: 'noise' | 'cells' | 'code' }> => g.kind === 'noise' || g.kind === 'cells' || g.kind === 'code'
 
 type Boxed = Extract<Geometry, { kind: 'ellipse' | 'rect' | 'text' }>
 const boxed = (g: Geometry): g is Boxed => g.kind === 'ellipse' || g.kind === 'rect' || g.kind === 'text'

@@ -1,6 +1,6 @@
 # Lazuli: draw, then shape the field
 
-Status: building, 2026-11-14. Follows `layer-builder.md` (the layer stack, its compiler and export
+Status: all milestones built, 2026-11-15. Follows `layer-builder.md` (the layer stack, its compiler and export
 are the base). Direction chosen on the options page (https://claude.ai/artifact/RbtHBZsYipJXT1hi3g1emW):
 option 3 by default, with a code view beside the canvas.
 
@@ -58,23 +58,34 @@ so melted shapes color as one liquid form. A group lands on the layers below lik
 3. **Fields and bending:** text, noise, cells, gradient sources; repeat, kaleidoscope, twist.
    **Done 2026-11-15 (partly):** Noise (scale, fill) and Cells (scale, gap) are drawn layers that fill
    the frame and melt/cut like any shape; Twist, Kaleido and Repeat join the warps. All are in the
-   Draw menu, the inspector and the code (`noise(p, …)`, `cells(p, …)`, `kaleido(p)`). Deferred:
-   text as a field (needs a glyph SDF atlas) and gradient sources.
+   Draw menu, the inspector and the code (`noise(p, …)`, `cells(p, …)`, `kaleido(p)`).
+   **Text and gradients done 2026-11-15:** Text uses Lazuli's own stroke font (`font.ts`: capitals,
+   digits, basic punctuation as segments on a 4×6 grid; ≤ 24 characters / 64 segments), so it stays a
+   field and exports as plain GLSL (no atlas). Gradient is a linear or radial ramp between two stops
+   dragged on the canvas (`gradient(p, a, b)` / `radial(p, a, b)` in code).
 4. **Color and light:** on-canvas gradient, contours, glow, light as height.
    **Done 2026-11-15 (partly):** Light (depth + shine: bevel from the field, palette reflection,
    specular) for chrome looks; Contours and Glow on the colour map; all in the inspector and code
-   (`light()`, `contours()`, `glow()`, written only when on). Deferred: on-canvas gradient handles.
+   (`light()`, `contours()`, `glow()`, written only when on). On-canvas gradient handles arrive with
+   the Gradient shape (M3).
 5. **Motion:** loop timeline with keyframes.
    **Started 2026-11-14 (brought forward):** timeline under the canvas, ◆ Key, scrub, play/pause,
    auto-key while paused; keys live in the stack (`keys`, `animateStack`).
    **Export done 2026-11-15:** the engine, `<lazuli-bg>` and `snapshot()` play keys (`keyPhase`); the
    exported GLSL / Shadertoy / HTML ease keyed values inside the shader (`keyedCode` in `export.ts`),
-   matching the engine at any moment (6 GPU checks in `tools/regress/export.html`). Not yet: per-key easing.
+   matching the engine at any moment (6 GPU checks in `tools/regress/export.html`).
+   **Per-key easing done 2026-11-15:** Smooth / Linear / Hold on the segment leaving a key (timeline
+   select when the playhead is on a key), in the engine and in exported GLSL.
 6. **Code view:** side editor (Code | Properties) with scrubbable numbers; Code layers.
    **Started 2026-11-14 (brought forward):** Code mode is a workspace (dock hides). The left pane
    is a CodeMirror editor over Lazuli's shape language (`canvasCode.ts`: ellipse / box / polygon,
    melt / cut / intersect, palette, background): valid edits apply as you type, errors underline
-   and keep the last good canvas, Alt-drag slides numbers. Not yet: Code layers (free GLSL).
+   and keep the last good canvas, Alt-drag slides numbers.
+   **Code layers done 2026-11-15:** a drawn layer of your own GLSL, written in the code view as
+   `float name(vec2 q, float t) { … }` above `field()` and used like any shape (`name(p)`, warps,
+   melt). The body goes in verbatim; `safeGlsl` keeps it inside its function (no `#`, balanced
+   braces), and an edit applies only once the GPU compiles it (`glCheck.ts` maps the error to the
+   editor line). The renderer's program cache now keeps at most 24 programs.
 7. **Examples:** today's looks rebuilt as files made with the tool; presets become examples.
    **Done 2026-11-15:** `examples.ts` holds eight looks written in the code language (Liquid chrome,
    Lava, Bite, Star, Bloom, Tide pool, Clouds, Ripples); Presets shows them as Examples above the

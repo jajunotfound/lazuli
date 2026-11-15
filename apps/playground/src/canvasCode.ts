@@ -19,19 +19,25 @@ export function shapeCode(l: DrawnLayer): string {
   if (g.kind === 'rect') return `box(${p}, ${vec2(g.x, g.y)}, ${vec2(g.w, g.h)}, ${n(g.radius)}${g.angle ? `, ${n(g.angle)}` : ''})`
   if (g.kind === 'noise') return `noise(${p}, ${n(g.scale)}, ${n(g.level)})`
   if (g.kind === 'cells') return `cells(${p}, ${n(g.scale)}, ${n(g.gap)})`
+  if (g.kind === 'code') return `${g.name}(${p})`
   if (g.kind === 'gradient') return `${g.radial ? 'radial' : 'gradient'}(${p}, ${vec2(g.x1, g.y1)}, ${vec2(g.x2, g.y2)})`
   if (g.kind === 'text') return `text(${p}, "${g.text}", ${vec2(g.x, g.y)}, ${n(g.size)}, ${n(g.weight)}${g.angle ? `, ${n(g.angle)}` : ''})`
   return `polygon(${p}, ${g.points.map(([x, y]) => vec2(x, y)).join(', ')})`
 }
 
 const WARPS: WarpType[] = ['swirl', 'noise', 'ripple', 'kaleido', 'repeat', 'twist', 'cursor']
-const NAMES: Record<Geometry['kind'], string> = { ellipse: 'Ellipse', rect: 'Rectangle', path: 'Path', noise: 'Noise', cells: 'Cells', text: 'Text', gradient: 'Gradient' }
+const NAMES: Record<Geometry['kind'], string> = { ellipse: 'Ellipse', rect: 'Rectangle', path: 'Path', noise: 'Noise', cells: 'Cells', text: 'Text', gradient: 'Gradient', code: 'Code' }
 
 const drawnBackToFront = (s: Stack) => s.shapes.filter((x): x is DrawnLayer => x.kind === 'drawn').reverse()
 
 export function writeCode(s: Stack): string {
   const back = drawnBackToFront(s)
   const out: string[] = []
+  // Code layers: their own functions, above the field that uses them.
+  for (const l of back) {
+    if (l.geom.kind !== 'code') continue
+    out.push(`float ${l.geom.name}(vec2 q, float t) {`, ...l.geom.glsl.split('\n').map((x) => `  ${x}`), '}', '')
+  }
   out.push('float field(vec2 p) {')
   back.forEach((l, i) => {
     const note = `// ${l.name}${l.visible ? '' : ' (hidden)'}`
@@ -132,8 +138,9 @@ function v2(s: string): [number, number] | null {
 }
 
 /** A shape expression → geometry, or an error message. */
-function readShape(expr: string): { geom: Geometry; source: string; warps: WarpType[] } | string {
-  const m = /\b(ellipse|box|polygon|noise|cells|text|gradient|radial)\s*\(/.exec(expr)
+function readShape(expr: string, fns: Map<string, string>): { geom: Geometry; source: string; warps: WarpType[] } | string {
+  const own = [...fns.keys()]
+  const m = new RegExp(`\\b(ellipse|box|polygon|noise|cells|text|gradient|radial${own.map((f) => `|${f}`).join('')})\\s*\\(`).exec(expr)
   if (!m) return 'Try ellipse(), box(), polygon(), text(), gradient(), radial(), noise() or cells()'
   const open = m.index + m[0].length - 1
   const body = inside(expr, open)
@@ -151,6 +158,10 @@ function readShape(expr: string): { geom: Geometry; source: string; warps: WarpT
   }
   const source = expr.slice(m.index, open + body.length + 2)
   const done = (geom: Geometry | null, err: string) => (geom ? { geom, source, warps } : err)
+  if (fns.has(m[1])) {
+    if (args.length) return `${m[1]}(p) takes just the point`
+    return done(cleanGeometry({ kind: 'code', name: m[1], glsl: fns.get(m[1])! }), 'That function can’t be used as a shape')
+  }
   if (m[1] === 'noise' || m[1] === 'cells') {
     const [a, b] = [num(args[0] ?? ''), num(args[1] ?? '')]
     if (a === null || b === null) return `${m[1]}(p, scale, ${m[1] === 'noise' ? 'fill' : 'gap'})`
@@ -191,6 +202,33 @@ const HEX = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i
 export function readCode(text: string): { code: ParsedCode } | { error: CodeError } {
   const code: ParsedCode = { shapes: [], keepBuiltIn: /^\s*\/\/ \+ /m.test(text) }
   const lines = text.split('\n')
+  // Your own shapes first: `float name(vec2 q, float t) { … }` blocks. Their lines are blanked
+  // so the rest reads as usual (and line numbers stay right).
+  const fns = new Map<string, string>()
+  for (let i = 0; i < lines.length; i++) {
+    const head = /^\s*float\s+([A-Za-z]\w*)\s*\(\s*vec2\s+q\s*,\s*float\s+t\s*\)\s*\{\s*$/.exec(lines[i])
+    if (!head) {
+      if (/^\s*float\s+\w+\s*\(/.test(lines[i]) && !/^\s*float field\s*\(vec2 p\)/.test(lines[i])) return { error: { line: i + 1, message: 'Shapes of your own start with float name(vec2 q, float t) {' } }
+      continue
+    }
+    let depth = 1, end = -1
+    for (let j = i + 1; j < lines.length && end < 0; j++) {
+      for (const ch of lines[j].replace(/\/\/.*$/, '')) {
+        if (ch === '{') depth++
+        if (ch === '}' && --depth === 0) end = j
+      }
+    }
+    if (end < 0) return { error: { line: i + 1, message: 'This function never closes. Add a }' } }
+    if (fns.has(head[1])) return { error: { line: i + 1, message: `There's already a ${head[1]}()` } }
+    const close = lines[end].trim()
+    if (close !== '}') return { error: { line: end + 1, message: 'Put the closing } on a line of its own' } }
+    const body = lines.slice(i + 1, end).map((x) => x.replace(/^ {2}/, '')).join('\n').trim()
+    if (!body) return { error: { line: i + 1, message: 'Return a distance, e.g. return length(q) - 0.2;' } }
+    if (!cleanGeometry({ kind: 'code', name: head[1], glsl: body })) return { error: { line: i + 1, message: /^[A-Za-z][A-Za-z0-9_]{0,23}$/.test(head[1]) ? `${head[1]} is taken, or the body has # or unmatched braces` : 'Use a shorter name' } }
+    fns.set(head[1], body)
+    for (let j = i; j <= end; j++) lines[j] = ''
+    i = end
+  }
   for (let i = 0; i < lines.length; i++) {
     const raw = lines[i]
     const cut = commentAt(raw)
@@ -202,7 +240,7 @@ export function readCode(text: string): { code: ParsedCode } | { error: CodeErro
     let m: RegExpExecArray | null
     if ((m = /^float d = (.*);$/.exec(line))) {
       if (code.shapes.length) return fail('Only the first shape uses "float d =". Join the rest with melt, cut or intersect.')
-      const s = readShape(m[1])
+      const s = readShape(m[1], fns)
       if (typeof s === 'string') return fail(s)
       code.shapes.push({ ...s, join: 'merge', melt: 0.5, name: comment.replace(/\s*\(hidden\)$/, '') || undefined, hidden: /\(hidden\)/.test(comment) })
       continue
@@ -210,7 +248,7 @@ export function readCode(text: string): { code: ParsedCode } | { error: CodeErro
     if ((m = /^d = (melt|cut|intersect)\s*\((.*)\);$/.exec(line))) {
       const args = splitArgs(m[2])
       if (args[0] !== 'd' || args.length !== 3) return fail(`${m[1]}(d, shape, amount)`)
-      const s = readShape(args[1])
+      const s = readShape(args[1], fns)
       if (typeof s === 'string') return fail(s)
       const melt = num(args[2])
       if (melt === null || melt < 0 || melt > 1) return fail('Use a value from 0 to 1')
@@ -287,7 +325,8 @@ export function applyCode(s: Stack, code: ParsedCode): Stack {
   }
   const back: DrawnLayer[] = code.shapes.map((p, i) => {
     const was = old[i]
-    if (was && shapeCode(was) === p.source) {
+    const sameCode = p.geom.kind !== 'code' || (was?.geom.kind === 'code' && was.geom.glsl === p.geom.glsl)
+    if (was && shapeCode(was) === p.source && sameCode) {
       // Same shape text as before: keep its exact numbers (the code shows them rounded).
       return { ...was, combine: i === 0 ? was.combine : p.join, melt: i === 0 ? was.melt : p.melt, name: p.name ?? was.name, visible: !p.hidden }
     }

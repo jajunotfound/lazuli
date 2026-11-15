@@ -234,6 +234,12 @@ function drawnFunction(l: DrawnLayer, i: number): string {
   if (l.geom.kind === 'rect') {
     return `${head}\nuniform vec4 u_geo_${i}; uniform vec2 u_rect_${i};\nfloat drawn_${i}(vec2 p, float t) {\n  ${center}\n  return sdRoundRect(drawnTurn(u_rect_${i}.y) * (q - u_geo_${i}.xy), u_geo_${i}.zw, u_rect_${i}.x);\n}`
   }
+  if (l.geom.kind === 'code') {
+    // Your own GLSL, as written (an expression without return is returned). The marker line lets
+    // tools map a compile error back to a line of the code.
+    const body = /\breturn\b/.test(l.geom.glsl) ? l.geom.glsl : `return ${l.geom.glsl.replace(/;\s*$/, '')};`
+    return `${head}\nfloat drawn_${i}(vec2 p, float t) {\n  ${center}\n// code: ${l.geom.name}\n${body}\n}`
+  }
   if (l.geom.kind === 'gradient') {
     // A ramp: s runs 0 at the first point to 1 at the second (along the line, or out from the
     // first point when radial). Fullest at the first point, the edge at the second.
@@ -306,7 +312,7 @@ function drawnValues(l: DrawnLayer, i: number, out: UniformValues) {
     out[`u_geo_${i}`] = [g.scale, g.level]
   } else if (g.kind === 'cells') {
     out[`u_geo_${i}`] = [g.scale, g.gap]
-  } else {
+  } else if (g.kind === 'path') {
     const flat = new Float32Array(68)
     ;[...g.points, g.points[0]].forEach(([x, y], k) => flat.set([x, y], k * 2))
     out[`u_pts_${i}`] = flat

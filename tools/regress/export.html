@@ -38,6 +38,11 @@
       { op: 'add', layer: 'drawn', geom: { kind: 'gradient', x1: 0.3, y1: 0.1, x2: 0.55, y2: 0.2, radial: true } },
       { op: 'delete', id: 'shape-1' },
     ]),
+    'code layer': ops(still({ texture: { type: 'none' } }), [
+      { op: 'add', layer: 'drawn', geom: { kind: 'code', name: 'wob', glsl: 'float r = 0.22 + 0.04 * sin(atan(q.y, q.x) * 5.0 + t);\nreturn length(q) - r;' } },
+      { op: 'add', layer: 'drawn', geom: { kind: 'ellipse', x: 0.25, y: 0.1, rx: 0.1, ry: 0.1, angle: 0 } },
+      { op: 'delete', id: 'shape-1' },
+    ]),
     'layers+warps': ops(still({ texture: { type: 'none' } }), [
       { op: 'add', layer: 'shape', type: 'rings' },
       { op: 'combine', id: 'shape-2', combine: 'cut' },

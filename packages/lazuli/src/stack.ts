@@ -66,6 +66,11 @@ export type Geometry =
   | { kind: 'cells'; scale: number; gap: number }
   /** A ramp of the palette: fullest at (x1, y1), fading out at (x2, y2); radial grows out from (x1, y1). */
   | { kind: 'gradient'; x1: number; y1: number; x2: number; y2: number; radial: boolean }
+  /**
+   * Your own GLSL: the body of `float name(vec2 q, float t)`, returning a signed distance
+   * (negative inside). q is the point (frame height 1, center origin, y up), t the time.
+   */
+  | { kind: 'code'; name: string; glsl: string }
   /** Words in Lazuli's stroke font (font.ts): size = cap height, weight 0–1 = stroke thickness. */
   | { kind: 'text'; text: string; x: number; y: number; size: number; weight: number; angle: number }
 
@@ -202,13 +207,20 @@ export function stackToConfig(s: Readonly<Stack>): LazuliConfig {
  * shapes combine. Values
  * (sliders, colors, seeds) never change it, so editing them only re-uploads uniforms.
  */
+/** A short hash (djb2) so a code layer's text can be part of a program key. */
+function hash(text: string): string {
+  let h = 5381
+  for (let i = 0; i < text.length; i++) h = ((h << 5) + h + text.charCodeAt(i)) | 0
+  return (h >>> 0).toString(36)
+}
+
 export function stackKey(s: Readonly<Stack>): string {
   // The backmost shape's combine mode has nothing below it, so it doesn't count.
   const shapes = s.shapes
     .filter((x) => x.visible)
     .map((x, i, all) => {
       const warps = x.warps.filter((w) => w.visible).map((w) => w.type)
-      const name = x.kind === 'drawn' ? `drawn-${x.geom.kind}` : x.type
+      const name = x.kind === 'drawn' ? `drawn-${x.geom.kind}${x.geom.kind === 'code' ? `:${hash(x.geom.glsl)}` : ''}` : x.type
       return `${name}${i < all.length - 1 ? `:${x.combine}` : ''}${warps.length ? `[${warps.join('+')}]` : ''}`
     })
   const tex = s.textures.find((x) => x.visible)?.settings.type ?? 'none'
@@ -334,7 +346,7 @@ export function applyOp(input: Readonly<Stack>, op: StackOp): StackResult {
         if (s.shapes.filter((x) => x.kind === 'drawn').length >= MAX_DRAWN) return fail('drawn_limit')
         const geom = cleanGeometry(op.geom)
         if (!geom) return fail('bad_geometry')
-        const names = { ellipse: 'Ellipse', rect: 'Rectangle', path: 'Path', noise: 'Noise', cells: 'Cells', text: 'Text', gradient: 'Gradient' }
+        const names = { ellipse: 'Ellipse', rect: 'Rectangle', path: 'Path', noise: 'Noise', cells: 'Cells', text: 'Text', gradient: 'Gradient', code: 'Code' }
         const layer: DrawnLayer = { id: nextId(s, 'drawn'), kind: 'drawn', name: names[geom.kind], visible: true, geom, melt: 0.5, combine: 'merge', soft: geom.kind === 'text' ? 0.08 : 0.3, warps: [] }
         return insertAt(s.shapes, layer, op.index) ? { ok: true, stack: s } : fail('bad_index')
       }
@@ -503,6 +515,27 @@ export function applyOp(input: Readonly<Stack>, op: StackOp): StackResult {
   }
 }
 
+export const MAX_CODE_LENGTH = 2000
+const CODE_NAME = /^[A-Za-z][A-Za-z0-9_]{0,23}$/
+// Names the shader already uses (or GLSL keeps): a code layer can't take them.
+const RESERVED = new Set(['field', 'color', 'main', 'palette', 'background', 'light', 'contours', 'glow', 'melt', 'cut', 'intersect', 'ellipse', 'box', 'polygon', 'noise', 'cells', 'text', 'gradient', 'radial', 'shade', 'fbm', 'drift', 'mix', 'length', 'float', 'int', 'vec2', 'vec3', 'vec4', 'return', 'if', 'else', 'for', 'while'])
+
+/**
+ * GLSL that stays inside its function: no preprocessor lines, and (comments aside) braces that
+ * never close more than they open. Whether it compiles is the GPU's call (see the renderer).
+ */
+export function safeGlsl(src: string): boolean {
+  if (src.length > MAX_CODE_LENGTH || src.includes('#')) return false
+  if (/\/\*(?![\s\S]*?\*\/)/.test(src)) return false
+  const bare = src.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/\/\/.*$/gm, ' ')
+  let depth = 0
+  for (const ch of bare) {
+    if (ch === '{') depth++
+    if (ch === '}' && --depth < 0) return false
+  }
+  return depth === 0
+}
+
 /** A copy of the geometry with finite, in-range numbers, or null if it can't be drawn. */
 export function cleanGeometry(g: Geometry): Geometry | null {
   const n = (v: unknown, lo: number, hi: number) => (typeof v === 'number' && Number.isFinite(v) ? Math.min(hi, Math.max(lo, v)) : null)
@@ -523,6 +556,11 @@ export function cleanGeometry(g: Geometry): Geometry | null {
   if (g.kind === 'cells') {
     const v = [n(g.scale, 1, 30), n(g.gap, 0, 1)]
     return v.some((x) => x === null) ? null : { kind: 'cells', scale: v[0]!, gap: v[1]! }
+  }
+  if (g.kind === 'code') {
+    if (typeof g.name !== 'string' || !CODE_NAME.test(g.name) || RESERVED.has(g.name)) return null
+    if (typeof g.glsl !== 'string' || !safeGlsl(g.glsl)) return null
+    return { kind: 'code', name: g.name, glsl: g.glsl.trim() }
   }
   if (g.kind === 'gradient') {
     const v = [n(g.x1, -4, 4), n(g.y1, -4, 4), n(g.x2, -4, 4), n(g.y2, -4, 4)]

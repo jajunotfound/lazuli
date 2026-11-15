@@ -74,9 +74,10 @@ export {
   type WarpLayer,
   type WarpType,
 } from './stack'
-export { compileStack, type CompiledStack } from './compile'
+export { compileStack, stackFragment, type CompiledStack } from './compile'
 export { exportShader, exportShadertoy, exportHtml } from './export'
 export { presetStack, presetHasLayers } from './presetStack'
 export { animateStack, easeKey, keyAt, hasKeys, keyLoop, keyPhase } from './animate'
 export type { DrawnKey, KeyEase } from './stack'
 export { MAX_TEXT_LENGTH, MAX_TEXT_SEGMENTS, textChars, textLayout } from './font'
+export { MAX_CODE_LENGTH, safeGlsl } from './stack'

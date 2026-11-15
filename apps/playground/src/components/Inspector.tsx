@@ -18,6 +18,8 @@ interface InspectorProps {
   canDo(op: StackOp): boolean
   /** Inside the code workspace's Properties tab instead of floating on the right. */
   embedded?: boolean
+  /** Switch to the code workspace (where a code layer's GLSL is edited). */
+  onOpenCode?(): void
 }
 
 const COMBINE: { value: CombineMode; label: string }[] = [
@@ -28,7 +30,7 @@ const COMBINE: { value: CombineMode; label: string }[] = [
 ]
 
 /** The right panel: the selected layer's settings in a label | control grid. */
-export function Inspector({ stack, selected, onPatch, onOp, canDo, embedded }: InspectorProps) {
+export function Inspector({ stack, selected, onPatch, onOp, canDo, embedded, onOpenCode }: InspectorProps) {
   const found = selected === SCENE_ID ? null : findLayer(stack, selected)
   const layer: Layer | 'scene' = found?.layer ?? 'scene'
   const view = layerView(stack, selected)
@@ -92,6 +94,16 @@ export function Inspector({ stack, selected, onPatch, onOp, canDo, embedded }: I
                 <NumberField label="Scale" value={drawn.geom.scale} min={1} max={30} step={0.5} format={(v) => v.toFixed(1)} onChange={(v) => drawn.geom.kind === 'cells' && onOp({ op: 'reshape', id: selected, geom: { ...drawn.geom, scale: v } }, `scale:${selected}`)} />
                 <NumberField label="Gap" value={Math.round(drawn.geom.gap * 100)} min={0} max={100} step={1} format={(v) => String(Math.round(v))} onChange={(v) => drawn.geom.kind === 'cells' && onOp({ op: 'reshape', id: selected, geom: { ...drawn.geom, gap: v / 100 } }, `gap:${selected}`)} />
               </>
+            )}
+            {drawn.geom.kind === 'code' && (
+              <div className="inspector__glsl">
+                <pre aria-label={`${drawn.geom.name} GLSL`}>{drawn.geom.glsl}</pre>
+                {onOpenCode && (
+                  <button type="button" className="button-quiet" onClick={onOpenCode}>
+                    Edit in Code
+                  </button>
+                )}
+              </div>
             )}
             {drawn.geom.kind === 'gradient' && (
               <SelectField

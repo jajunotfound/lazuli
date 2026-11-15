@@ -6,6 +6,7 @@ import { basicSetup } from 'codemirror'
 import type { Stack } from 'lazuli-bg'
 import { useEffect, useRef } from 'react'
 import { applyCode, readCode, writeCode } from '../canvasCode'
+import { shaderError } from '../glCheck'
 
 interface CodeEditorProps {
   stack: Stack
@@ -65,8 +66,23 @@ export function CodeEditor({ stack, onApply, textRef }: CodeEditorProps) {
               u.view.dispatch(setDiagnostics(u.state, [{ from: line.from, to: Math.max(line.to, line.from + 1), severity: 'error', message: r.error.message }]))
               return
             }
-            u.view.dispatch(setDiagnostics(u.state, []))
             const next = applyCode(stackRef.current, r.code)
+            // Your own GLSL has to compile before the canvas takes it.
+            const bad = shaderError(next)
+            if (bad) {
+              const doc = u.state.doc
+              let at = 1
+              for (let n = 1; n <= doc.lines; n++) {
+                if (bad.name && new RegExp(`^\\s*float\\s+${bad.name}\\s*\\(`).test(doc.line(n).text)) {
+                  at = Math.min(n + Math.max(bad.line, 1), doc.lines)
+                  break
+                }
+              }
+              const line = doc.line(at)
+              u.view.dispatch(setDiagnostics(u.state, [{ from: line.from, to: Math.max(line.to, line.from + 1), severity: 'error', message: bad.message }]))
+              return
+            }
+            u.view.dispatch(setDiagnostics(u.state, []))
             echo.current = writeCode(next)
             applyRef.current(next)
           }),
