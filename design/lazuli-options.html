@@ -242,19 +242,11 @@ h1 { margin: 0; font-size: 22px; line-height: 1.2; letter-spacing: -0.02em; text
 .h-dial line { stroke: #1f48a8; stroke-width: 1.5; }
 .h-dial .knob { fill: #1f48a8; stroke: #fff; stroke-width: 1.5; }
 
-/* the mascot, flat */
-.tool--lz { padding: 0; cursor: pointer; }
-.tool--lz.on { background: var(--accent-soft); border-color: transparent; }
-.lz2 { display: block; overflow: visible; }
-.lz2__eyes { transition: transform 0.25s ease-out; }
-.lz2__open rect { fill: #fff; transform-box: fill-box; transform-origin: center; animation: lz-blink 4.2s infinite; }
-.lz2__happy { fill: none; stroke: #fff; stroke-width: 1.4; stroke-linecap: round; opacity: 0; }
-[data-mood="happy"] .lz2__open { opacity: 0; }
-[data-mood="happy"] .lz2__happy { opacity: 1; }
-[data-mood="thinking"] .lz2__eyes { transform: translate(1.2px, -1.6px) !important; }
-[data-mood="thinking"] .lz2 { animation: lz-bob 0.9s infinite ease-in-out; }
-@keyframes lz-blink { 0%, 94%, 100% { transform: scaleY(1); } 96% { transform: scaleY(0.12); } }
-@keyframes lz-bob { 50% { transform: translateY(-1.5px); } }
+/* Lazuli as an icon */
+.tool--lz { padding: 0; cursor: pointer; color: var(--ink-2); }
+.tool--lz.on { background: var(--accent-soft); border-color: transparent; color: var(--accent); }
+.lz-icon { display: block; }
+#askFace { color: var(--accent); display: grid; place-items: center; width: 28px; height: 28px; border-radius: 8px; background: var(--accent-soft); }
 .ask-pop__head { display: flex; align-items: center; gap: 8px; font-size: 14px; }
 .ask-pop__close { margin-left: auto; border: 0; background: none; color: var(--ink-3); font-size: 16px; line-height: 1; cursor: pointer; padding: 2px 4px; }
 .ask-pop__hello { font-size: 14px; color: var(--ink); }
@@ -539,7 +531,7 @@ h1 { margin: 0; font-size: 22px; line-height: 1.2; letter-spacing: -0.02em; text
           <div class="stack" id="askLayers"><div class="layer-row muted">Nothing yet</div></div>
         </div>
         <div class="ask-pop composer" id="askPop">
-          <div class="ask-pop__head"><span data-mascot data-size="28" id="askFace"></span><b>Lazuli</b><button type="button" class="ask-pop__close" id="askClose" aria-label="Close">&times;</button></div>
+          <div class="ask-pop__head"><span data-mascot data-size="18" id="askFace"></span><b>Lazuli</b><button type="button" class="ask-pop__close" id="askClose" aria-label="Close">&times;</button></div>
           <div class="ask-pop__hello" id="askHello">What should we make?</div>
           <form id="askForm"><input id="askInput" aria-label="Describe a look" placeholder="A pencil sketch, liquid chrome…" autocomplete="off"><button type="submit">Make it</button></form>
           <div class="chips" id="askChips"></div>
@@ -1077,28 +1069,12 @@ function makeFx(canvas) {
 }
 document.querySelectorAll('canvas[data-fx]').forEach((c) => { const v = makeFx(c); if (v) views.push(v) })
 
-// ---- the mascot, flat: a blue drop with two pill eyes (from the Paper artboard "lazuli") ----
+// ---- Lazuli as an icon: the mascot's round body and close-set pill eyes, in the dock's line style ----
+ICONS.lazuli = '<circle cx="12" cy="12.5" r="8.5"/><path d="M10.4 9.2v2.8M13.6 9.2v2.8" stroke-width="2"/>'
 function mascot(size) {
-  return `<svg class="lz2" viewBox="0 0 40 40" width="${size}" height="${size}" aria-hidden="true">
-    <circle cx="20" cy="20" r="18" fill="url(#lzFill)"/><circle cx="20" cy="20" r="18" fill="url(#lzShade)"/>
-    <g class="lz2__eyes"><g class="lz2__open"><rect x="16.4" y="12.4" width="3.15" height="5.75" rx="1.575"/><rect x="20.45" y="12.4" width="3.15" height="5.75" rx="1.575"/></g>
-    <path class="lz2__happy" d="M15.9 16.4q2.1-2.8 4 0M20.1 16.4q2.1-2.8 4 0"/></g></svg>`
+  return `<svg class="lz-icon" viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS.lazuli}</svg>`
 }
-document.body.insertAdjacentHTML('afterbegin', `<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
-  <linearGradient id="lzFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#114bae"/><stop offset="1" stop-color="#336dd3"/></linearGradient>
-  <radialGradient id="lzShade" cx="0.62" cy="0.36" r="0.72"><stop offset="0.72" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity="0.2"/></radialGradient></defs></svg>`)
-document.querySelectorAll('[data-mascot]').forEach((el) => (el.innerHTML = mascot(+(el.dataset.size || 32))))
-// Eyes follow the pointer a little.
-addEventListener('pointermove', (e) => {
-  document.querySelectorAll('.lz2').forEach((svg) => {
-    if (svg.closest('[data-mood="thinking"]')) return
-    const r = svg.getBoundingClientRect()
-    if (!r.width) return
-    const dx = e.clientX - (r.left + r.width / 2), dy = e.clientY - (r.top + r.height / 2), d = Math.hypot(dx, dy) || 1
-    const k = Math.min(1, d / 300) * 1.6
-    svg.querySelector('.lz2__eyes').style.transform = `translate(${(dx / d) * k}px, ${(dy / d) * k}px)`
-  })
-})
+document.querySelectorAll('[data-mascot]').forEach((el) => (el.innerHTML = mascot(+(el.dataset.size || 18))))
 
 // ---- build a pencil drawing: the effect as layers ----
 const B = {
