@@ -521,9 +521,14 @@ vec4 screenPattern(vec2 frag) {
   float thr = threshold(frag);
   float cov = g_cov * k;
   // Stepped coverage has a hard edge already; dither what's left of it.
-  float on = step(thr, contrastCurve(cov - 0.5) + 0.5);
+  // No coverage, no dot: far from the origin float precision can drop a cell's threshold to 0.
+  float on = step(thr, contrastCurve(cov - 0.5) + 0.5) * step(1e-4, cov);
   vec4 D;
-  if (g_isFlat > 0.5) {
+  if (g_isFlat > 1.5) {
+    // A lit drawn shape: dither its own color down to the levels, channel by channel.
+    float L = u_texLevels - 1.0;
+    D = vec4(floor(clamp(g_flat, 0.0, 1.0) * L + thr) / L, 1.0);
+  } else if (g_isFlat > 0.5) {
     D = shadeFlat(1.0, g_flat);
   } else {
     float L = u_texLevels - 1.0;

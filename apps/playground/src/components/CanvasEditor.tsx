@@ -64,7 +64,8 @@ export function CanvasEditor({ stack, moving = [], selected, tool, onSelect, set
   const drawn = stack.shapes.filter((x): x is DrawnLayer => x.kind === 'drawn' && x.visible)
   // The sun handle: only while drawn shapes are lit from a placed light.
   const light = stack.color.light
-  const sun: [number, number] | null = drawn.length && light && light.amount > 0 && !light.follow ? [light.x ?? DEFAULT_SUN[0], light.y ?? DEFAULT_SUN[1]] : null
+  // Shown while the Colour map (where the light is set) is selected, so it doesn't clutter drawing.
+  const sun: [number, number] | null = drawn.length && light && light.amount > 0 && !light.follow && selected === stack.color.id ? [light.x ?? DEFAULT_SUN[0], light.y ?? DEFAULT_SUN[1]] : null
   const sel = drawn.find((x) => x.id === selected && !moving.includes(x.id)) ?? null
   // The drawn layer right below the selection, which the melt handle joins it to.
   const below = (() => {
@@ -249,17 +250,16 @@ export function CanvasEditor({ stack, moving = [], selected, tool, onSelect, set
         </g>
       )}
       {sun && tool === 'move' && (() => {
-        // The light, where it was put: drag it and the shading follows.
+        // The light, where it was put: a quiet handle with a line toward the middle of the frame.
         const [sx, sy] = px(sun[0], sun[1])
+        const [cx, cy] = px(0, 0)
         return (
-          <g className="ce-sun" data-handle="sun">
-            <circle cx={sx} cy={sy} r="18" fill="transparent" stroke="none" />
-            <circle className="ce-sun__disc" cx={sx} cy={sy} r="7" />
-            {[...Array(8)].map((_, i) => {
-              const a = (i * Math.PI) / 4
-              return <line key={i} className="ce-sun__ray" x1={sx + Math.cos(a) * 10.5} y1={sy + Math.sin(a) * 10.5} x2={sx + Math.cos(a) * 14.5} y2={sy + Math.sin(a) * 14.5} />
-            })}
-            <title>The light. Drag it.</title>
+          <g className="ce-light" data-handle="sun">
+            <line className="ce-light__aim" x1={sx} y1={sy} x2={sx + (cx - sx) * 0.18} y2={sy + (cy - sy) * 0.18} />
+            <circle cx={sx} cy={sy} r="14" fill="transparent" stroke="none" />
+            <circle className="ce-light__ring" cx={sx} cy={sy} r="7" />
+            <circle className="ce-light__dot" cx={sx} cy={sy} r="2.5" />
+            <title>Light. Drag it.</title>
           </g>
         )
       })()}

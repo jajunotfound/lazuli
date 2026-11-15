@@ -221,6 +221,12 @@ vec4 drawnFx(vec4 c, float d, vec2 q) {
   }
   return c;
 }
+// Screening textures (dither, halftone) redraw what shading saw. Light, outline and glow shade
+// every pixel along the way, so hand them the finished shape instead: its coverage and color.
+vec4 drawnSeen(vec4 c) {
+  g_cov = c.a; g_flat = c.rgb / max(c.a, 1e-4); g_isFlat = 2.0; // 2: a lit color, dithered as it is
+  return c;
+}
 vec4 drawnLit(float d, vec2 g, float w, vec2 q) {
   float R = mix(0.03, 0.22, u_light);
   float x = clamp(-d / R, 0.0, 1.0);
@@ -428,7 +434,12 @@ function composeShapes(shapes: readonly ShapeEntry[], move?: MoveMode): string {
       out.push(`vec4 field_${g[0]}(vec2 p, float t) {
   float d = fieldD_${g[0]}(p, t);
   vec2 q = p - vec2(0.5 * u_res.x / u_res.y, 0.5);
-  if (u_light <= 0.0) return drawnFx(drawnShade(d, u_soft_${g[0]}), d, q);
+  if (u_light <= 0.0) {
+    vec4 flat_ = drawnShade(d, u_soft_${g[0]});
+    // Plain shapes already left the right coverage and tone for screening textures.
+    if (u_outline <= 0.0 && u_glow <= 0.0 && u_contours <= 0.5) return flat_;
+    return drawnSeen(drawnFx(flat_, d, q));
+  }
   float e = 1.0 / u_res.y;
   vec2 g = vec2(fieldD_${g[0]}(p + vec2(e, 0.0), t) - fieldD_${g[0]}(p - vec2(e, 0.0), t), fieldD_${g[0]}(p + vec2(0.0, e), t) - fieldD_${g[0]}(p - vec2(0.0, e), t)) / (2.0 * e);
   vec4 c = drawnLit(d, g, u_soft_${g[0]}, q);
@@ -438,7 +449,7 @@ function composeShapes(shapes: readonly ShapeEntry[], move?: MoveMode): string {
     float a = u_shadow * 0.45 * (1.0 - smoothstep(-0.03, 0.03, sd));
     c += vec4(shade(1.0, 0.0).rgb * a, a) * (1.0 - c.a);
   }
-  return drawnFx(c, d, q);
+  return drawnSeen(drawnFx(c, d, q));
 }`)
       continue
     }

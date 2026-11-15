@@ -691,20 +691,25 @@ button {
   stroke-width: 1;
 }
 
-.ce-sun {
+.ce-light {
   cursor: grab;
 }
 
-.ce-sun__disc {
-  fill: #ffd34d;
-  stroke: #b07800;
+.ce-light__ring {
+  fill: #fff;
+  stroke: var(--accent);
   stroke-width: 1.5;
 }
 
-.ce-sun__ray {
-  stroke: #b07800;
-  stroke-width: 1.5;
-  stroke-linecap: round;
+.ce-light__dot {
+  fill: var(--accent);
+}
+
+.ce-light__aim {
+  stroke: var(--accent);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+  opacity: 0.7;
 }
 
 .ce-halo {
