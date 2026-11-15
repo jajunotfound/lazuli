@@ -3457,17 +3457,6 @@ html.demo .code-topbar {
   }
 }
 
-.welcome__tour {
-  padding: 0;
-  border: 0;
-  background: none;
-  color: inherit;
-  font: inherit;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-  cursor: pointer;
-}
-
 /* Reels (?demo&reels): captions and keys follow the 9:16 window, sized for a phone. */
 html.demo--reels .demo-caption {
   left: var(--reel-x, 50%);

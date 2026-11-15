@@ -30,7 +30,7 @@ const clock = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60))
 
 /**
  * The tour: the recorded tutorial (public/tutorial.mp4) with its chapters (public/tutorial.json)
- * beside it. Opens once on a first visit; the welcome card's "Watch the tour" brings it back.
+ * beside it. Opens once on a first visit.
  */
 export function TutorialDialog({ open, onOpenChange }: { open: boolean; onOpenChange(open: boolean): void }) {
   const video = useRef<HTMLVideoElement>(null)

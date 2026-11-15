@@ -500,7 +500,7 @@ export function App() {
       )}
 
       {!meeting &&
-        (welcomeOpen ? <WelcomeCard config={config} onClose={closeWelcome} onTour={() => { closeWelcome(); setTourOpen(true) }} /> : <AboutButton onClick={() => setWelcomeOpen(true)} mood={mood} reduced={reducedMotion} />)}
+        (welcomeOpen ? <WelcomeCard config={config} onClose={closeWelcome} /> : <AboutButton onClick={() => setWelcomeOpen(true)} mood={mood} reduced={reducedMotion} />)}
 
       <CodeDialog open={codeOpen} onOpenChange={setCodeOpen} stack={stack} onMood={setMood} />
       <TutorialDialog open={tourOpen} onOpenChange={setTourOpen} />
