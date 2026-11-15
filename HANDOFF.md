@@ -1,3 +1,19 @@
+# Handoff: 2026-11-15, latest (drawings you build + Ask Lazuli)
+
+Plan of record for this round: `docs/plans/agent-and-drawing.md` (what was built, checks, what's next).
+Earlier plan: `docs/plans/draw-builder.md` (all milestones built).
+- Pencil building blocks: sun light (matte to chrome), cast shadow, sketchy outline, Lines texture,
+  Paper; Motion is Still / Drift / Breathe. Pencil example in Presets.
+- Ask Lazuli on the dock (`components/AskLazuli.tsx`, `apps/playground/src/agent/`): agent-first on an
+  empty canvas, answers as layers, Keep / Undo / Show code.
+- Free endpoint: `workers/agent` (not deployed yet; needs a Cloudflare account + Gemini key, see its
+  README), then `VITE_AGENT_URL` in `apps/playground/.env.local`. Bring-your-own key works today.
+- Checks: `pnpm -C packages/lazuli test`; `tools/checks/*` (code language, agent loop, Worker);
+  `tools/regress/*` GPU checks (serve the repo root on 5398).
+- Type: Manrope, even px sizes only (14 body).
+
+---
+
 # Handoff: 2026-11-15, latest (option 3: draw, then shape the field)
 
 Plan of record now: `docs/plans/draw-builder.md`. Options page (direction chosen):
