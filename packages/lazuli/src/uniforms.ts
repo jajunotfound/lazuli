@@ -14,7 +14,7 @@ const SOFT_MIN = 0.02
 const SOFT_SPAN = 2.16 // softness 50 → 1.1, the widest band that keeps the ground clean
 // Texture strength at intensity 100, per type. Paper shows no visible grain at the default
 // (Fine = 35), so grain stays a whisper there. Halftone and dither mix 0–1 toward the screen.
-const TEXTURE_SCALE: Record<TextureType, number> = { none: 0, grain: 0.07, noise: 0.22, paper: 0.16, halftone: 1, dither: 1 }
+const TEXTURE_SCALE: Record<TextureType, number> = { none: 0, grain: 0.07, noise: 0.22, paper: 0.16, halftone: 1, dither: 1, hatch: 1 }
 const CURSOR_RADIUS = 0.045 // falloff σ² in height units at radius 50
 const CURSOR_SMEAR = 1.6 // at smear 50
 const FLOW_SPEED = 0.06 // height units per unit of time
@@ -88,6 +88,7 @@ export function globalUniforms(c: LazuliConfig): UniformValues {
     u_texMatrix: ['bayer4', 'bayer8', 'ign'].indexOf(tex.matrix),
     u_texLevels: tex.levels,
     u_texFibers: tex.fibers / 100,
+    u_texCross: tex.cross ? 1 : 0,
   }
 }
 

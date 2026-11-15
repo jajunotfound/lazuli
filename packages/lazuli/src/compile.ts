@@ -9,7 +9,7 @@
 import { MAX_TEXT_SEGMENTS, textLayout, textStroke } from './font'
 import { assembleShader, NEEDS_COMMON, SHAPE_CHUNKS, SHAPE_COMMON } from './shader'
 import type { ShapeType } from './schema'
-import { stackKey, stackToConfig, type CombineMode, type DrawnLayer, type ShapeEntry, type ShapeLayer, type Stack, type WarpLayer } from './stack'
+import { DEFAULT_SUN, stackKey, stackToConfig, type CombineMode, type MoveMode, type DrawnLayer, type ShapeEntry, type ShapeLayer, type Stack, type WarpLayer } from './stack'
 import { globalUniforms, shapeUniforms, type UniformValues } from './uniforms'
 
 /** The chunk with comments and everything inside braces removed: only top-level text is left. */
@@ -193,8 +193,21 @@ vec4 drawnShade(float d, float w) {
 // plus a highlight. Flat inside the bevel reads as the palette's middle.
 uniform float u_light; uniform float u_shine;
 uniform float u_contours; uniform float u_glow;
+uniform vec2 u_lightPos; uniform float u_lightFollow; uniform float u_shadow;
+uniform float u_outline; uniform float u_sketch;
+// The sun in field units (frame height 1, center origin): where it was put, or at the pointer.
+vec2 sunAt() { return u_lightFollow > 0.5 ? (u_mouse - 0.5) * vec2(u_res.x / u_res.y, 1.0) : u_lightPos; }
 // Around the shape: a glow fading out from the edge, and contour rings at even distances.
-vec4 drawnFx(vec4 c, float d) {
+vec4 drawnFx(vec4 c, float d, vec2 q) {
+  // An outline on the edge, in a deep tone of the palette; sketch makes it wobble and doubles it.
+  if (u_outline > 0.0) {
+    float wob = u_sketch * 0.008 * (noise(q * 26.0 + 3.0) - 0.5);
+    float half_ = 0.5 * mix(0.8, 3.2, u_outline) * u_dpr;
+    float e = 1.0 - smoothstep(half_ - 0.75, half_ + 0.75, abs(d + wob) * u_res.y);
+    if (u_sketch > 0.05) e = max(e, 0.6 * (1.0 - smoothstep(half_ * 0.7 - 0.75, half_ * 0.7 + 0.75, abs(d - 1.6 * wob - 0.0025 * u_sketch) * u_res.y)));
+    vec3 ink = shade(1.0, 0.0).rgb * 0.45;
+    c = c * (1.0 - e) + vec4(ink * e, e);
+  }
   if (d <= 0.0) return c;
   vec3 tint = shade(1.0, 0.5).rgb;
   if (u_glow > 0.0) {
@@ -208,16 +221,19 @@ vec4 drawnFx(vec4 c, float d) {
   }
   return c;
 }
-vec4 drawnLit(float d, vec2 g, float w) {
+vec4 drawnLit(float d, vec2 g, float w, vec2 q) {
   float R = mix(0.03, 0.22, u_light);
   float x = clamp(-d / R, 0.0, 1.0);
   float h = sqrt(max(1.0 - (1.0 - x) * (1.0 - x), 1e-4));
   float slope = x < 1.0 ? (1.0 - x) / h : 0.0;
   vec3 n = normalize(vec3(g * slope, 1.0));
   vec3 r = reflect(vec3(0.0, 0.0, -1.0), n);
+  // Matte (lit from the sun) at shine 0, mirroring the palette like chrome at shine 1.
+  vec3 l = normalize(vec3(sunAt() - q, 0.6));
   float env = clamp(0.5 + 0.5 * r.y + 0.15 * r.x, 0.0, 1.0);
+  // A little wrap-around, so the side away from the sun still reads as round, not black.
+  env = mix(clamp(dot(n, l) * 0.8 + 0.22, 0.0, 1.0), env, u_shine);
   vec3 col = shade(1.0, env).rgb;
-  vec3 l = normalize(vec3(-0.45, 0.65, 0.6));
   col += pow(max(dot(r, l), 0.0), mix(6.0, 90.0, u_shine)) * u_shine * 1.4;
   float cov = 1.0 - smoothstep(-0.25 * w, w, d);
   return vec4(clamp(col, 0.0, 1.0) * cov, cov);
@@ -339,7 +355,7 @@ export function stackFragment(s: Readonly<Stack>): string {
     }
   })
 
-  parts.push(composeShapes(shapes))
+  parts.push(composeShapes(shapes, s.move))
 
   const tex = s.textures.find((x) => x.visible)?.settings.type ?? 'none'
   return assembleShader(parts.join('\n'), tex)
@@ -383,7 +399,7 @@ const COMBINE: Record<CombineMode, string> = {
 }
 const FIELD_OP: Record<CombineMode, string> = { merge: 'dUnion', add: 'dUnion', cut: 'dCut', intersect: 'dIntersect' }
 
-function composeShapes(shapes: readonly ShapeEntry[]): string {
+function composeShapes(shapes: readonly ShapeEntry[], move?: MoveMode): string {
   const groups = shapeGroups(shapes)
   const out: string[] = []
   const at = (i: number) => (visibleWarps(shapes[i]).length ? `warp_${i}(p, t)` : 'p')
@@ -394,20 +410,35 @@ function composeShapes(shapes: readonly ShapeEntry[]): string {
     if (shapes[g[0]].kind === 'drawn') {
       // Back to front: start from the backmost drawn shape, join each one above it.
       const back = g[g.length - 1]
-      const lines = [`  float d = drawn_${back}(${at(back)}, t);`]
+      // Moving on their own: each shape drifts on its own path, or breathes in and out.
+      const call = (i: number) => {
+        const k = (n: number) => (i * n + 0.5).toFixed(1)
+        if (move === 'drift') return `drawn_${i}(${at(i)} - 0.035 * vec2(sin(t * 0.5 + ${k(2.1)}), cos(t * 0.4 + ${k(1.7)})), t)`
+        if (move === 'breathe') return `(drawn_${i}(${at(i)}, t) - 0.012 * sin(t * 1.4 + ${k(2.0)}))`
+        return `drawn_${i}(${at(i)}, t)`
+      }
+      const lines = [`  float d = ${call(back)};`]
       for (let m = g.length - 2; m >= 0; m--) {
         const i = g[m]
-        lines.push(`  d = ${FIELD_OP[shapes[i].combine]}(d, drawn_${i}(${at(i)}, t), u_melt_${i});`)
+        lines.push(`  d = ${FIELD_OP[shapes[i].combine]}(d, ${call(i)}, u_melt_${i});`)
       }
       lines.push('  return d;')
       out.push(`float fieldD_${g[0]}(vec2 p, float t) {\n${lines.join('\n')}\n}`)
       // Flat color, or lit: the slope comes from the field one pixel either side.
       out.push(`vec4 field_${g[0]}(vec2 p, float t) {
   float d = fieldD_${g[0]}(p, t);
-  if (u_light <= 0.0) return drawnFx(drawnShade(d, u_soft_${g[0]}), d);
+  vec2 q = p - vec2(0.5 * u_res.x / u_res.y, 0.5);
+  if (u_light <= 0.0) return drawnFx(drawnShade(d, u_soft_${g[0]}), d, q);
   float e = 1.0 / u_res.y;
   vec2 g = vec2(fieldD_${g[0]}(p + vec2(e, 0.0), t) - fieldD_${g[0]}(p - vec2(e, 0.0), t), fieldD_${g[0]}(p + vec2(0.0, e), t) - fieldD_${g[0]}(p - vec2(0.0, e), t)) / (2.0 * e);
-  return drawnFx(drawnLit(d, g, u_soft_${g[0]}), d);
+  vec4 c = drawnLit(d, g, u_soft_${g[0]}, q);
+  // The shadow on the ground: step toward the sun, and if the shapes are there, it's shaded.
+  if (u_shadow > 0.0 && d > 0.0) {
+    float sd = fieldD_${g[0]}(p + normalize(sunAt() - q + 1e-4) * 0.06, t);
+    float a = u_shadow * 0.45 * (1.0 - smoothstep(-0.03, 0.03, sd));
+    c += vec4(shade(1.0, 0.0).rgb * a, a) * (1.0 - c.a);
+  }
+  return drawnFx(c, d, q);
 }`)
       continue
     }
@@ -447,6 +478,12 @@ export function stackUniforms(s: Readonly<Stack>): UniformValues {
   out.u_shine = s.color.light?.shine ?? 0.5
   out.u_contours = s.color.look?.contours ?? 0
   out.u_glow = s.color.look?.glow ?? 0
+  out.u_outline = s.color.look?.outline ?? 0
+  out.u_sketch = s.color.look?.sketch ?? 0
+  const light = s.color.light
+  out.u_lightPos = [light?.x ?? DEFAULT_SUN[0], light?.y ?? DEFAULT_SUN[1]]
+  out.u_lightFollow = light?.follow ? 1 : 0
+  out.u_shadow = light?.shadow ?? 0
   // The pointer pushes every shape only when the cursor is the stack-wide one.
   if (!s.cursor?.visible) {
     out.u_pull = 0

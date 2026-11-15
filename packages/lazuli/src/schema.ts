@@ -6,7 +6,7 @@
 export type ShapeType = 'blobs' | 'waves' | 'bands' | 'rings' | 'dots' | 'nodal'
 export type DotGrid = 'square' | 'hex'
 export type NodalStyle = 'lines' | 'regions'
-export type TextureType = 'none' | 'grain' | 'noise' | 'halftone' | 'dither' | 'paper'
+export type TextureType = 'none' | 'grain' | 'noise' | 'halftone' | 'dither' | 'paper' | 'hatch'
 export type DotShape = 'dot' | 'line' | 'square'
 export type DitherMatrix = 'bayer4' | 'bayer8' | 'ign'
 export type BackgroundType = 'solid' | 'gradient' | 'transparent'
@@ -147,8 +147,10 @@ export interface LazuliConfig {
     mono: boolean
     /** Noise detail, 1–5 (noise, paper). */
     octaves: number
-    /** Screen angle in degrees, 0–90 (halftone). */
+    /** Screen angle in degrees, 0–90 (halftone, and the lines of hatch). */
     angle: number
+    /** Hatch: a second set of lines across the first in the darkest parts. */
+    cross: boolean
     dotShape: DotShape
     matrix: DitherMatrix
     /** Tone levels, 2–16 (dither); equal to the palette's stop count, it snaps to the stops. */
@@ -328,7 +330,7 @@ export const PARAMS: readonly ParamDef[] = [
   def('color.opacity', { kind: 'number', min: 0, max: 100, default: 100, attr: 'color-opacity', url: 'op', label: 'Opacity' }),
   def('color.fade', { kind: 'number', min: 0, max: 100, default: 35, attr: 'color-fade', url: 'fd', label: 'Corner fade' }),
 
-  def('texture.type', { kind: 'enum', options: ['none', 'grain', 'noise', 'halftone', 'dither', 'paper'], default: 'grain', attr: 'texture-type', url: 'tt', label: 'Type' }),
+  def('texture.type', { kind: 'enum', options: ['none', 'grain', 'noise', 'halftone', 'dither', 'paper', 'hatch'], default: 'grain', attr: 'texture-type', url: 'tt', label: 'Type' }),
   def('texture.intensity', { kind: 'number', min: 0, max: 100, default: 35, attr: 'texture-intensity', url: 'ti', label: 'Amount', when: hasTexture }),
   def('texture.scale', { kind: 'number', min: 1, max: 16, default: 1, attr: 'texture-scale', url: 'tz', label: 'Scale', when: hasTexture }),
   def('texture.contrast', { kind: 'number', min: 0, max: 100, default: 50, attr: 'texture-contrast', url: 'tc', label: 'Contrast', when: hasTexture }),
@@ -337,7 +339,8 @@ export const PARAMS: readonly ParamDef[] = [
   def('texture.target', { kind: 'enum', options: ['all', 'pattern'], default: 'all', attr: 'texture-target', url: 'tg', label: 'Applies to', when: texIn('grain', 'noise', 'paper') }),
   def('texture.mono', { kind: 'bool', default: true, attr: 'texture-mono', url: 'tm', label: 'Monochrome', when: texIn('grain', 'noise') }),
   def('texture.octaves', { kind: 'number', min: 1, max: 5, int: true, default: 3, attr: 'texture-octaves', url: 'to', label: 'Detail', when: texIn('noise', 'paper') }),
-  def('texture.angle', { kind: 'number', min: 0, max: 90, default: 45, attr: 'texture-angle', url: 'tn', label: 'Angle', when: texIn('halftone') }),
+  def('texture.angle', { kind: 'number', min: 0, max: 90, default: 45, attr: 'texture-angle', url: 'tn', label: 'Angle', when: texIn('halftone', 'hatch') }),
+  def('texture.cross', { kind: 'bool', default: true, attr: 'texture-cross', url: 'tr', label: 'Cross lines', when: texIn('hatch') }),
   def('texture.dotShape', { kind: 'enum', options: ['dot', 'line', 'square'], default: 'dot', attr: 'texture-dot-shape', url: 'td', label: 'Dot', when: texIn('halftone') }),
   def('texture.matrix', { kind: 'enum', options: ['bayer4', 'bayer8', 'ign'], default: 'bayer8', attr: 'texture-matrix', url: 'tx', label: 'Pattern', when: texIn('dither') }),
   def('texture.levels', { kind: 'number', min: 2, max: 16, int: true, default: 4, attr: 'texture-levels', url: 'tl', label: 'Levels', when: texIn('dither') }),

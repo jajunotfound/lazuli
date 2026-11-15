@@ -94,6 +94,23 @@ export interface TextureLayer extends LayerBase {
   settings: LazuliConfig['texture'] & { type: Exclude<TextureType, 'none'> }
 }
 
+/**
+ * Light on drawn shapes. amount = bevel depth, shine 0 (matte, lit from the sun) to 1 (chrome,
+ * mirrors the palette). The sun sits at (x, y) in field units, or follows the pointer; shadow
+ * (0–1) darkens the ground on the far side of the shapes.
+ */
+export interface LightSettings {
+  amount: number
+  shine: number
+  x?: number
+  y?: number
+  follow?: boolean
+  shadow?: number
+}
+
+/** Where the light sits unless moved: up and to the left. */
+export const DEFAULT_SUN: readonly [number, number] = [-0.34, 0.49]
+
 export interface ColorLayer extends LayerBase {
   kind: 'color'
   settings: LazuliConfig['color']
@@ -101,9 +118,12 @@ export interface ColorLayer extends LayerBase {
    * Light on drawn shapes: each becomes a rounded surface that reflects the palette (dark below,
    * light above) with a highlight. amount 0 is flat color; 1 is deep, chrome-like. shine 0–1.
    */
-  light?: { amount: number; shine: number }
-  /** Around drawn shapes: contour rings (0 = none, else rings per frame height) and a glow (0–1). */
-  look?: { contours: number; glow: number }
+  light?: LightSettings
+  /**
+   * Around drawn shapes: contour rings (0 = none, else rings per frame height), a glow (0–1), and
+   * an outline (0 = none, up to 1 = thick) that wobbles like a sketch by `sketch` (0–1).
+   */
+  look?: { contours: number; glow: number; outline?: number; sketch?: number }
 }
 
 export interface BackgroundLayer extends LayerBase {
@@ -126,7 +146,11 @@ export interface Stack {
   quality: LazuliConfig['quality']
   /** Keyframes for drawn layers, by layer id: what the layer is at each point of the loop. */
   keys?: Record<string, DrawnKey[]>
+  /** How drawn shapes move on their own: drift about, or breathe in and out. Unset = still. */
+  move?: MoveMode
 }
+
+export type MoveMode = 'drift' | 'breathe'
 
 /** A drawn layer at one moment of the loop (t from 0 to 1). */
 export interface DrawnKey {
@@ -145,7 +169,7 @@ export const MAX_DRAWN = 8
 export const MAX_PATH_POINTS = 32
 export const MAX_TEXTURES = 3
 export const MAX_WARPS_PER_SHAPE = 2
-export const SCREEN_TEXTURES: readonly TextureType[] = ['halftone', 'dither']
+export const SCREEN_TEXTURES: readonly TextureType[] = ['halftone', 'dither', 'hatch']
 
 const clone = <T>(v: T): T => structuredClone(v)
 
@@ -154,7 +178,7 @@ const clone = <T>(v: T): T => structuredClone(v)
 const SHAPE_KEYS = ['blobs', 'waves', 'bands', 'rings', 'dots', 'nodal'] as const
 
 const LABELS: Record<ShapeType, string> = { blobs: 'Blobs', waves: 'Waves', bands: 'Bands', rings: 'Rings', dots: 'Dots', nodal: 'Plate' }
-const TEXTURE_LABELS: Record<TextureType, string> = { none: 'None', grain: 'Grain', noise: 'Noise', paper: 'Paper', halftone: 'Halftone', dither: 'Dither' }
+const TEXTURE_LABELS: Record<TextureType, string> = { none: 'None', grain: 'Grain', noise: 'Noise', paper: 'Paper', halftone: 'Halftone', dither: 'Dither', hatch: 'Lines' }
 
 /** A config is a one-shape stack. Ids are fixed, so the same config gives the same stack. */
 export function configToStack(c: Readonly<LazuliConfig>): Stack {
@@ -224,7 +248,7 @@ export function stackKey(s: Readonly<Stack>): string {
       return `${name}${i < all.length - 1 ? `:${x.combine}` : ''}${warps.length ? `[${warps.join('+')}]` : ''}`
     })
   const tex = s.textures.find((x) => x.visible)?.settings.type ?? 'none'
-  return `${shapes.join(',')}|${tex}`
+  return `${shapes.join(',')}|${tex}${s.move ? `|${s.move}` : ''}`
 }
 
 // ---- operations ---------------------------------------------------------------
@@ -243,11 +267,13 @@ export type StackOp =
   | { op: 'rename'; id: string; name: string }
   | { op: 'tune'; id: string; strength?: number; size?: number }
   | { op: 'reshape'; id: string; geom?: Geometry; melt?: number; soft?: number }
-  | { op: 'light'; amount?: number; shine?: number }
-  | { op: 'look'; contours?: number; glow?: number }
+  | { op: 'light'; amount?: number; shine?: number; x?: number; y?: number; follow?: boolean; shadow?: number }
+  | { op: 'look'; contours?: number; glow?: number; outline?: number; sketch?: number }
+  | { op: 'movement'; move: MoveMode | 'still' }
 
 export type StackError =
   | 'not_found'
+  | 'bad_move'
   | 'shape_limit'
   | 'texture_limit'
   | 'screen_limit'
@@ -491,16 +517,35 @@ export function applyOp(input: Readonly<Stack>, op: StackOp): StackResult {
 
     case 'light': {
       const unit = (v: number | undefined, d: number) => (v !== undefined && Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : d)
+      const pos = (v: number | undefined, d: number) => (v !== undefined && Number.isFinite(v) ? Math.min(2, Math.max(-2, v)) : d)
       const was = s.color.light ?? { amount: 0, shine: 0.5 }
-      s.color = { ...s.color, light: { amount: unit(op.amount, was.amount), shine: unit(op.shine, was.shine) } }
+      const light: LightSettings = { amount: unit(op.amount, was.amount), shine: unit(op.shine, was.shine) }
+      const x = pos(op.x, was.x ?? DEFAULT_SUN[0]), y = pos(op.y, was.y ?? DEFAULT_SUN[1])
+      if (op.x !== undefined || op.y !== undefined || was.x !== undefined) Object.assign(light, { x, y })
+      const follow = op.follow ?? was.follow
+      if (follow) light.follow = true
+      const shadow = unit(op.shadow, was.shadow ?? 0)
+      if (shadow > 0) light.shadow = shadow
+      s.color = { ...s.color, light }
       return { ok: true, stack: s }
     }
 
     case 'look': {
       const was = s.color.look ?? { contours: 0, glow: 0 }
+      const unit = (v: number | undefined, d: number) => (v !== undefined && Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : d)
       const contours = op.contours !== undefined && Number.isFinite(op.contours) ? Math.min(60, Math.max(0, Math.round(op.contours))) : was.contours
-      const glow = op.glow !== undefined && Number.isFinite(op.glow) ? Math.min(1, Math.max(0, op.glow)) : was.glow
-      s.color = { ...s.color, look: { contours, glow } }
+      const look: NonNullable<ColorLayer['look']> = { contours, glow: unit(op.glow, was.glow) }
+      const outline = unit(op.outline, was.outline ?? 0), sketch = unit(op.sketch, was.sketch ?? 0)
+      if (outline > 0) look.outline = outline
+      if (sketch > 0) look.sketch = sketch
+      s.color = { ...s.color, look }
+      return { ok: true, stack: s }
+    }
+
+    case 'movement': {
+      if (op.move === 'still') delete s.move
+      else if (op.move === 'drift' || op.move === 'breathe') s.move = op.move
+      else return fail('bad_move')
       return { ok: true, stack: s }
     }
 

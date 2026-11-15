@@ -35,7 +35,7 @@ uniform float u_bgKind; uniform float u_bgAngle; uniform vec2 u_bgCenter;
 uniform float u_texIntensity; uniform float u_texScale; uniform float u_texGamma;
 uniform float u_texAnimated; uniform float u_texTarget; uniform float u_texMono;
 uniform float u_texOctaves; uniform float u_texAngle; uniform float u_texDotShape;
-uniform float u_texMatrix; uniform float u_texLevels; uniform float u_texFibers;
+uniform float u_texMatrix; uniform float u_texLevels; uniform float u_texFibers; uniform float u_texCross;
 
 // What the last shade() call saw, so a screening texture (halftone, dither) can re-shade
 // the same point with quantized inputs.
@@ -565,6 +565,38 @@ vec4 screenPattern(vec2 frag) {
 }
 `
 
+const HATCH = /* glsl */ `
+#define TEX_SCREEN
+// Pencil lines: the image becomes lines on the background, more sets and thicker strokes where
+// it is darker. Lines take a deep tone of the color under them. Base spacing is 4 CSS px × (scale + 1).
+float hatchSet(vec2 frag, float ang, float sp, float tone, float th) {
+  float amt = clamp((th - tone) / 0.35, 0.0, 1.0);
+  float y = -sin(ang) * frag.x + cos(ang) * frag.y;
+  float v = abs(mod(y, sp) - 0.5 * sp);
+  float w = amt * sp * 0.32;
+  return amt * (1.0 - smoothstep(w - 0.75, w + 0.75, v));
+}
+vec4 screenPattern(vec2 frag) {
+  float sp = (u_texScale + 1.0) * 4.0 * u_dpr;
+  // A little wobble, so the lines read as drawn by hand.
+  vec2 f = frag + 0.5 * sp * (vec2(noise(frag / (sp * 6.0)), noise(frag.yx / (sp * 6.0) + 9.0)) - 0.5);
+  vec4 P = patternAt(frag);
+  vec3 col = P.rgb / max(P.a, 1e-4);
+  float tone = mix(1.0, dot(col, vec3(0.299, 0.587, 0.114)), clamp(P.a, 0.0, 1.0));
+  tone = clamp(contrastCurve(tone - 0.5) + 0.5, 0.0, 1.0);
+  float ink = hatchSet(f, u_texAngle, sp, tone, 0.86);
+  ink = max(ink, hatchSet(f + 0.5 * sp, u_texAngle, sp, tone, 0.64));
+  if (u_texCross > 0.5) {
+    ink = max(ink, hatchSet(f, u_texAngle + 1.1, sp * 0.85, tone, 0.44));
+    ink = max(ink, hatchSet(f, u_texAngle - 0.9, sp * 0.7, tone, 0.24));
+  }
+  ink *= fadeAt(frag);
+  vec3 inkCol = (P.a > 0.01 ? col : u_pal[0]) * 0.3;
+  vec4 H = vec4(inkCol * ink, ink);
+  return mix(P * fadeAt(frag), H, u_texIntensity);
+}
+`
+
 const MAIN = /* glsl */ `
 vec3 background(vec2 frag) {
   if (u_bgType < 0.5) return u_bg[0];
@@ -638,7 +670,7 @@ export const SHAPE_CHUNKS: Record<ShapeType, string> = { blobs: BLOBS, waves: WA
 export const NEEDS_COMMON: Record<ShapeType, boolean> = { blobs: false, waves: true, bands: true, rings: true, dots: true, nodal: true }
 export { SHAPE_COMMON }
 
-const TEXTURES: Record<TextureType, string> = { none: '', grain: GRAIN, noise: NOISE, paper: PAPER, dither: DITHER, halftone: HALFTONE }
+const TEXTURES: Record<TextureType, string> = { none: '', grain: GRAIN, noise: NOISE, paper: PAPER, dither: DITHER, halftone: HALFTONE, hatch: HATCH }
 
 /**
  * A whole fragment shader around generated shape code. `shapes` must define

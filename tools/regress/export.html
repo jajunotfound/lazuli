@@ -43,6 +43,15 @@
       { op: 'add', layer: 'drawn', geom: { kind: 'ellipse', x: 0.25, y: 0.1, rx: 0.1, ry: 0.1, angle: 0 } },
       { op: 'delete', id: 'shape-1' },
     ]),
+    pencil: ops(still({ texture: { type: 'none' }, color: { palette: ['#3a3d45', '#9a9da5', '#f4f2ec'] }, background: { type: 'solid', color: '#f6f3ec' } }), [
+      { op: 'add', layer: 'drawn', geom: { kind: 'ellipse', x: -0.15, y: 0.05, rx: 0.15, ry: 0.15, angle: 0 } },
+      { op: 'add', layer: 'drawn', geom: { kind: 'ellipse', x: 0.12, y: -0.05, rx: 0.12, ry: 0.12, angle: 0 } },
+      { op: 'delete', id: 'shape-1' },
+      { op: 'light', amount: 0.6, shine: 0.1, x: 0.4, y: 0.35, shadow: 0.7 },
+      { op: 'look', outline: 0.5, sketch: 0.6 },
+      { op: 'movement', move: 'drift' },
+      { op: 'add', layer: 'texture', type: 'hatch' },
+    ]),
     'layers+warps': ops(still({ texture: { type: 'none' } }), [
       { op: 'add', layer: 'shape', type: 'rings' },
       { op: 'combine', id: 'shape-2', combine: 'cut' },
@@ -64,8 +73,8 @@
   let lastOver = 0
   // Screening textures sample the pattern at cell centers: a pixel on a cell edge can land in
   // the next cell when the compiler folds written-in constants differently from uniforms.
-  // Those flips are allowed for halftone/dither, up to 0.1% of values; everything else is exact.
-  const passes = (d, stack) => d <= 2 || (stack.textures.some((t) => t.visible && ['halftone', 'dither'].includes(t.settings.type)) && lastOver <= 0.001)
+  // Those flips are allowed for halftone, dither and hatch lines, up to 0.1% of values; everything else is exact.
+  const passes = (d, stack) => d <= 2 || (stack.textures.some((t) => t.visible && ['halftone', 'dither', 'hatch'].includes(t.settings.type)) && lastOver <= 0.001)
   const maxDiff = (a, b) => {
     if (a.length !== b.length) return (worst = `size ${a.length} vs ${b.length}`), 255
     // Premultiplied: PNGs store straight color, which magnifies rounding where alpha is tiny.
